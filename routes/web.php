@@ -19,3 +19,5 @@ require __DIR__ . '/auth.php';
 require __DIR__ . '/student.php';
 require __DIR__ . '/circle.php';
 require __DIR__ . '/attendance.php';
+require __DIR__ . '/teacher.php';
+require __DIR__ . '/subscription.php';

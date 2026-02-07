@@ -14,7 +14,6 @@ return new class extends Migration
         Schema::create('circle_teacher', function (Blueprint $table) {
             $table->foreignId('circle_id')->constrained()->onDelete('cascade');
             $table->foreignId('teacher_id')->constrained()->onDelete('cascade');
-            
             $table->primary(['circle_id', 'teacher_id']);
         });
     }

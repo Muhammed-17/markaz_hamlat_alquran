@@ -16,8 +16,8 @@ class StudentSeeder extends Seeder
         $circle = Circle::updateOrCreate(
             ['name' => 'حلقة أبو بكر الصديق'],
             [
-                'type' => 'جماعية',
-                'level' => 'بناء',
+                'type' => 'group',
+                'level' => 'build',
                 'is_active' => true,
                 'notes' => 'حلقة تعليمية للمبتدئين',
             ]
@@ -25,25 +25,25 @@ class StudentSeeder extends Seeder
 
         // 2. Ensure Guardian User exists
         $guardian = User::updateOrCreate(
-            ['email' => 'guardian@markaz.com'],
+            ['email' => 'mohamed@markaz.com'],
             [
-                'name' => 'ولي أمر افتراضي',
-                'password' => Hash::make('password'),
+                'name' => "محمد السيد الشعراوي",
+                'password' => Hash::make('12345678'),
             ]
         );
 
         // 3. Students Data
         $students = [
             ['name' => 'محمد أحمد الصالح', 'gender' => 'Male'],
-            ['name' => 'عبد الرحمن علي يوسف', 'gender' => 'Male'],
-            ['name' => 'يوسف إبراهيم الخليل', 'gender' => 'Male'],
-            ['name' => 'عمر خالد الوليد', 'gender' => 'Male'],
+            ['name' => 'عبدالرحمن علي يوسف', 'gender' => 'Male'],
+            ['name' => 'يوسف إبراهيم عبدالكريم', 'gender' => 'Male'],
+            ['name' => 'عمر خالد عفرات', 'gender' => 'Male'],
             ['name' => 'عثمان عفان النور', 'gender' => 'Male'],
-            ['name' => 'علي أبي طالب', 'gender' => 'Male'],
-            ['name' => 'فاطمة الزهراء حسن', 'gender' => 'Female'],
-            ['name' => 'مريم عمران عيسى', 'gender' => 'Female'],
-            ['name' => 'عائشة عبدالله بكر', 'gender' => 'Female'],
-            ['name' => 'خديجة خويلد أسد', 'gender' => 'Female'],
+            ['name' => 'علي عمر خالد', 'gender' => 'Male'],
+            ['name' => 'حسن محمد أحمد', 'gender' => 'Female'],
+            ['name' => 'أبوعبيدة أحمد السيد ', 'gender' => 'Female'],
+            ['name' => 'سيف عبدالله عمرو', 'gender' => 'Female'],
+            ['name' => 'عمرو السيد عبدالسميع', 'gender' => 'Female'],
         ];
 
         foreach ($students as $data) {
@@ -51,12 +51,12 @@ class StudentSeeder extends Seeder
                 ['name' => $data['name'], 'guardian_id' => $guardian->id],
                 [
                     'gender' => $data['gender'],
-                    'education_level' => 'Primary',
+                    'education_level' => 'primary',
                     'phone' => '05' . rand(10000000, 99999999),
                     'circle_id' => $circle->id,
                     'current_surah' => 'الفاتحة',
                     'enrollment_date' => now()->toDateString(),
-                    'status' => 'Active',
+                    'status' => 'active',
                     'date_of_birth' => now()->subYears(10)->toDateString(),
                 ]
             );

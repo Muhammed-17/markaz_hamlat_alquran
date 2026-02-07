@@ -3,9 +3,11 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Spatie\Permission\Traits\HasRoles;
 
 class Subscription extends Model
 {
+    use HasRoles;
     protected $fillable = [
         'student_id', 'circle_id', 'collected_by',
         'amount', 'month', 'status', 'payment_method',

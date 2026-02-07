@@ -3,10 +3,12 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Spatie\Permission\Traits\HasRoles;
 
 class Teacher extends Model
 {
-    protected $fillable = ['user_id', 'specialization'];
+    use HasRoles;
+    protected $fillable = ['user_id', 'name',];
 
     // علاقة: المعلم ← مستخدمه
     public function user()

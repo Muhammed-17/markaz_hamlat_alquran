@@ -14,8 +14,8 @@ class AdminUserSeeder extends Seeder
             'name' => 'مركز حملة القرآن',
             'email' => 'markaz@gmail.com',
             'password' => bcrypt('172021m'),
+            'status' => 'active',
         ]);
-
         $user->assignRole('admin');
 
         $this->command->info('✅ تم إنشاء حساب المدير بنجاح.');
