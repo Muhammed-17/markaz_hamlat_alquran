@@ -1,0 +1,629 @@
+
+<style>
+:root {
+  --brand: #0a5c36;
+  --brand-light: #e8f5ed;
+  --brand-mid: #1a7a4a;
+  --gold: #b8973a;
+  --gold-light: #faf8f2;
+  --indigo: #4338ca;
+  --indigo-light: #eef2ff;
+  --r: 16px;
+  --r-lg: 24px;
+  --r-xl: 32px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Tajawal', sans-serif; direction: rtl; }
+.page { background: var(--color-background-tertiary); padding: 20px; min-height: 100vh; }
+
+.header-card {
+  background: var(--color-background-primary);
+  border: 0.5px solid var(--color-border-tertiary);
+  border-radius: var(--r-xl);
+  padding: 28px 32px;
+  margin-bottom: 20px;
+  position: relative;
+  overflow: hidden;
+}
+.header-glow {
+  position: absolute; top: -60px; left: -60px;
+  width: 240px; height: 240px;
+  background: radial-gradient(circle, rgba(10,92,54,0.06) 0%, transparent 70%);
+  pointer-events: none;
+}
+.header-inner { display: flex; align-items: flex-start; gap: 24px; flex-wrap: wrap; }
+.avatar-wrap { position: relative; flex-shrink: 0; }
+.avatar {
+  width: 88px; height: 88px; border-radius: 20px;
+  background: var(--brand-light);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 28px; font-weight: 700; color: var(--brand);
+  border: 3px solid var(--color-background-primary);
+  box-shadow: 0 0 0 1.5px var(--brand-light);
+}
+.avatar-badge {
+  position: absolute; bottom: -6px; left: -6px;
+  width: 24px; height: 24px; border-radius: 8px;
+  background: var(--brand); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; border: 2px solid var(--color-background-primary);
+}
+.header-info { flex: 1; min-width: 200px; }
+.header-name { font-size: 22px; font-weight: 700; color: var(--color-text-primary); margin-bottom: 8px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.student-code { font-size: 11px; font-weight: 500; color: var(--color-text-secondary); background: var(--color-background-secondary); padding: 3px 10px; border-radius: 20px; border: 0.5px solid var(--color-border-tertiary); }
+.badges { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+.badge { display: inline-flex; align-items: center; gap: 5px; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+.badge-active { background: #e8f5ed; color: #0a5c36; }
+.badge-pending { background: #fef9e7; color: #7d5a0a; }
+.badge-debt { background: #fef2f2; color: #991b1b; }
+.badge-dot { width: 6px; height: 6px; border-radius: 50%; }
+.badge-dot-green { background: #10b981; animation: pulse 2s infinite; }
+.badge-dot-amber { background: #f59e0b; }
+.badge-dot-red { background: #ef4444; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+.meta-row { display: flex; gap: 20px; flex-wrap: wrap; }
+.meta-item { display: flex; align-items: center; gap: 7px; font-size: 13px; color: var(--color-text-secondary); }
+.meta-icon { width: 28px; height: 28px; border-radius: 8px; background: var(--color-background-secondary); display: flex; align-items: center; justify-content: center; font-size: 14px; }
+.header-actions { display: flex; gap: 10px; flex-shrink: 0; }
+.btn { padding: 9px 18px; border-radius: 12px; font-size: 13px; font-weight: 600; cursor: pointer; border: 0.5px solid var(--color-border-secondary); display: flex; align-items: center; gap: 6px; transition: all .15s; }
+.btn:hover { background: var(--color-background-secondary); }
+.btn-primary { background: var(--brand); color: #fff; border-color: var(--brand); }
+.btn-primary:hover { background: var(--brand-mid); }
+
+.tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--color-border-tertiary); margin: 20px -32px 0; padding: 0 32px; overflow-x: auto; }
+.tab { padding: 12px 16px; font-size: 13px; font-weight: 600; color: var(--color-text-secondary); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; transition: all .15s; border: none; background: none; }
+.tab:hover { color: var(--color-text-primary); }
+.tab.active { color: var(--brand); border-bottom-color: var(--brand); }
+
+.grid3 { display: grid; grid-template-columns: 280px 1fr; gap: 16px; }
+.grid2 { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 16px; }
+.grid2-3 { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 12px; }
+.col-span-2 { grid-column: span 2; }
+
+.card {
+  background: var(--color-background-primary);
+  border: 0.5px solid var(--color-border-tertiary);
+  border-radius: var(--r-lg);
+  padding: 20px;
+}
+.card-title { font-size: 14px; font-weight: 700; color: var(--color-text-primary); margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+.card-icon { width: 32px; height: 32px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+.icon-green { background: var(--brand-light); }
+.icon-amber { background: #fef3c7; }
+.icon-blue { background: #eff6ff; }
+.icon-indigo { background: var(--indigo-light); }
+.icon-rose { background: #fff1f2; }
+
+.info-row { display: flex; justify-content: space-between; align-items: center; padding: 9px 0; border-bottom: 0.5px solid var(--color-border-tertiary); gap: 12px; }
+.info-row:last-child { border-bottom: none; padding-bottom: 0; }
+.info-label { font-size: 12px; color: var(--color-text-secondary); font-weight: 500; }
+.info-value { font-size: 13px; font-weight: 700; color: var(--color-text-primary); text-align: left; }
+
+.stat-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.stat-box { background: var(--color-background-secondary); border-radius: 12px; padding: 14px; text-align: center; }
+.stat-num { font-size: 26px; font-weight: 700; }
+.stat-label { font-size: 11px; color: var(--color-text-secondary); font-weight: 600; margin-top: 2px; }
+.stat-green { color: #0a5c36; }
+.stat-red { color: #dc2626; }
+
+.progress-bar-wrap { margin: 12px 0; }
+.progress-label-row { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 6px; }
+.progress-bar { height: 8px; background: var(--color-border-tertiary); border-radius: 4px; overflow: hidden; }
+.progress-fill { height: 100%; background: var(--brand); border-radius: 4px; }
+
+.level-card { border-radius: 14px; padding: 14px 16px; border: 1px solid; margin-bottom: 12px; }
+.level-construction { background: #f0fdf4; border-color: #bbf7d0; }
+.level-itqan { background: var(--gold-light); border-color: #fde68a; }
+.level-ibda { background: var(--indigo-light); border-color: #c7d2fe; }
+.level-title { font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+.level-construction .level-title { color: #166534; }
+.level-itqan .level-title { color: #92400e; }
+.level-ibda .level-title { color: #3730a3; }
+.level-desc { font-size: 11px; color: var(--color-text-secondary); }
+
+.hobby-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.chip { padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; background: var(--brand-light); color: var(--brand); border: 0.5px solid rgba(10,92,54,.15); }
+
+.alert-box { border-radius: 12px; padding: 12px 14px; display: flex; gap: 10px; align-items: flex-start; margin-bottom: 12px; }
+.alert-amber { background: #fffbeb; border: 0.5px solid #fde68a; }
+.alert-rose { background: #fff1f2; border: 0.5px solid #fecdd3; }
+.alert-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+.alert-text { font-size: 12px; font-weight: 600; }
+.alert-amber .alert-text { color: #92400e; }
+.alert-rose .alert-text { color: #9f1239; }
+.alert-sub { font-size: 11px; margin-top: 2px; color: var(--color-text-secondary); }
+
+.section-divider { font-size: 11px; font-weight: 700; color: var(--color-text-tertiary); text-transform: uppercase; letter-spacing: .06em; margin: 16px 0 10px; display: flex; align-items: center; gap: 8px; }
+.section-divider::after { content:''; flex:1; height: 0.5px; background: var(--color-border-tertiary); }
+
+.quran-progress { background: linear-gradient(135deg, var(--brand) 0%, #1a7a4a 100%); border-radius: var(--r-lg); padding: 20px; color: #fff; margin-bottom: 16px; }
+.quran-surah { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+.quran-sub { font-size: 12px; opacity: .75; }
+.quran-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-top: 14px; }
+.quran-stat { background: rgba(255,255,255,.12); border-radius: 10px; padding: 10px; text-align: center; }
+.quran-stat-num { font-size: 20px; font-weight: 700; }
+.quran-stat-label { font-size: 10px; opacity: .8; margin-top: 2px; }
+
+.fin-cards { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-bottom: 16px; }
+.fin-card { border-radius: 12px; padding: 14px; border: 0.5px solid var(--color-border-tertiary); background: var(--color-background-primary); }
+.fin-card-label { font-size: 11px; color: var(--color-text-secondary); font-weight: 600; margin-bottom: 6px; }
+.fin-card-num { font-size: 22px; font-weight: 700; }
+.fc-green { color: #0a5c36; }
+.fc-red { color: #dc2626; }
+.fc-blue { color: #2563eb; }
+
+.table-wrap { border: 0.5px solid var(--color-border-tertiary); border-radius: 12px; overflow: hidden; }
+table { width: 100%; border-collapse: collapse; font-size: 12px; }
+th { background: var(--color-background-secondary); padding: 10px 14px; text-align: right; font-weight: 700; color: var(--color-text-secondary); font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
+td { padding: 11px 14px; border-bottom: 0.5px solid var(--color-border-tertiary); color: var(--color-text-primary); font-weight: 500; }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: rgba(10,92,54,.025); }
+.status-paid { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; background: #e8f5ed; color: #0a5c36; }
+.status-unpaid { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; background: #fff1f2; color: #9f1239; }
+
+.guardian-card { display: flex; align-items: center; gap: 12px; background: var(--color-background-secondary); border-radius: 12px; padding: 12px 14px; margin-bottom: 12px; }
+.guardian-avatar { width: 40px; height: 40px; border-radius: 12px; background: var(--brand-light); display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; color: var(--brand); flex-shrink: 0; }
+.guardian-name { font-size: 14px; font-weight: 700; color: var(--color-text-primary); }
+.guardian-role { font-size: 11px; color: var(--color-text-secondary); margin-top: 2px; }
+.contact-row { display: flex; align-items: center; gap: 8px; padding: 7px 0; border-bottom: 0.5px solid var(--color-border-tertiary); font-size: 12px; color: var(--color-text-secondary); }
+.contact-row:last-child { border-bottom: none; }
+.contact-row i { color: var(--brand); font-size: 15px; }
+
+.grade-upgrade { background: #fffbeb; border: 1px solid #fde68a; border-radius: 12px; padding: 12px 14px; margin-bottom: 14px; }
+.grade-upgrade-title { font-size: 12px; font-weight: 700; color: #92400e; margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
+.grade-flow { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; }
+.grade-old { color: var(--color-text-secondary); text-decoration: line-through; }
+.grade-arrow { color: #f59e0b; font-size: 16px; }
+.grade-new { color: #0a5c36; background: #dcfce7; padding: 2px 10px; border-radius: 8px; }
+
+.reading-chips { display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; }
+.reading-chip { border-radius: 10px; padding: 10px; text-align: center; border: 1px solid var(--color-border-tertiary); }
+.reading-chip.active { border-color: var(--brand); background: var(--brand-light); }
+.reading-chip-label { font-size: 12px; font-weight: 700; color: var(--color-text-primary); }
+.reading-chip.active .reading-chip-label { color: var(--brand); }
+.reading-chip-sub { font-size: 10px; color: var(--color-text-secondary); margin-top: 2px; }
+
+.panel { display: none; }
+.panel.active { display: block; }
+</style>
+
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+
+<div class="page" dir="rtl">
+  <h2 class="sr-only">صفحة ملف الطالب — نظام تصميم</h2>
+
+  <!-- ════════════ HEADER CARD ════════════ -->
+  <div class="header-card">
+    <div class="header-glow"></div>
+    <div class="header-inner">
+      <div class="avatar-wrap">
+        <div class="avatar">أم</div>
+        <div class="avatar-badge"><i class="ti ti-check" aria-hidden="true" style="font-size:12px"></i></div>
+      </div>
+
+      <div class="header-info">
+        <div class="header-name">
+          أحمد محمد علي حسن
+          <span class="student-code"># STD-0042</span>
+        </div>
+
+        <div class="badges">
+          <span class="badge badge-active">
+            <span class="badge-dot badge-dot-green"></span>
+            مقيد
+          </span>
+          <span class="badge badge-pending">
+            <span class="badge-dot badge-dot-amber"></span>
+            تحت الاختبار
+          </span>
+          <span class="badge badge-debt">
+            <span class="badge-dot badge-dot-red"></span>
+            متأخر مالياً
+          </span>
+        </div>
+
+        <div class="meta-row">
+          <div class="meta-item">
+            <div class="meta-icon">🌱</div>
+            <span>مستوى البناء</span>
+          </div>
+          <div class="meta-item">
+            <div class="meta-icon">📖</div>
+            <span>حلقة الفجر</span>
+          </div>
+          <div class="meta-item">
+            <div class="meta-icon">🎂</div>
+            <span>12 سنة</span>
+          </div>
+          <div class="meta-item">
+            <div class="meta-icon">📍</div>
+            <span>الرئيسي — ههيا</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <button class="btn"><i class="ti ti-message" aria-hidden="true"></i> رسالة</button>
+        <button class="btn btn-primary"><i class="ti ti-edit" aria-hidden="true"></i> تعديل</button>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('overview',this)">نظرة عامة</button>
+      <button class="tab" onclick="switchTab('personal',this)">البيانات الشخصية</button>
+      <button class="tab" onclick="switchTab('academic',this)">المستوى القرآني</button>
+      <button class="tab" onclick="switchTab('attendance',this)">الحضور والغياب</button>
+      <button class="tab" onclick="switchTab('fees',this)">الرسوم المالية</button>
+      <button class="tab" onclick="switchTab('care',this)">الرعاية والسلوك</button>
+    </div>
+  </div>
+
+  <!-- ════════════ TAB: نظرة عامة ════════════ -->
+  <div class="panel active" id="tab-overview">
+    <div class="grid3">
+
+      <!-- Sidebar -->
+      <div style="display:flex;flex-direction:column;gap:16px;">
+
+        <!-- أداء الحضور -->
+        <div class="card">
+          <div class="card-title">
+            <div class="card-icon icon-amber">
+              <i class="ti ti-bolt" aria-hidden="true" style="color:#d97706;font-size:16px"></i>
+            </div>
+            تحليل الأداء
+          </div>
+          <div class="progress-bar-wrap">
+            <div class="progress-label-row">
+              <span class="info-label">نسبة الالتزام</span>
+              <span style="font-size:13px;font-weight:700;color:var(--brand)">78%</span>
+            </div>
+            <div class="progress-bar"><div class="progress-fill" style="width:78%"></div></div>
+          </div>
+          <div class="stat-grid">
+            <div class="stat-box">
+              <div class="stat-num stat-green">24</div>
+              <div class="stat-label">يوم حضور</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-num stat-red">7</div>
+              <div class="stat-label">يوم غياب</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ولي الأمر -->
+        <div class="card">
+          <div class="card-title">
+            <div class="card-icon icon-blue">
+              <i class="ti ti-user-circle" aria-hidden="true" style="color:#2563eb;font-size:16px"></i>
+            </div>
+            معلومات ولي الأمر
+          </div>
+          <div class="guardian-card">
+            <div class="guardian-avatar">مح</div>
+            <div>
+              <div class="guardian-name">محمد علي حسن</div>
+              <div class="guardian-role">الأب — ولي أمر</div>
+            </div>
+          </div>
+          <div class="contact-row">
+            <i class="ti ti-brand-whatsapp" aria-hidden="true"></i>
+            <span>01012345678</span>
+            <span style="font-size:10px;color:var(--color-text-tertiary);margin-right:auto">الأب</span>
+          </div>
+          <div class="contact-row">
+            <i class="ti ti-phone" aria-hidden="true"></i>
+            <span>01112345678</span>
+            <span style="font-size:10px;color:var(--color-text-tertiary);margin-right:auto">الأم</span>
+          </div>
+          <div class="contact-row">
+            <i class="ti ti-map-pin" aria-hidden="true"></i>
+            <span>الشرقية — ههيا — قرية صبيح</span>
+          </div>
+        </div>
+
+        <!-- الوضع المالي -->
+        <div class="card">
+          <div class="card-title">
+            <div class="card-icon icon-green">
+              <i class="ti ti-wallet" aria-hidden="true" style="color:var(--brand);font-size:16px"></i>
+            </div>
+            الوضع المالي
+          </div>
+          <div class="alert-box alert-rose">
+            <div class="alert-icon">⚠️</div>
+            <div>
+              <div class="alert-text">يوجد اشتراكات غير مدفوعة</div>
+              <div class="alert-sub">إجمالي المتأخرات: 3 أشهر</div>
+            </div>
+          </div>
+          <div class="info-row">
+            <span class="info-label">إجمالي المدفوع</span>
+            <span class="info-value" style="color:#2563eb">600 ج.م</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">الأدوات المستلمة</span>
+            <span class="info-value">المصحف والمتابعة</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">رسوم الحجز</span>
+            <span class="info-value">150 ج.م</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main content -->
+      <div style="display:flex;flex-direction:column;gap:16px;">
+
+        <!-- تقدم الحفظ -->
+        <div class="quran-progress">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start">
+            <div>
+              <div style="font-size:11px;opacity:.75;margin-bottom:4px">السورة الحالية</div>
+              <div class="quran-surah">سورة البقرة</div>
+              <div class="quran-sub">الآية 45 — مستوى متمكن</div>
+            </div>
+            <div style="text-align:left">
+              <div style="font-size:11px;opacity:.75;margin-bottom:2px">الحلقة</div>
+              <div style="font-size:14px;font-weight:700">حلقة الفجر</div>
+            </div>
+          </div>
+          <div class="quran-grid">
+            <div class="quran-stat">
+              <div class="quran-stat-num">5</div>
+              <div class="quran-stat-label">أجزاء محفوظة</div>
+            </div>
+            <div class="quran-stat">
+              <div class="quran-stat-num">جماعي</div>
+              <div class="quran-stat-label">النظام المتبع</div>
+            </div>
+            <div class="quran-stat">
+              <div class="quran-stat-num">ممتاز</div>
+              <div class="quran-stat-label">مستوى الحفظ</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- البيانات الإدارية -->
+        <div class="card">
+          <div class="card-title">
+            <div class="card-icon icon-green">
+              <i class="ti ti-clipboard-list" aria-hidden="true" style="color:var(--brand);font-size:16px"></i>
+            </div>
+            ملخص إداري
+          </div>
+          <div class="grid2">
+            <div>
+              <div class="info-row"><span class="info-label">تاريخ المقابلة</span><span class="info-value">2024-09-01</span></div>
+              <div class="info-row"><span class="info-label">مقدم الطلب</span><span class="info-value">الأب</span></div>
+              <div class="info-row"><span class="info-label">المشرف المسجّل</span><span class="info-value">محمد الطيب</span></div>
+            </div>
+            <div>
+              <div class="info-row"><span class="info-label">قرار الإدارة</span><span class="info-value" style="color:#92400e">تحت الاختبار</span></div>
+              <div class="info-row"><span class="info-label">خروج الطالب</span><span class="info-value">مع ولي الأمر</span></div>
+              <div class="info-row"><span class="info-label">المركز</span><span class="info-value">الرئيسي</span></div>
+            </div>
+          </div>
+          <div class="section-divider">ملاحظات المشرف</div>
+          <div style="font-size:12px;color:var(--color-text-secondary);background:var(--color-background-secondary);padding:10px 12px;border-radius:10px;line-height:1.7">
+            يحتاج متابعة منتظمة في التجويد — مخارج الحروف بحاجة لتقوية.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════ TAB: البيانات الشخصية ════════════ -->
+  <div class="panel" id="tab-personal">
+    <div class="grid2" style="gap:16px">
+
+      <!-- الهوية -->
+      <div class="card">
+        <div class="card-title">
+          <div class="card-icon icon-green">
+            <i class="ti ti-id-badge-2" aria-hidden="true" style="color:var(--brand);font-size:16px"></i>
+          </div>
+          البيانات الأساسية
+        </div>
+        <div class="info-row"><span class="info-label">الاسم رباعياً</span><span class="info-value">أحمد محمد علي حسن</span></div>
+        <div class="info-row"><span class="info-label">النوع</span><span class="info-value">ذكر</span></div>
+        <div class="info-row"><span class="info-label">تاريخ الميلاد</span><span class="info-value">2012-03-15</span></div>
+        <div class="info-row"><span class="info-label">العمر</span><span class="info-value">12 سنة</span></div>
+        <div class="info-row"><span class="info-label">كود الطالب</span><span class="info-value">STD-0042</span></div>
+        <div class="info-row"><span class="info-label">العنوان</span><span class="info-value">الشرقية — ههيا — قرية صبيح</span></div>
+        <div class="info-row"><span class="info-label">المركز / الفرع</span><span class="info-value">الرئيسي</span></div>
+      </div>
+
+      <!-- البيانات الدراسية -->
+      <div class="card">
+        <div class="card-title">
+          <div class="card-icon icon-blue">
+            <i class="ti ti-school" aria-hidden="true" style="color:#2563eb;font-size:16px"></i>
+          </div>
+          البيانات الدراسية
+        </div>
+
+        <!-- تنبيه ترقية الصف -->
+        <div class="grade-upgrade">
+          <div class="grade-upgrade-title">
+            <i class="ti ti-calendar-event" aria-hidden="true"></i>
+            موسم العام الدراسي الجديد
+          </div>
+          <div class="grade-flow">
+            <span class="grade-old">الرابع</span>
+            <span class="grade-arrow">←</span>
+            <span class="grade-new">الخامس</span>
+          </div>
+          <div style="font-size:11px;color:#92400e;margin-top:6px">يُرجى تحديث البيانات لتعكس العام الجديد</div>
+        </div>
+
+        <div class="info-row"><span class="info-label">المرحلة الدراسية</span><span class="info-value">ابتدائي</span></div>
+        <div class="info-row"><span class="info-label">نوع التعليم</span><span class="info-value">أزهري</span></div>
+        <div class="info-row"><span class="info-label">الصف (مسجّل)</span><span class="info-value" style="color:var(--color-text-secondary);text-decoration:line-through">الرابع</span></div>
+        <div class="info-row"><span class="info-label">الصف الحالي</span><span class="info-value" style="color:var(--brand)">الخامس ↑</span></div>
+        <div class="info-row"><span class="info-label">المؤسسة التعليمية</span><span class="info-value">مدرسة الأزهر الابتدائية ههيا</span></div>
+      </div>
+
+      <!-- التواصل -->
+      <div class="card">
+        <div class="card-title">
+          <div class="card-icon icon-green">
+            <i class="ti ti-device-mobile" aria-hidden="true" style="color:var(--brand);font-size:16px"></i>
+          </div>
+          بيانات التواصل
+        </div>
+        <div class="info-row"><span class="info-label">واتساب</span><span class="info-value">01012345678 <span style="font-size:10px;color:var(--color-text-tertiary)">(الأب)</span></span></div>
+        <div class="info-row"><span class="info-label">رقم إضافي</span><span class="info-value">01112345678 <span style="font-size:10px;color:var(--color-text-tertiary)">(الأم)</span></span></div>
+        <div class="info-row"><span class="info-label">ولي الأمر</span><span class="info-value">محمد علي حسن</span></div>
+        <div class="info-row"><span class="info-label">مقدم الطلب</span><span class="info-value">الأب</span></div>
+      </div>
+
+      <!-- الرعاية -->
+      <div class="card">
+        <div class="card-title">
+          <div class="card-icon icon-green">
+            <i class="ti ti-heart" aria-hidden="true" style="color:var(--brand);font-size:16px"></i>
+          </div>
+          الرعاية والسمات
+        </div>
+        <div class="info-row"><span class="info-label">الحالة الصحية</span><span class="info-value">طبيعية ✓</span></div>
+        <div class="info-row"><span class="info-label">صعوبات التعلم</span><span class="info-value">لا يوجد ✓</span></div>
+        <div class="info-row"><span class="info-label">السمات الشخصية</span><span class="info-value">لا يوجد</span></div>
+        <div class="info-row"><span class="info-label">خروج الطالب</span><span class="info-value">مع ولي الأمر</span></div>
+        <div class="section-divider">الهوايات</div>
+        <div class="hobby-chips">
+          <span class="chip">كرة القدم</span>
+          <span class="chip">القراءة والإطلاع</span>
+          <span class="chip">الرسم</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════ TAB: المستوى القرآني ════════════ -->
+  <div class="panel" id="tab-academic">
+    <div style="display:flex;flex-direction:column;gap:16px;">
+
+      <!-- تقييم التلاوة -->
+      <div class="card">
+        <div class="card-title">
+          <div class="card-icon icon-green">
+            <i class="ti ti-microphone" aria-hidden="true" style="color:var(--brand);font-size:16px"></i>
+          </div>
+          تقييم التلاوة ومستوى الالتحاق
+        </div>
+        <div class="reading-chips">
+          <div class="reading-chip"><div class="reading-chip-label">مبتدئ</div><div class="reading-chip-sub">لا يقرأ</div></div>
+          <div class="reading-chip"><div class="reading-chip-label">مقبول</div><div class="reading-chip-sub">يقرأ ببطء</div></div>
+          <div class="reading-chip active"><div class="reading-chip-label">متمكن</div><div class="reading-chip-sub">بدون أحكام</div></div>
+          <div class="reading-chip"><div class="reading-chip-label">متقن</div><div class="reading-chip-sub">توجد أحكام</div></div>
+        </div>
+      </div>
+
+      <!-- مستوى البناء -->
+      <div class="card">
+        <div class="level-card level-construction">
+          <div class="level-title">🌱 مستوى البناء — الحلقات التأسيسية</div>
+          <div class="level-desc">الحلقات الأساسية وحفظ الأجزاء المنتظمة</div>
+        </div>
+        <div class="grid2-3">
+          <div class="stat-box"><div class="stat-num stat-green" style="font-size:15px">البقرة</div><div class="stat-label">السورة الحالية</div></div>
+          <div class="stat-box"><div class="stat-num stat-green" style="font-size:15px">جماعي</div><div class="stat-label">النظام</div></div>
+          <div class="stat-box"><div class="stat-num stat-green" style="font-size:15px">ممتاز</div><div class="stat-label">مستوى الحفظ</div></div>
+        </div>
+        <div class="section-divider">خطط الحفظ</div>
+        <div class="grid2">
+          <div class="info-row"><span class="info-label">خطة الحفظ الجديد</span><span class="info-value">5 سطور يومياً</span></div>
+          <div class="info-row"><span class="info-label">خطة المراجعة</span><span class="info-value">فئة المرتل</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════ TAB: الحضور ════════════ -->
+  <div class="panel" id="tab-attendance">
+    <div class="card" style="padding:0;overflow:hidden">
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:0.5px solid var(--color-border-tertiary)">
+        <div class="card-title" style="margin:0">
+          <div class="card-icon icon-green"><i class="ti ti-clipboard-check" aria-hidden="true" style="color:var(--brand);font-size:16px"></i></div>
+          سجل الحضور والغياب
+        </div>
+        <button class="btn btn-primary" style="font-size:12px;padding:7px 14px">
+          <i class="ti ti-plus" aria-hidden="true"></i> تسجيل حضور
+        </button>
+      </div>
+      <div class="table-wrap" style="border-radius:0;border:none">
+        <table>
+          <thead><tr><th>التاريخ</th><th>الحالة</th><th>الملاحظات</th></tr></thead>
+          <tbody>
+            <tr><td>الأحد، 1 ديسمبر 2024</td><td><span class="status-paid">حاضر</span></td><td style="color:var(--color-text-tertiary)">—</td></tr>
+            <tr><td>الخميس، 28 نوفمبر 2024</td><td><span class="status-unpaid">غائب</span></td><td>بعذر مرضي</td></tr>
+            <tr><td>الأحد، 24 نوفمبر 2024</td><td><span class="status-paid">حاضر</span></td><td style="color:var(--color-text-tertiary)">—</td></tr>
+            <tr><td>الخميس، 21 نوفمبر 2024</td><td><span class="status-paid">حاضر</span></td><td style="color:var(--color-text-tertiary)">—</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════ TAB: الرسوم ════════════ -->
+  <div class="panel" id="tab-fees">
+    <div style="display:flex;flex-direction:column;gap:16px;">
+      <div class="fin-cards">
+        <div class="fin-card"><div class="fin-card-label">الأشهر المدفوعة</div><div class="fin-card-num fc-green">6</div></div>
+        <div class="fin-card"><div class="fin-card-label">الأشهر المتأخرة</div><div class="fin-card-num fc-red">3</div></div>
+        <div class="fin-card"><div class="fin-card-label">إجمالي المدفوع</div><div class="fin-card-num fc-blue">600 <span style="font-size:12px;font-weight:500;color:var(--color-text-secondary)">ج.م</span></div></div>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:0.5px solid var(--color-border-tertiary)">
+          <div class="card-title" style="margin:0">
+            <div class="card-icon icon-green"><i class="ti ti-receipt" aria-hidden="true" style="color:var(--brand);font-size:16px"></i></div>
+            سجل الدفعات
+          </div>
+          <button class="btn btn-primary" style="font-size:12px;padding:7px 14px">
+            <i class="ti ti-plus" aria-hidden="true"></i> دفعة جديدة
+          </button>
+        </div>
+        <div class="table-wrap" style="border-radius:0;border:none">
+          <table>
+            <thead><tr><th>الشهر</th><th>المبلغ</th><th>تاريخ الدفع</th><th>طريقة الدفع</th><th>الحالة</th></tr></thead>
+            <tbody>
+              <tr><td>ديسمبر 2024</td><td style="font-weight:700">100 ج.م</td><td>2024/12/01</td><td><span style="background:#eff6ff;color:#1d4ed8;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700">نقدي</span></td><td><span class="status-paid">مدفوع</span></td></tr>
+              <tr><td>نوفمبر 2024</td><td style="font-weight:700">100 ج.م</td><td>2024/11/02</td><td><span style="background:#eff6ff;color:#1d4ed8;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700">نقدي</span></td><td><span class="status-paid">مدفوع</span></td></tr>
+              <tr style="background:rgba(239,68,68,.03)"><td>أكتوبر 2024</td><td style="font-weight:700;color:#dc2626">—</td><td style="color:var(--color-text-tertiary)">—</td><td style="color:var(--color-text-tertiary)">—</td><td><span class="status-unpaid">غير مدفوع</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════ TAB: الرعاية ════════════ -->
+  <div class="panel" id="tab-care">
+    <div class="card">
+      <div class="card-title">
+        <div class="card-icon icon-green">
+          <i class="ti ti-notes" aria-hidden="true" style="color:var(--brand);font-size:16px"></i>
+        </div>
+        الملاحظات السلوكية والتأديبية
+      </div>
+      <div style="text-align:center;padding:40px 20px;">
+        <div style="width:56px;height:56px;background:var(--brand-light);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;font-size:24px">✓</div>
+        <div style="font-size:14px;font-weight:700;color:var(--color-text-primary);margin-bottom:4px">سلوك ممتاز</div>
+        <div style="font-size:12px;color:var(--color-text-secondary)">لا توجد أي ملاحظات سلوكية سلبية مسجلة</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+function switchTab(name, el) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  el.classList.add('active');
+}
+</script>

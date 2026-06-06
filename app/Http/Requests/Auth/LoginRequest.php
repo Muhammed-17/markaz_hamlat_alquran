@@ -19,9 +19,15 @@ class LoginRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'email' => ['required', 'string', 'email'],
+            'email' => ['required', 'string'],
             'password' => ['required', 'string'],
         ];
+    }
+
+    protected function getLoginField(): string
+    {
+        $value = $this->input('email');
+        return preg_match('/^[0-9+\- ]+$/', $value) ? 'mobile' : 'email';
     }
 
     /**
@@ -33,8 +39,10 @@ class LoginRequest extends FormRequest
     {
         $this->ensureIsNotRateLimited();
 
+        $loginField = $this->getLoginField();
+
         if (! Auth::attempt([
-                'email' => $this->email,
+                $loginField => $this->email,
                 'password' => $this->password,
                 'status' => 'active',
             ], $this->boolean('remember'))) {

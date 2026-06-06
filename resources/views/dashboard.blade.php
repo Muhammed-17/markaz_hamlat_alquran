@@ -186,19 +186,19 @@
             </div>
         </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <div class="grid grid-cols-1 lg:grid-cols-1 gap-6 mb-8">
             <!-- Absent Students -->
             <div class="bg-white p-6 rounded-xl shadow-sm border-r-4 border-red-500">
                 <div class="flex justify-between items-center mb-4">
-                    <h3 class="font-bold text-gray-700">الطلاب الأكثر غياباً (> ١ يوم)</h3>
-                    <a href="{{ route('attendance.report') }}"
+                    <h3 class="font-bold text-gray-700">الطلاب الأكثر غياباً</h3>
+                    <a href="{{ route('attendance.sequential-absences') }}"
                         class="text-sm text-blue-600 hover:text-blue-800 transition">عرض المزيد</a>
                 </div>
                 <div class="space-y-3">
                     @forelse($absentStudents ?? [] as $student)
-                        <div class="flex justify-between items-center border-b border-gray-50 pb-2 last:border-0">
+                        <div class="flex justify-between items-center border-b border-gray-50 pb-2 last:border-0 ">
                             <div>
-                                <p class="font-medium text-gray-800">{{ $student->name }}</p>
+                                <p class="font-medium text-gray-800">{{ $student->name }}</p>   
                                 <p class="text-xs text-gray-500">{{ $student->circle?->name ?? 'بدون حلقة' }}</p>
                             </div>
                             <span
@@ -214,10 +214,9 @@
             <!-- Unpaid Students -->
             <div class="bg-white p-6 rounded-xl shadow-sm border-r-4 border-orange-500">
                 <div class="flex justify-between items-center mb-4">
-                    <h3 class="font-bold text-gray-700">طلاب لم يسددوا الاشتراك ({{ now()->locale('ar')->monthName }})
-                    </h3>
-                    <a href="{{ route('subscriptions.index') }}"
-                        class="text-sm text-blue-600 hover:text-blue-800 transition">عرض الكل</a>
+                    <h3 class="font-bold text-gray-700">طلاب عليهم متأخرات</h3>
+                    <a href="{{ route('subscriptions.late_and_unpaid') }}"
+                        class="text-sm text-blue-600 hover:text-blue-800 transition">عرض التقرير المفصل</a>
                 </div>
                 <div class="space-y-3">
                     @forelse($unpaidStudents ?? [] as $student)
@@ -226,10 +225,12 @@
                                 <p class="font-medium text-gray-800">{{ $student->name }}</p>
                                 <p class="text-xs text-gray-500">{{ $student->circle?->name ?? 'بدون حلقة' }}</p>
                             </div>
-                            <span class="bg-orange-100 text-orange-700 text-xs px-2 py-1 rounded-full">غير مسدد</span>
+                            <span class="bg-orange-100 text-orange-700 text-xs px-2 py-1 rounded-full">
+                                {{ $student->unpaid_months_count }} شهر متأخر
+                            </span>
                         </div>
                     @empty
-                        <p class="text-gray-500 text-sm">جميع الطلاب سددوا الاشتراك لهذا الشهر.</p>
+                        <p class="text-gray-500 text-sm">جميع الطلاب سددوا الاشتراكات بالكامل.</p>
                     @endforelse
                 </div>
             </div>

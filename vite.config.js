@@ -10,4 +10,8 @@ export default defineConfig({
         }),
         tailwindcss(),
     ],
+    // هاد السطر اللي بيخلي الـ Tailwind يشتغل ويحدث مباشرة على الموبايل
+    // server: {
+    //     host: true,
+    // },
 });

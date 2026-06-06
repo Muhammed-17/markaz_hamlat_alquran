@@ -1,9 +1,9 @@
 <x-layouts.markaz-layout>
 
     <div class="space-y-6" x-data="{
-        selectedCircle: '',
-        selectedStudent: '',
-        selectedMonth: '{{ date('Y-m') }}',
+        selectedCircle: '{{ request('circle_id') }}',
+        selectedStudent: '{{ request('student_id') }}',
+        selectedMonth: '{{ request('month') ?? date('Y-m') }}',
         amount: 60,
         isSubmitting: false,
     
@@ -11,50 +11,62 @@
         circles: {{ Js::from($circles) }},
         prices: {{ Js::from($prices) }},
     
-        get filteredStudents() {
+        init() {
+            if (this.selectedCircle && this.selectedStudent) {
+                this.$nextTick(() => {
+                    this.updateDefaultAmount();
+                });
+            }
+        },
     
+        get filteredStudents() {
             if (!this.selectedCircle) return [];
     
-            let filtered = this.students.filter(
-                s => s.circle_id == this.selectedCircle
-            );
+            // Filter by circle
+            let filtered = this.students.filter(s => s.circle_id == this.selectedCircle);
     
+            // If query params are set (editing/pre-filling), don't hide the selected student even if they have a sub
+            // But wait, the goal of 'filteredStudents' was to hide paid students.
+            // If we are coming from 'Late & Unpaid', they are unpaid, so they should show up.
+            // If we are forcibly selecting a student, we want them in the list.
+    
+            // If no month selected, just return list
             if (!this.selectedMonth) return filtered;
     
+            // Filter out students who already have a subscription for the selected month
             return filtered.filter(s => {
+                // EXCEPTION: If this student is the one we explicitly selected via URL, show them!
+                if (s.id == this.selectedStudent) return true;
     
-                const hasSub = s.subscriptions?.some(sub =>
-                    sub.month?.startsWith(this.selectedMonth)
-                );
-    
+                // Check if any subscription matches the selected month
+                const hasSub = s.subscriptions && s.subscriptions.some(sub => sub.month && sub.month.startsWith(this.selectedMonth));
                 return !hasSub;
             });
         },
     
         updateDefaultAmount() {
+            // Find selected student
+            const student = this.students.find(s => s.id == this.selectedStudent);
     
-            const student = this.students.find(
-                s => s.id == this.selectedStudent
-            );
+            if (student) {
+                // Use safe access and lowercase for comparison
+                const eduLevel = student.education_level ? student.education_level.toLowerCase() : '';
+                const circleLevel = student.circle && student.circle.level ? student.circle.level.toLowerCase() : '';
     
-            if (!student) {
+                // Find matching price (case-insensitive)
+                const priceRule = this.prices.find(p =>
+                    (p.education_level ? p.education_level.toLowerCase() : '') == eduLevel &&
+                    (p.circle_level ? p.circle_level.toLowerCase() : '') == circleLevel
+                );
+    
+                if (priceRule) {
+                    this.amount = priceRule.amount;
+                } else {
+                    this.amount = 60; // Default
+                }
+            } else {
                 this.amount = 60;
-                return;
             }
-    
-            const eduLevel =
-                student.education_level?.toLowerCase() ?? '';
-    
-            const circleLevel =
-                student.circle?.level?.toLowerCase() ?? '';
-    
-            const priceRule = this.prices.find(p =>
-    
-                (p.education_level?.toLowerCase() ?? '') === eduLevel &&
-                (p.circle_level?.toLowerCase() ?? '') === circleLevel
-            );
-    
-            this.amount = priceRule?.amount ?? 60;
         }
     }">
 
@@ -84,7 +96,23 @@
 
                 @csrf
 
-                <div class="grid md:grid-cols-2 gap-8">
+                <!-- Selected Student Summary (Visible when student is selected) -->
+                {{-- <div x-show="selectedStudent"
+                    class="col-span-1 md:col-span-2 bg-emerald-50 border border-emerald-100 rounded-2xl p-4 flex items-center gap-4 animate-fade-in">
+                    <div class="bg-emerald-100 p-3 rounded-full text-emerald-600">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <p class="text-sm text-emerald-600 font-bold">يتم تسجيل الاشتراك للطالب:</p>
+                        <p class="text-lg font-black text-gray-800"
+                            x-text="students.find(s => s.id == selectedStudent)?.name"></p>
+                    </div>
+                </div> --}}
+
+                <div class="grid md:grid-cols-2 gap-8 col-span-1 md:col-span-2">
 
                     <!-- Circle -->
                     <div>
@@ -97,9 +125,9 @@
                             <option value="">اختر الحلقة...</option>
 
                             @foreach ($circles as $circle)
-                                <option value="{{ $circle->id }}">
-                                    {{ $circle->name }} ({{ $circle->level }})
-                                </option>
+                            <option value="{{ $circle->id }}">
+                                {{ $circle->name }}
+                            </option>
                             @endforeach
 
                         </select>
@@ -121,7 +149,8 @@ disabled:opacity-40 disabled:cursor-not-allowed">
                             <option value="">اختر الطالب...</option>
 
                             <template x-for="student in filteredStudents" :key="student.id">
-                                <option :value="student.id" x-text="student.name"></option>
+                                <option :value="student.id" x-text="student.name"
+                                    :selected="student.id == selectedStudent"></option>
                             </template>
 
                         </select>
@@ -134,8 +163,8 @@ disabled:opacity-40 disabled:cursor-not-allowed">
                         <x-input-error :messages="$errors->get('student_id')" class="mt-2" />
 
                     </div>
-
-
+                </div>
+                <div class="grid md:grid-cols-2 gap-8">
                     <!-- Month -->
                     <div>
                         <label class="block text-gray-700 font-bold mb-2">اشتراك شهر</label>
@@ -196,12 +225,11 @@ font-black text-emerald-600 text-xl">
 
                             <option value="مدفوع">مدفوع</option>
                             <option value="غير مدفوع">غير مدفوع</option>
-                            <option value="ملغي">ملغي</option>
+                            <option value="معفي">معفي</option>
 
                         </select>
 
                     </div>
-
                 </div>
 
 

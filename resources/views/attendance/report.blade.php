@@ -26,7 +26,7 @@
         <!-- Filters Section -->
         <div class="bg-white p-6 rounded-[30px] shadow-sm border border-gray-100 transition-all">
             <form action="{{ route('attendance.report') }}" method="GET"
-                class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
                 <div class="space-y-1">
                     <label class="text-xs font-bold text-gray-400 px-2">الحلقة</label>
                     <select name="circle_id"
@@ -36,6 +36,20 @@
                             <option value="{{ $circle->id }}"
                                 {{ $selectedCircleId == $circle->id ? 'selected' : '' }}>
                                 {{ $circle->name }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <div class="space-y-1">
+                    <label class="text-xs font-bold text-gray-400 px-2">المسجل</label>
+                    <select name="user_id"
+                        class="w-full bg-gray-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-emerald-500 font-bold text-gray-700">
+                        <option value="">كل المسجلين</option>
+                        @foreach ($registrars as $registrar)
+                            <option value="{{ $registrar->id }}"
+                                {{ $selectedRegistrarId == $registrar->id ? 'selected' : '' }}>
+                                {{ $registrar->name }}
                             </option>
                         @endforeach
                     </select>
@@ -53,6 +67,15 @@
                         class="w-full bg-gray-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-emerald-500 font-bold text-gray-700">
                 </div>
 
+                <div class="space-y-1">
+                    <label class="text-xs font-bold text-gray-400 px-2">ترتيب التاريخ</label>
+                    <select name="sort_order"
+                        class="w-full bg-gray-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-emerald-500 font-bold text-gray-700">
+                        <option value="desc" {{ $sortOrder == 'desc' ? 'selected' : '' }}>الأحدث أولاً</option>
+                        <option value="asc" {{ $sortOrder == 'asc' ? 'selected' : '' }}>الأقدم أولاً</option>
+                    </select>
+                </div>
+
                 <div class="flex items-end">
                     <button type="submit"
                         class="w-full bg-[#0a5c36] text-white rounded-2xl p-4 font-black hover:scale-[1.02] active:scale-95 transition-all shadow-lg shadow-emerald-900/10">
@@ -68,16 +91,20 @@
                 <table class="w-full text-right">
                     <thead class="bg-gray-50 border-b border-gray-100 font-black text-gray-400 text-sm uppercase">
                         <tr>
+                            <th class="px-8 py-5 text-center">#</th>
                             <th class="px-8 py-5">تاريخ</th>
                             <th class="px-8 py-5">اسم الطالب</th>
                             <th class="px-8 py-5">الحلقة</th>
                             <th class="px-8 py-5">الحالة</th>
-                            <th class="px-8 py-5">المعلم</th>
+                            <th class="px-8 py-5">المسجل</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-50">
                         @forelse($records as $record)
                             <tr class="hover:bg-emerald-50/30 transition-all group">
+                                <td class="px-8 py-6 font-bold text-gray-500 text-center">
+                                    {{ ($records->currentPage() - 1) * $records->perPage() + $loop->iteration }}
+                                </td>
                                 <td class="px-8 py-6 font-bold text-gray-700">{{ $record->date }}</td>
                                 <td class="px-8 py-6">
                                     <div class="flex items-center gap-3">
@@ -119,11 +146,11 @@
                                         </span>
                                     @endif
                                 </td>
-                                <td class="px-8 py-6 text-gray-500 font-medium">بواسطة المعلم</td>
+                                <td class="px-8 py-6 text-gray-500 font-medium">{{ $record->user->name ?? ($record->student->circle->mainTeacher->first()?->name ?? 'بواسطة المعلم') }}</td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="5" class="px-8 py-20 text-center text-gray-400 font-medium">
+                                <td colspan="6" class="px-8 py-20 text-center text-gray-400 font-medium">
                                     لا توجد سجلات مطابقة لهذه الفلاتر.
                                 </td>
                             </tr>

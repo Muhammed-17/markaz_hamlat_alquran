@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use App\Http\Requests\CreateCircleRequest;
-use App\Http\Requests\EditCircleRequest;
+
+use App\Http\Requests\Circle\CreateCircleRequest;
+use App\Http\Requests\Circle\EditCircleRequest;
 use App\Models\Circle;
 use App\Models\Teacher;
 use GuzzleHttp\Promise\Create;
@@ -16,7 +16,18 @@ class CircleController extends Controller
      */
     public function index()
     {
-        $circles = Circle::with(['mainTeacher', 'assistantTeacher', 'supervisor'])->get();
+        $user = auth()->user();
+        $query = Circle::with(['mainTeacher', 'assistantTeacher', 'supervisor']);
+
+        if ($user->hasRole('supervisor')) {
+            $query->where('supervisor_id', $user->teacher->id);
+        } elseif ($user->hasRole('teacher')) {
+            $query->whereHas('teachers', function ($q) use ($user) {
+                $q->where('teachers.id', $user->teacher->id);
+            });
+        }
+
+        $circles = $query->get();
         return view('circles.index', compact('circles'));
     }
 
@@ -78,7 +89,7 @@ class CircleController extends Controller
      */
     public function edit(string $id)
     {
-        $circle = Circle::with(['mainTeacher','assistantTeacher','supervisor'])->findOrFail($id);
+        $circle = Circle::with(['mainTeacher', 'assistantTeacher', 'supervisor'])->findOrFail($id);
 
         $teachers = Teacher::with('user')->orderBy('name')->get();
 
@@ -87,7 +98,7 @@ class CircleController extends Controller
             return $teacher->user->hasRole('supervisor');
         });
 
-        return view('circles.edit', compact('circle','teachers','supervisors'));
+        return view('circles.edit', compact('circle', 'teachers', 'supervisors'));
     }
 
     /**
@@ -99,7 +110,6 @@ class CircleController extends Controller
 
         $validated = $request->validated();
         $validated['is_active'] = true;
-
         // $validated['is_active'] = $request->has('is_active');
 
         // تحديث بيانات الحلقة الأساسية
@@ -112,7 +122,6 @@ class CircleController extends Controller
             'is_active' => $validated['is_active'],
             'supervisor_id' => $validated['supervisor_id'] ?? null,
         ]);
-
         // تجهيز بيانات المعلمين مع الدور
         $teachers = [];
 

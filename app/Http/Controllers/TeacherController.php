@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Requests\CreateTeacherRequest;
-use App\Http\Requests\EditTeacherRequest;
+use App\Http\Requests\Teacher\CreateTeacherRequest;
+use App\Http\Requests\Teacher\EditTeacherRequest;
 use App\Models\Teacher;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -14,7 +14,18 @@ class TeacherController extends Controller
 {
     public function index()
     {
-        $teachers = Teacher::with('user')->get();
+        $user = auth()->user();
+        $query = Teacher::with('user');
+
+        if ($user->hasRole('supervisor')) {
+            $query->whereHas('user', function ($q) {
+                $q->whereHas('roles', function ($rq) {
+                    $rq->whereIn('name', ['teacher', 'supervisor']);
+                });
+            });
+        }
+
+        $teachers = $query->get();
         return view('teachers.index', ["teachers" => $teachers]);
     }
 
@@ -49,34 +60,36 @@ class TeacherController extends Controller
     public function edit(Teacher $teacher)
     {
         $teacher->load('user');
-
+        $role = $teacher->user->roles->first()?->name;
         return view('teachers.edit', [
             "teacher" => $teacher,
+            "role" => $role
         ]);
     }
 
-    public function update(Request $request, Teacher $teacher)
+    public function update(EditTeacherRequest $request, Teacher $teacher)
     {
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|email|unique:users,email,' . $teacher->user->id,
-            'password' => 'nullable|min:6',
-        ]);
-
         // تحديث بيانات المعلم
         $teacher->update([
             'name' => $request->name,
         ]);
 
-        // تحديث بيانات اليوزر المرتبط
-        $teacher->user->update([
+        // تحديث بيانات المستخدم المرتبط
+        $data = [
+            'name'  => $request->name,
             'email' => $request->email,
-            'password' => $request->password
-                ? Hash::make($request->password)
-                : $teacher->user->password,
-        ]);
+        ];
 
-        return redirect()->route('teachers.index')->with('success', 'تم تحديث البيانات بنجاح');
+        // تحديث الباسورد فقط لو تم إدخاله
+        if ($request->filled('password')) {
+            $data['password'] = Hash::make($request->password);
+        }
+
+        $teacher->user->update($data);
+
+        return redirect()
+            ->route('teachers.index')
+            ->with('success', 'تم تحديث البيانات بنجاح');
     }
 
     public function destroy(Teacher $teacher)

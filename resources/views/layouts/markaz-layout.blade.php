@@ -53,6 +53,34 @@
 
             <!-- القائمة -->
             <nav class="space-y-2 text-sm">
+
+                @if (Auth::user()->hasRole('guardian'))
+
+                {{-- Guardian-only links --}}
+                <a href="{{ route('guardian.dashboard') }}"
+                    class="block px-4 py-2 rounded-lg {{ request()->routeIs('guardian.dashboard') ? 'bg-[#0d7a48]' : 'hover:bg-[#0d7a48]' }}">
+                    المنصة العامة
+                </a>
+
+                <a href="{{ route('students.index') }}"
+                    class="block px-4 py-2 rounded-lg {{ request()->routeIs('students.*') ? 'bg-[#0d7a48]' : 'hover:bg-[#0d7a48]' }}">
+                    الطلاب
+                </a>
+
+                <a href="{{ route('guardian.notifications.index') }}"
+                    class="block px-4 py-2 rounded-lg {{ request()->routeIs('guardian.notifications.*') ? 'bg-[#0d7a48]' : 'hover:bg-[#0d7a48]' }}">
+                    <div class="flex items-center justify-between">
+                        <span>الإشعارات</span>
+                        @php $unreadCount = auth()->user()->unreadNotifications()->count(); @endphp
+                        @if ($unreadCount > 0)
+                            <span class="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">{{ $unreadCount }}</span>
+                        @endif
+                    </div>
+                </a>
+
+                @else
+
+                {{-- Admin / Supervisor / Teacher links --}}
                 <a href="{{ route('dashboard') }}"
                     class="block px-4 py-2 rounded-lg {{ request()->routeIs('dashboard') ? 'bg-[#0d7a48]' : 'hover:bg-[#0d7a48]' }}">
                     لوحة التحكم
@@ -64,17 +92,17 @@
                 </a>
 
                 @if (Auth::user()->hasAnyRole('admin'))
-                    <a href="{{ route('teachers.index') }}"
-                        class="block px-4 py-2 rounded-lg {{ request()->routeIs('teachers.*') ? 'bg-[#0d7a48]' : 'hover:bg-[#0d7a48]' }}">
-                        المعلمين
-                    </a>
+                <a href="{{ route('teachers.index') }}"
+                    class="block px-4 py-2 rounded-lg {{ request()->routeIs('teachers.*') ? 'bg-[#0d7a48]' : 'hover:bg-[#0d7a48]' }}">
+                    المعلمين
+                </a>
                 @endif
 
                 @if (Auth::user()->hasAnyRole(['admin', 'supervisor']))
-                    <a href="{{ route('circles.index') }}"
-                        class="block px-4 py-2 rounded-lg {{ request()->routeIs('circles.*') ? 'bg-[#0d7a48]' : 'hover:bg-[#0d7a48]' }}">
-                        الحلقات
-                    </a>
+                <a href="{{ route('circles.index') }}"
+                    class="block px-4 py-2 rounded-lg {{ request()->routeIs('circles.*') ? 'bg-[#0d7a48]' : 'hover:bg-[#0d7a48]' }}">
+                    الحلقات
+                </a>
                 @endif
 
                 <a href="{{ route('attendance.index') }}"
@@ -87,21 +115,54 @@
                     اشتراكات الطلاب
                 </a>
 
-                @if (Auth::user()->hasRole('admin'))
-                    <a href="{{ route('subscription-prices.index') }}"
-                        class="block px-4 py-2 rounded-lg {{ request()->routeIs('subscription-prices.*') ? 'bg-[#0d7a48]' : 'hover:bg-[#0d7a48]' }}">
-                        إعدادات الاشتراكات
-                    </a>
-                @endif
-
-                <a href="{{ route('profile.edit') }}"
-                    class="block px-4 py-2 rounded-lg {{ request()->routeIs('profile.*') ? 'bg-[#0d7a48]' : 'hover:bg-[#0d7a48]' }}">
-                    الملف الشخصي
+                <a href="{{ route('notifications.index') }}"
+                    class="block px-4 py-2 rounded-lg {{ request()->routeIs('notifications.*') ? 'bg-[#0d7a48]' : 'hover:bg-[#0d7a48]' }}">
+                    <div class="flex items-center justify-between">
+                        <span>الإشعارات</span>
+                        @php $unreadCount = auth()->user()->unreadNotifications()->count(); @endphp
+                        @if ($unreadCount > 0)
+                            <span class="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">{{ $unreadCount }}</span>
+                        @endif
+                    </div>
                 </a>
 
-                <div class="opacity-60 cursor-not-allowed px-4 py-2">
-                    المستخدمين
+                <!-- الإعدادات -->
+                <div x-data="{ open: {{ (request()->routeIs('subscription-prices.*') || request()->routeIs('centers.*') || request()->routeIs('profile.*') || request()->routeIs('admin.settings.*') || request()->routeIs('admin.roles.*')) ? 'true' : 'false' }} }" class="space-y-1">
+                    <button @click="open = !open"
+                        class="w-full flex items-center justify-between px-4 py-2 rounded-lg hover:bg-[#0d7a48] transition-colors focus:outline-none {{ (request()->routeIs('subscription-prices.*') || request()->routeIs('centers.*') || request()->routeIs('profile.*')) ? 'bg-[#0d7a48]' : '' }}">
+                        <span>الإعدادات</span>
+                        <svg class="w-4 h-4 transition-transform duration-200" :class="open ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </button>
+
+                    <div x-show="open" x-cloak class="pr-3 space-y-1 border-r border-white/10 mr-1">
+                        @if (Auth::user()->hasRole('admin'))
+                        <a href="{{ route('profile.edit') }}"
+                            class="block px-4 py-2 rounded-lg text-[13px] {{ request()->routeIs('profile.*') ? 'bg-[#0d7a48] font-bold' : 'hover:bg-[#0d7a48]' }}">
+                            الملف الشخصي
+                        </a>
+                        <a href="{{ route('admin.settings.index') }}"
+                            class="block px-4 py-2 rounded-lg text-[13px] {{ request()->routeIs('admin.settings.*') ? 'bg-[#0d7a48] font-bold' : 'hover:bg-[#0d7a48]' }}">
+                            إعدادات الإشعارات
+                        </a>
+                        <a href="{{ route('centers.index') }}"
+                            class="block px-4 py-2 rounded-lg text-[13px] {{ request()->routeIs('centers.*') ? 'bg-[#0d7a48] font-bold' : 'hover:bg-[#0d7a48]' }}">
+                            الفروع
+                        </a>
+                        <a href="{{ route('subscription-prices.index') }}"
+                            class="block px-4 py-2 rounded-lg text-[13px] {{ request()->routeIs('subscription-prices.*') ? 'bg-[#0d7a48] font-bold' : 'hover:bg-[#0d7a48]' }}">
+                            أسعار الاشتراكات
+                        </a>
+                        <a href="{{ route('admin.roles.index') }}"
+                            class="block px-4 py-2 rounded-lg text-[13px] {{ request()->routeIs('admin.roles.*') ? 'bg-[#0d7a48] font-bold' : 'hover:bg-[#0d7a48]' }}">
+                            الصلاحيات
+                        </a>
+                        @endif
+                    </div>
                 </div>
+
+                @endif
 
                 <!-- تسجيل الخروج -->
                 <div class="pt-6 border-t border-white/10 mt-6">
@@ -128,18 +189,19 @@
         <!-- المحتوى الرئيسي -->
         <main class="flex-1 p-4 md:p-6 md:mr-0 md:ml-0 transition-all duration-300">
             @if (session('success'))
-                <div x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 5000)" class="max-w-4xl mx-auto mt-3 mb-2">
-                    <div class="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-lg shadow-sm">
-                        {{ session('success') }}
-                    </div>
+            <div x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 5000)"
+                class="max-w-4xl mx-auto mt-3 mb-2">
+                <div class="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-lg shadow-sm">
+                    {{ session('success') }}
                 </div>
+            </div>
             @endif
             @if (session('error'))
-                <div class="max-w-4xl mx-auto mt-6">
-                    <div class="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg shadow-sm">
-                        {{ session('error') }}
-                    </div>
+            <div class="max-w-4xl mx-auto mt-6">
+                <div class="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg shadow-sm">
+                    {{ session('error') }}
                 </div>
+            </div>
             @endif
             {{ $slot }}
         </main>
@@ -170,6 +232,7 @@
         overlay.addEventListener('click', closeMenu);
     </script>
 
+    @stack('scripts')
 </body>
 
 </html>

@@ -1,0 +1,1653 @@
+@php
+$fieldStepMap = [
+// Step 1
+'supervisor_id' => 1,
+'join_date' => 1,
+'applicant' => 1,
+'applicant_other' => 1,
+
+// Step 2
+'student_code' => 2,
+'name' => 2,
+'gender' => 2,
+'date_of_birth' => 2,
+'address' => 2,
+'center' => 2,
+'whatsapp_number' => 2,
+'whatsapp_owner' => 2,
+'whatsapp_owner_other' => 2,
+'second_phone' => 2,
+'additional_contact_owner' => 2,
+'additional_contact_owner_other' => 2,
+'guardian_id' => 2,
+'parent_email' => 2,
+'password' => 2,
+
+// Step 3
+'educational_stage' => 3,
+'education_type' => 3,
+'school_grade' => 3,
+'previous_school' => 3,
+
+// Step 4
+'health_status' => 4,
+'health_status_other' => 4,
+'learning_difficulties' => 4,
+'learning_difficulties_other' => 4,
+'personal_traits' => 4,
+'personal_traits_other' => 4,
+'hobbies' => 4,
+'hobbies.*' => 4,
+'hobby_other' => 4,
+'student_exit_status' => 4,
+'exit_details' => 4,
+
+// Step 5
+'reading' => 5,
+'center_entry_level' => 5,
+
+// Step 6 (Construction)
+'current_surah' => 6,
+'study_system' => 6,
+'group_name' => 6,
+'new_memorization_plan' => 6,
+'placement_evaluation' => 6,
+'old_memorization_plan' => 6,
+// UI aliases used in the current form
+'behavior_level' => 6,
+'old_memorization_plan_other' => 6,
+
+// Step 7 (Itqan)
+'previous_memorization_side' => 7,
+'previous_khatamat_count' => 7,
+'current_review_amount' => 7,
+'self_evaluation' => 7,
+'memorized_texts' => 7,
+'memorized_texts.*' => 7,
+'desired_path' => 7,
+'preferred_time' => 7,
+'teacher_name' => 7,
+'itqan_details' => 7,
+// UI aliases used in the current form
+'memorization_level' => 7,
+'academic_notes' => 7,
+'self_evaluation' => 7,
+'tajweed_matn' => 7,
+'tajweed_matn_other' => 7,
+'supervisor_name' => 7,
+
+// Step 8 (Ibda)
+'previous_licenses_and_chains' => 8,
+'desired_narration_and_path' => 8,
+'ibda_details' => 8,
+// UI aliases used in the current form
+'description' => 8,
+
+// Step 9
+'recommendations' => 9,
+'notes' => 9,
+'status' => 9,
+'subscription_fees' => 9,
+'received_tools' => 9,
+];
+
+$oldActiveTab = (int) old('active_tab', 0);
+$initialTab = $oldActiveTab >= 1 && $oldActiveTab <= 9 ? $oldActiveTab : 1;
+
+    $firstErrorField=null;
+    if ($errors->any()) {
+    $allErrors = $errors->toArray();
+    $firstErrorField = array_key_first($allErrors);
+    }
+
+    if ($firstErrorField) {
+    $normalizedField = preg_replace('/\.\d+/', '.*', $firstErrorField);
+    $initialTab = $fieldStepMap[$firstErrorField] ?? $fieldStepMap[$normalizedField] ?? $initialTab;
+    }
+
+    $isEdit = isset($student) && $student->exists;
+    $construction = $student->constructionDetail ?? null;
+    $itqan = $student->itqanDetail ?? null;
+    $ibda = $student->ibdaDetail ?? null;
+
+    $formDataDefaults = [
+    'guardian_id' => (string) old('guardian_id', $student->guardian_id ?? 'new'),
+    'supervisor_id' => (string) old('supervisor_id', $student->supervisor_id ?? ''),
+    'join_date' => old('join_date', $student->join_date?->format('Y-m-d') ?? ''),
+    'applicant' => old('applicant', $student->applicant ?? ''),
+    'applicant_other' => old('applicant_other', $student->applicant_other ?? ''),
+    'student_code' => old('student_code', $student->student_code ?? ($generatedCode ?? '')),
+    'name' => old('name', $student->name ?? ''),
+    'gender' => old('gender', $student->gender ?? ''),
+    'date_of_birth' => old('date_of_birth', $student->date_of_birth?->format('Y-m-d') ?? ''),
+    'address' => old('address', $student->address ?? ''),
+    'center' => old('center', $student->center ?? ''),
+    'whatsapp_number' => old('whatsapp_number', $student->whatsapp_number ?? ''),
+    'second_phone' => old('second_phone', $student->second_phone ?? ''),
+    'whatsapp_owner' => old('whatsapp_owner', $student->whatsapp_owner ?? ''),
+    'whatsapp_owner_other' => old('whatsapp_owner_other', $student->whatsapp_owner_other ?? ''),
+    'additional_contact_owner' => old('additional_contact_owner', $student->additional_contact_owner ?? ''),
+    'additional_contact_owner_other' => old('additional_contact_owner_other', $student->additional_contact_owner_other ?? ''),
+    'parent_email' => old('parent_email', $student->parent_email ?? ''),
+    'parent_email_custom' => (bool) old('parent_email'),
+    'password' => old('password', ''),
+    'password_custom' => (bool) old('password'),
+    'educational_stage' => old('educational_stage', $student->educational_stage ?? ''),
+    'education_type' => old('education_type', $student->education_type ?? ''),
+    'school_grade' => old('school_grade', $student->school_grade ?? ''),
+    'previous_school' => old('previous_school', $student->previous_school ?? ''),
+    'health_status' => old('health_status', $student->health_status ?? 'طبيعية'),
+    'health_status_other' => old('health_status_other', $student->health_status_other ?? ''),
+    'learning_difficulties' => old('learning_difficulties', $student->learning_difficulties ?? 'لا يوجد'),
+    'learning_difficulties_other' => old('learning_difficulties_other', $student->learning_difficulties_other ?? ''),
+    'personal_traits' => old('personal_traits', $student->personal_traits ?? 'لا يوجد'),
+    'personal_traits_other' => old('personal_traits_other', $student->personal_traits_other ?? ''),
+    'hobbies' => old('hobbies', $student->hobbies ?? []),
+    'hobby_other' => old('hobby_other', $student->hobby_other ?? ''),
+    'student_exit_status' => old('student_exit_status', $student->student_exit_status ?? ''),
+    'exit_details' => old('exit_details', $student->exit_details ?? ''),
+    'reading' => old('reading', $student->reading ?? ''),
+    'center_entry_level' => old('center_entry_level', $student->center_entry_level ?? 'construction'),
+    'current_surah' => old('current_surah', $construction?->current_surah ?? $student->current_surah ?? ''),
+    'study_system' => old('study_system', $construction?->study_system ?? $student->study_system ?? ''),
+    'group_name' => old('group_name', $construction?->group_name ?? $student->group_name ?? ''),
+    'new_memorization_plan' => old('new_memorization_plan', $construction?->new_memorization_plan ?? ''),
+    'placement_evaluation' => old('placement_evaluation', $construction?->placement_evaluation ?? ''),
+    'behavior_level' => old('behavior_level', $student->behavior_level ?? ''),
+    'old_memorization_plan' => old('old_memorization_plan', $construction?->old_memorization_plan ?? ''),
+    'old_memorization_plan_other' => old('old_memorization_plan_other', $student->old_memorization_plan_other ?? ''),
+    'previous_memorization_side' => old('previous_memorization_side', $itqan?->previous_memorization_side ?? ''),
+    'previous_khatamat_count' => old('previous_khatamat_count', $itqan?->previous_khatamat_count ?? $student->memorization_level ?? ''),
+    'current_review_amount' => old('current_review_amount', $itqan?->current_review_amount ?? $student->academic_notes ?? ''),
+    'memorization_level' => old('memorization_level', $student->memorization_level ?? ''),
+    'academic_notes' => old('academic_notes', $student->academic_notes ?? ''),
+    'self_rating' => (int) old('self_rating', $itqan?->self_evaluation ?? 0),
+    'tajweed_matn' => old('tajweed_matn', $itqan?->tajweed_matn ?? ''),
+    'tajweed_matn_other' => old('tajweed_matn_other', $itqan?->tajweed_matn_other ?? ''),
+    'desired_path' => old('desired_path', $itqan?->desired_path ?? ''),
+    'preferred_time' => old('preferred_time', $itqan?->preferred_time ?? $ibda?->preferred_time ?? ''),
+    'teacher_name' => old('teacher_name', $itqan?->teacher_name ?? $student->supervisor_name ?? ''),
+    'description' => old('description', $ibda?->previous_licenses_and_chains ?? $student->description ?? ''),
+    'desired_narration_and_path' => old('desired_narration_and_path', $ibda?->desired_narration_and_path ?? ''),
+    'subscription_fees' => old('subscription_fees', $student->subscription_fees ?? ''),
+    'received_tools' => old('received_tools', $student->received_tools ?? ''),
+    'status' => old('status', $student->status ?? 'pending'),
+    'notes' => old('notes', $student->notes ?? ''),
+    ];
+    @endphp
+
+    {{-- ✅ مطلوب لإخفاء العناصر قبل تحميل Alpine --}}
+    <style>
+        [x-cloak] {
+            display: none !important;
+        }
+    </style>
+
+    <script>
+        window.__studentFormPageConfig = {
+            initialTab: {
+                {
+                    $initialTab
+                }
+            },
+            isEdit: @json($isEdit),
+            formData: @json($formDataDefaults),
+        };
+
+        function studentFormPage() {
+            const config = window.__studentFormPageConfig || {};
+
+            return {
+                activeTab: config.initialTab || 1,
+                isEdit: config.isEdit || false,
+                isRecording: null,
+                stepErrors: {},
+                stepTitles: [
+                    'بيانات المشرف', 'البيانات الأساسية', 'البيانات الدراسية',
+                    'بيانات الرعاية', 'تقييم التلاوة', 'مستوى البناء',
+                    'مستوى الإتقان', 'مستوى الإبداع', 'التوصيات والملاحظات'
+                ],
+                formData: config.formData || {},
+
+                isStepVisible(step) {
+                    if (step === 6) return this.formData.center_entry_level === 'construction';
+                    if (step === 7) return this.formData.center_entry_level === 'itqan';
+                    if (step === 8) return this.formData.center_entry_level === 'ibda';
+                    return true;
+                },
+
+                validateCurrentStep() {
+                    if (this.isEdit) return true;
+                    const requiredFields = {
+                        1: ['supervisor_id', 'join_date'],
+                        2: ['applicant', 'name', 'gender', 'address', 'center', 'guardian_id'],
+                        3: ['educational_stage', 'education_type', 'school_grade', 'previous_school'],
+                        4: ['health_status', 'learning_difficulties', 'personal_traits', 'hobbies', 'student_exit_status'],
+                        5: ['reading', 'center_entry_level'],
+                        6: ['current_surah', 'study_system', 'group_name'],
+                        7: ['previous_memorization_side', 'previous_khatamat_count', 'current_review_amount', 'desired_path'],
+                        8: ['description', 'desired_narration_and_path'],
+                    };
+                    const fields = requiredFields[this.activeTab] || [];
+                    const errors = {};
+                    fields.forEach(field => {
+                        const val = this.formData[field];
+                        if (!val || (typeof val === 'string' && val.trim() === '')) {
+                            errors[field] = true;
+                        } else if (Array.isArray(val) && val.length === 0) {
+                            errors[field] = true;
+                        }
+                    });
+                    this.stepErrors = errors;
+                    return Object.keys(errors).length === 0;
+                },
+
+                showSection(num) {
+                    if (this.isEdit) {
+                        if (num === 6) return this.formData.center_entry_level === 'construction';
+                        if (num === 7) return this.formData.center_entry_level === 'itqan';
+                        if (num === 8) return this.formData.center_entry_level === 'ibda';
+                        return true;
+                    }
+                    return this.activeTab === num;
+                },
+
+                goToStep(step) {
+                    if (this.isEdit || step < 1 || step > 9) return;
+
+                    // منع الانتقال لـ tab مستوى لا ينتمي له الطالب
+                    if (step === 6 && this.formData.center_entry_level !== 'construction') return;
+                    if (step === 7 && this.formData.center_entry_level !== 'itqan') return;
+                    if (step === 8 && this.formData.center_entry_level !== 'ibda') return;
+
+                    this.activeTab = step;
+                    window.scrollTo({
+                        top: 0,
+                        behavior: 'smooth'
+                    });
+                },
+
+                nextStep() {
+                    if (this.isEdit) return;
+                    if (!this.validateCurrentStep()) return;
+
+                    // من Tab 5 — اذهب مباشرة للمستوى الصحيح
+                    if (this.activeTab === 5) {
+                        if (this.formData.center_entry_level === 'construction') this.activeTab = 6;
+                        else if (this.formData.center_entry_level === 'itqan') this.activeTab = 7;
+                        else if (this.formData.center_entry_level === 'ibda') this.activeTab = 8;
+                        else this.activeTab = 9;
+                    }
+                    // من أي من tabs المستويات — اذهب مباشرة لـ Tab 9
+                    else if (this.activeTab === 6 || this.activeTab === 7 || this.activeTab === 8) {
+                        this.activeTab = 9;
+                    } else if (this.activeTab < 9) {
+                        this.activeTab++;
+                    }
+
+                    window.scrollTo({
+                        top: 0,
+                        behavior: 'smooth'
+                    });
+                    this.stepErrors = {};
+                },
+
+                prevStep() {
+                    if (this.isEdit || this.activeTab <= 1) return;
+
+                    // من Tab 9 — ارجع للمستوى الصحيح
+                    if (this.activeTab === 9) {
+                        if (this.formData.center_entry_level === 'construction') this.activeTab = 6;
+                        else if (this.formData.center_entry_level === 'itqan') this.activeTab = 7;
+                        else if (this.formData.center_entry_level === 'ibda') this.activeTab = 8;
+                        else this.activeTab = 5;
+                    }
+                    // من أي من tabs المستويات — ارجع لـ Tab 5
+                    else if (this.activeTab === 6 || this.activeTab === 7 || this.activeTab === 8) {
+                        this.activeTab = 5;
+                    } else {
+                        this.activeTab--;
+                    }
+
+                    window.scrollTo({
+                        top: 0,
+                        behavior: 'smooth'
+                    });
+                    this.stepErrors = {};
+                },
+
+                hasError(field) {
+                    return this.stepErrors[field] || false;
+                },
+
+                startDictation(field) {
+                    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+                        alert('المتصفح لا يدعم ميزة الإملاء الصوتي');
+                        return;
+                    }
+                    if (this.isRecording === field) {
+                        this.isRecording = null;
+                        return;
+                    }
+                    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                    const recognition = new SpeechRecognition();
+                    recognition.lang = 'ar-EG';
+                    recognition.continuous = false;
+                    recognition.interimResults = false;
+
+                    this.isRecording = field;
+                    recognition.onresult = (event) => {
+                        const transcript = event.results[0][0].transcript;
+                        this.formData[field] = this.formData[field] ?
+                            this.formData[field] + ' ' + transcript :
+                            transcript;
+                    };
+                    recognition.onend = () => {
+                        this.isRecording = null;
+                    };
+                    recognition.onerror = () => {
+                        this.isRecording = null;
+                    };
+                    recognition.start();
+                },
+            };
+        }
+    </script>
+
+    <div x-data="studentFormPage()" class="space-y-8">
+        <input type="hidden" name="active_tab" :value="activeTab" x-show="!isEdit">
+
+        @if (! $isEdit)
+        <div class="progress-wrap bg-white p-6 rounded-3xl border border-gray-100 shadow-sm mb-8">
+            <div class="progress-steps flex justify-between items-center relative mb-4" id="progressSteps">
+                @php
+                $steps = [
+                1 => 'بيانات المشرف',
+                2 => 'البيانات الأساسية',
+                3 => 'البيانات الدراسية',
+                4 => 'بيانات الرعاية',
+                5 => 'تقييم التلاوة',
+                6 => 'مستوى البناء',
+                7 => 'مستوى الإتقان',
+                8 => 'مستوى الإبداع',
+                9 => 'التوصيات والملاحظات',
+                ];
+                @endphp
+
+                @foreach ($steps as $num => $title)
+                <div class="flex flex-col items-center flex-1 relative z-10" x-show="isStepVisible({{ $num }})">
+                    <button type="button" @click="goToStep({{ $num }})"
+                        class="w-10 h-10 flex items-center justify-center rounded-full text-sm font-bold transition-all duration-300 border-2"
+                        :class="activeTab === {{ $num }} ?
+                            'bg-[#0a5c36] text-white border-[#0a5c36] shadow-md scale-110' :
+                            (activeTab > {{ $num }} ? 'bg-[#e8f5ed] text-[#0a5c36] border-[#0a5c36]' :
+                                'bg-white text-gray-400 border-gray-200')">
+                        <span>{{ $num }}</span>
+                    </button>
+                    <span class="text-[11px] mt-2 font-bold text-center hidden md:block transition-colors duration-300"
+                        :class="activeTab === {{ $num }} ? 'text-[#0a5c36]' : 'text-gray-400'">
+                        {{ $title }}
+                    </span>
+                </div>
+                @endforeach
+
+                <div class="absolute top-5 left-0 right-0 h-0.5 bg-gray-100 z-0"></div>
+            </div>
+
+            <div class="progress-bar-outer w-full bg-gray-100 h-2 rounded-full overflow-hidden mb-2">
+                <div class="progress-bar-inner bg-[#0a5c36] h-full transition-all duration-500"
+                    :style="'width: ' + ((activeTab / 9) * 100) + '%'"></div>
+            </div>
+
+            <div class="progress-label text-xs font-bold text-center text-gray-500 mt-2">
+                القسم <span x-text="activeTab" class="text-[#0a5c36]"></span> من 9 —
+                <span x-text="stepTitles[activeTab - 1]"></span>
+            </div>
+        </div>
+        @endif
+
+        @if ($errors->any())
+        <div class="bg-red-50 border border-red-100 rounded-2xl p-5 space-y-3">
+            <div class="flex items-center justify-between gap-3">
+                <p class="text-red-700 font-bold text-sm">تعذر حفظ النموذج. راجع الحقول المطلوبة ثم أعد المحاولة.</p>
+                @if (! $isEdit)
+                <button type="button" @click="goToStep({{ $initialTab }})"
+                    class="text-xs font-bold text-red-700 bg-white border border-red-200 rounded-lg px-3 py-1.5 hover:bg-red-100 transition">
+                    الانتقال إلى القسم المطلوب
+                </button>
+                @endif
+            </div>
+            <ul class="text-red-700 text-sm list-disc pr-5 space-y-1">
+                @foreach ($errors->all() as $error)
+                <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+        </div>
+        @endif
+
+        <!-- ----------------------------------------- بيانات المشرف والالتحاق ------------------------------------------- -->
+        <div x-show="showSection(1)" x-cloak class="bg-white rounded-3xl shadow-sm border border-gray-100 p-8 space-y-6">
+            <div class="flex items-center gap-3 mb-6 border-b border-gray-50 pb-4">
+                <div class="p-3 bg-[#e8f5ed] text-[#0a5c36] rounded-2xl text-xl">📋</div>
+                <div>
+                    <h2 class="text-xl font-black text-gray-800">بيانات المشرف والالتحاق</h2>
+                    <p class="text-xs text-gray-400 mt-1">تحديد المشرف المسؤول ومستوى دخول الطالب المبدئي</p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="space-y-2">
+                    <label class="block text-sm font-bold text-gray-700">المشرف المقيم / مسجل البيانات <span
+                            class="text-red-500">*</span></label>
+                    <select name="supervisor_id" x-model="formData.supervisor_id" required
+                        class="w-full p-3 border rounded-2xl text-sm font-medium focus:outline-none focus:ring-1 transition-all"
+                        :class="hasError('supervisor_id') ? 'bg-red-50 border-red-300 focus:border-red-500 focus:ring-red-500' : 'bg-gray-50 border-gray-200 focus:border-[#0a5c36] focus:ring-[#0a5c36]'">
+                        <option value="" @selected(old('supervisor_id', $student->supervisor_id ?? '') == '')>-- اختر المشرف --</option>
+                        @foreach($teachers as $teacher)
+                        <option value="{{ $teacher->id }}" @selected(old('supervisor_id', $student->supervisor_id ?? '') == $teacher->id)>{{ $teacher->name }}</option>
+                        @endforeach
+                    </select>
+                    <span x-show="hasError('supervisor_id')" class="text-red-500 text-xs font-medium">هذا الحقل مطلوب</span>
+                </div>
+                <div class="space-y-2">
+                    <label class="block text-sm font-bold text-gray-700">تاريخ المقابلة / التسجيل</label>
+                    <input type="date" name="join_date" x-model="formData.join_date"
+                        value="{{ old('join_date', $student->join_date?->format('Y-m-d') ?? '') }}"
+                        class="w-full p-3 border rounded-2xl text-sm font-medium focus:outline-none focus:ring-1 transition-all"
+                        :class="hasError('join_date') ? 'bg-red-50 border-red-300 focus:border-red-500 focus:ring-red-500' : 'bg-gray-50 border-gray-200 focus:border-[#0a5c36] focus:ring-[#0a5c36]'">
+                    <span x-show="hasError('join_date')" class="text-red-500 text-xs font-medium">هذا الحقل مطلوب</span>
+                </div>
+            </div>
+
+        </div>
+        <!-- --------------------------------------------------- البيانات الأساسية -------------------------------------- -->
+        <div x-show="showSection(2)" x-cloak class="bg-white rounded-3xl shadow-sm border border-gray-100 p-8 space-y-6">
+            <div class="space-y-6">
+                <div class="flex items-center gap-3 mb-6 border-b border-gray-50 pb-4">
+                    <div class="p-3 bg-emerald-50 text-[#0a5c36] rounded-2xl text-xl">👤</div>
+                    <div>
+                        <h2 class="text-xl font-black text-[#0a5c36]">البيانات الأساسية</h2>
+                        <p class="text-xs text-gray-400 mt-1">معلومات الطالب الشخصية والاتصال</p>
+                    </div>
+                </div>
+
+                <div class="space-y-2">
+                    <label class="block text-sm font-bold text-gray-700">مقدم طلب التسجيل <span
+                            class="text-red-500">*</span></label>
+                    <div class="flex flex-wrap gap-4 p-4 bg-gray-50 rounded-2xl border border-gray-100">
+                        <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer"><input
+                                type="radio" name="applicant" value="الأم" x-model="formData.applicant"
+                                @checked(old('applicant', $student->applicant ?? '') == 'الأم')
+                            class="rounded-full text-[#0a5c36] focus:ring-[#0a5c36]"> <span>الأم</span></label>
+                        <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer"><input
+                                type="radio" name="applicant" value="الأب" x-model="formData.applicant"
+                                @checked(old('applicant', $student->applicant ?? '') == 'الأب')
+                            class="rounded-full text-[#0a5c36] focus:ring-[#0a5c36]"> <span>الأب</span></label>
+                        <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer"><input
+                                type="radio" name="applicant" value="الطالب" x-model="formData.applicant"
+                                @checked(old('applicant', $student->applicant ?? '') == 'الطالب')
+                            class="rounded-full text-[#0a5c36] focus:ring-[#0a5c36]"> <span>الطالب نفسه</span></label>
+                        <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer"><input
+                                type="radio" name="applicant" value="أخرى" x-model="formData.applicant"
+                                @checked(old('applicant', $student->applicant ?? '') == 'أخرى')
+                            class="rounded-full text-[#0a5c36] focus:ring-[#0a5c36]"> <span>أخرى</span></label>
+                    </div>
+                    @error('applicant')
+                    <span class="text-red-500 text-xs mt-1 block font-semibold">{{ $message }}</span>
+                    @enderror
+                    <input type="text" name="applicant_other" x-model="formData.applicant_other"
+                        value="{{ old('applicant_other', $student->applicant_other ?? '') }}"
+                        x-show="formData.applicant === 'أخرى'" placeholder="يرجى تحديد مقدم الطلب..."
+                        class="w-full mt-2 p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36] focus:ring-1 focus:ring-[#0a5c36] transition-all"
+                        x-cloak>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="space-y-2">
+                        <label class="block text-sm font-bold text-gray-700">كود الطالب</label>
+                        <input type="text" name="student_code" x-model="formData.student_code"
+                            value="{{ old('student_code', $student->student_code ?? $generatedCode ?? '') }}"
+                            placeholder="كود الطالب"
+                            class="w-full p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36] focus:ring-1 focus:ring-[#0a5c36] transition-all"
+                            required>
+                    </div>
+                    <div class="space-y-2">
+                        <label class="block text-sm font-bold text-gray-700">اسم الطالب (رباعيًّا) <span
+                                class="text-red-500">*</span></label>
+                        <input type="text" name="name" x-model="formData.name" placeholder="الاسم الرباعي كاملًا"
+                            value="{{ old('name', $student->name ?? '') }}"
+                            class="w-full p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36] focus:ring-1 focus:ring-[#0a5c36] transition-all"
+                            required>
+                        @error('name')
+                        <span class="text-red-500 text-xs mt-1 block font-semibold">{{ $message }}</span>
+                        @enderror
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="space-y-2">
+                        <label class="block text-sm font-bold text-gray-700">النوع <span
+                                class="text-red-500">*</span></label>
+                        <div class="flex gap-6 p-3 bg-gray-50 rounded-2xl border border-gray-100">
+                            <label
+                                class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer"><input
+                                    type="radio" name="gender" value="ذكر" x-model="formData.gender"
+                                    @checked(old('gender', $student->gender ?? '') == 'ذكر')
+                                class="text-[#0a5c36] focus:ring-[#0a5c36]" required> <span>ذكر</span></label>
+                            <label
+                                class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer"><input
+                                    type="radio" name="gender" value="أنثى" x-model="formData.gender"
+                                    @checked(old('gender', $student->gender ?? '') == 'أنثى')
+                                class="text-[#0a5c36] focus:ring-[#0a5c36]" required> <span>أنثى</span></label>
+                        </div>
+                        @error('gender')
+                        <span class="text-red-500 text-xs mt-1 block font-semibold">{{ $message }}</span>
+                        @enderror
+                    </div>
+                    <div class="space-y-2">
+                        <label class="block text-sm font-bold text-gray-700">تاريخ الميلاد</label>
+                        <input type="date" name="date_of_birth" x-model="formData.date_of_birth"
+                            value="{{ old('date_of_birth', $student->date_of_birth?->format('Y-m-d') ?? '') }}"
+                            class="w-full p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36] focus:ring-1 focus:ring-[#0a5c36] transition-all">
+                        @error('date_of_birth')
+                        <span class="text-red-500 text-xs mt-1 block font-semibold">{{ $message }}</span>
+                        @enderror
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="space-y-2">
+                        <label class="block text-sm font-bold text-gray-700">العنوان التفصيلي (المركز - القرية - الشارع)
+                            <span class="text-red-500">*</span></label>
+                        <input type="text" name="address" x-model="formData.address"
+                            value="{{ old('address', $student->address ?? '') }}"
+                            placeholder="مثال: الشرقية - ههيا - قرية صبيح"
+                            class="w-full p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36] focus:ring-1 focus:ring-[#0a5c36] transition-all"
+                            required>
+                        @error('address')
+                        <span class="text-red-500 text-xs mt-1 block font-semibold">{{ $message }}</span>
+                        @enderror
+                    </div>
+                    <div class="space-y-2">
+                        <label class="block text-sm font-bold text-gray-700">المركز فرع<span
+                                class="text-red-500">*</span></label>
+                        <select name="center" x-model="formData.center"
+                            class="w-full p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36] focus:ring-1 focus:ring-[#0a5c36] transition-all"
+                            required>
+                            <option value="" @selected(old('center', $student->center ?? '') == '')>-- اختر المركز --</option>
+                            @foreach($centers ?? [] as $center)
+                            <option value="{{ $center->name }}" @selected(old('center', $student->center ?? '') == $center->name)>{{ $center->name }}</option>
+                            @endforeach
+                        </select>
+                        @error('center')
+                        <span class="text-red-500 text-xs mt-1 block font-semibold">{{ $message }}</span>
+                        @enderror
+                    </div>
+                </div>
+                <div class="border-t border-gray-100 my-6"></div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="space-y-2">
+                        <label class="block text-sm font-bold text-gray-700">رقم الواتساب للمتابعة</label>
+                        <input type="tel" name="whatsapp_number" x-model="formData.whatsapp_number"
+                            value="{{ old('whatsapp_number', $student->whatsapp_number ?? '') }}"
+                            @input="
+                     if(!formData.parent_email_custom) formData.parent_email = formData.whatsapp_number;
+                     if(!formData.password_custom) formData.password = formData.whatsapp_number;
+                   "
+                            placeholder="01xxxxxxxxx"
+                            class="w-full p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36] focus:ring-1 focus:ring-[#0a5c36] transition-all">
+                        @error('whatsapp_number')
+                        <span class="text-red-500 text-xs mt-1 block font-semibold">{{ $message }}</span>
+                        @enderror
+                    </div>
+
+                    <div class="space-y-2">
+                        <label class="block text-sm font-bold text-gray-700">رقم اتصال إضافي</label>
+                        <input type="tel" name="second_phone" x-model="formData.second_phone"
+                            value="{{ old('second_phone', $student->second_phone ?? '') }}"
+                            placeholder="01xxxxxxxxx"
+                            class="w-full p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36] focus:ring-1 focus:ring-[#0a5c36] transition-all">
+                        @error('second_phone')
+                        <span class="text-red-500 text-xs mt-1 block font-semibold">{{ $message }}</span>
+                        @enderror
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="space-y-2">
+                        <label class="block text-sm font-bold text-gray-700">صاحب رقم الواتساب</label>
+                        <div class="flex flex-wrap gap-4 p-3 bg-gray-50 rounded-2xl border border-gray-100">
+                            <label
+                                class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer"><input
+                                    type="radio" name="whatsapp_owner" value="الأم"
+                                    x-model="formData.whatsapp_owner"
+                                    @checked(old('whatsapp_owner', $student->whatsapp_owner ?? '') == 'الأم')
+                                class="text-[#0a5c36] focus:ring-[#0a5c36]">
+                                <span>الأم</span></label>
+                            <label
+                                class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer"><input
+                                    type="radio" name="whatsapp_owner" value="الأب"
+                                    x-model="formData.whatsapp_owner"
+                                    @checked(old('whatsapp_owner', $student->whatsapp_owner ?? '') == 'الأب')
+                                class="text-[#0a5c36] focus:ring-[#0a5c36]">
+                                <span>الأب</span></label>
+                            <label
+                                class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer"><input
+                                    type="radio" name="whatsapp_owner" value="الطالب"
+                                    x-model="formData.whatsapp_owner"
+                                    @checked(old('whatsapp_owner', $student->whatsapp_owner ?? '') == 'الطالب')
+                                class="text-[#0a5c36] focus:ring-[#0a5c36]">
+                                <span>الطالب</span></label>
+                            <label
+                                class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer"><input
+                                    type="radio" name="whatsapp_owner" value="أخرى"
+                                    x-model="formData.whatsapp_owner"
+                                    @checked(old('whatsapp_owner', $student->whatsapp_owner ?? '') == 'أخرى')
+                                class="text-[#0a5c36] focus:ring-[#0a5c36]">
+                                <span>أخرى</span></label>
+                        </div>
+                        @error('whatsapp_owner')
+                        <span class="text-red-500 text-xs mt-1 block font-semibold">{{ $message }}</span>
+                        @enderror
+                        <input type="text" name="whatsapp_owner_other" x-model="formData.whatsapp_owner_other"
+                            value="{{ old('whatsapp_owner_other', $student->whatsapp_owner_other ?? '') }}"
+                            x-show="formData.whatsapp_owner === 'أخرى'" placeholder="يرجى التحديد..."
+                            class="w-full mt-2 p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36]"
+                            x-cloak>
+                    </div>
+                    <div class="space-y-2">
+                        <label class="block text-sm font-bold text-gray-700">صاحب الرقم الإضافي</label>
+                        <div class="flex flex-wrap gap-4 p-3 bg-gray-50 rounded-2xl border border-gray-100">
+                            <label
+                                class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer"><input
+                                    type="radio" name="additional_contact_owner" value="الأم"
+                                    x-model="formData.additional_contact_owner"
+                                    @checked(old('additional_contact_owner', $student->additional_contact_owner ?? '') == 'الأم')
+                                class="text-[#0a5c36] focus:ring-[#0a5c36]"> <span>الأم</span></label>
+                            <label
+                                class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer"><input
+                                    type="radio" name="additional_contact_owner" value="الأب"
+                                    x-model="formData.additional_contact_owner"
+                                    @checked(old('additional_contact_owner', $student->additional_contact_owner ?? '') == 'الأب')
+                                class="text-[#0a5c36] focus:ring-[#0a5c36]"> <span>الأب</span></label>
+                            <label
+                                class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer"><input
+                                    type="radio" name="additional_contact_owner" value="الطالب"
+                                    x-model="formData.additional_contact_owner"
+                                    @checked(old('additional_contact_owner', $student->additional_contact_owner ?? '') == 'الطالب')
+                                class="text-[#0a5c36] focus:ring-[#0a5c36]"> <span>الطالب</span></label>
+                            <label
+                                class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer"><input
+                                    type="radio" name="additional_contact_owner" value="أخرى"
+                                    x-model="formData.additional_contact_owner"
+                                    @checked(old('additional_contact_owner', $student->additional_contact_owner ?? '') == 'أخرى')
+                                class="text-[#0a5c36] focus:ring-[#0a5c36]"> <span>أخرى</span></label>
+                        </div>
+                        @error('additional_contact_owner')
+                        <span class="text-red-500 text-xs mt-1 block font-semibold">{{ $message }}</span>
+                        @enderror
+                        <input type="text" name="additional_contact_owner_other"
+                            x-model="formData.additional_contact_owner_other"
+                            value="{{ old('additional_contact_owner_other', $student->additional_contact_owner_other ?? '') }}"
+                            x-show="formData.additional_contact_owner === 'أخرى'" placeholder="يرجى التحديد..."
+                            class="w-full mt-2 p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36]"
+                            x-cloak>
+                    </div>
+                </div>
+
+                <div class="space-y-2">
+                    <label class="block text-sm font-bold text-gray-700">تحديد ولي الأمر <span
+                            class="text-red-500">*</span></label>
+                    <select name="guardian_id" x-model="formData.guardian_id" required
+                        class="w-full p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36] focus:ring-1 focus:ring-[#0a5c36] transition-all">
+                        <option value="new" @selected(old('guardian_id', $student->guardian_id ?? '') == 'new')>+ إضافة ولي أمر جديد</option>
+                        @foreach($guardians as $guardian)
+                        <option value="{{ $guardian->id }}" @selected(old('guardian_id', $student->guardian_id ?? '') == $guardian->id)>{{ $guardian->name }} ({{ $guardian->email }})</option>
+                        @endforeach
+                    </select>
+                    @error('guardian_id')
+                    <span class="text-red-500 text-xs mt-1 block font-semibold">{{ $message }}</span>
+                    @enderror
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2" x-show="formData.guardian_id === 'new'" x-cloak>
+                    <div class="space-y-2">
+                        <div class="flex justify-between items-center">
+                            <label class="block text-sm font-bold text-gray-700">اسم المستخدم / البريد الإلكتروني <span
+                                    class="text-red-500">*</span></label>
+                        </div>
+                        <div class="relative">
+                            <input type="text" name="parent_email" x-model="formData.parent_email"
+                                value="{{ old('parent_email', $student->parent_email ?? '') }}"
+                                @input="formData.parent_email_custom = true"
+                                placeholder="سيتم ملؤه تلقائياً برقم الواتساب"
+                                class="w-full p-3 bg-gray-50/80 border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36] focus:ring-1 focus:ring-[#0a5c36] transition-all ltr"
+                                :required="formData.guardian_id === 'new'">
+                            <div class="absolute left-3 top-3.5 text-gray-300 pointer-events-none">✉️</div>
+                        </div>
+                        @error('parent_email')
+                        <span class="text-red-500 text-xs mt-1 block font-semibold">{{ $message }}</span>
+                        @enderror
+                    </div>
+
+                    <div class="space-y-2">
+                        <div class="flex justify-between items-center">
+                            <label class="block text-sm font-bold text-gray-700">كلمة المرور للحساب <span
+                                    class="text-red-500">*</span></label>
+                        </div>
+
+                        <div class="relative" x-data="{ showPassword: false }">
+
+                            <div class="absolute right-3 top-3.5 text-gray-400 pointer-events-none text-xs">
+                                🔒
+                            </div>
+
+                            <input :type="showPassword ? 'text' : 'password'" name="password" x-model="formData.password"
+                                value="{{ old('password') }}"
+                                @input="formData.password_custom = true" placeholder="سيتم ملؤها تلقائياً برقم الواتساب"
+                                class="w-full p-3 pr-10 pl-10 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36] focus:ring-1 focus:ring-[#0a5c36] transition-all ltr"
+                                :required="formData.guardian_id === 'new'">
+
+                            <button type="button" @click="showPassword = !showPassword"
+                                class="absolute left-3 top-2.5 p-1 text-gray-400 hover:text-[#0a5c36] focus:outline-none transition-colors text-sm">
+                                <span x-show="!showPassword">👁️</span>
+                                <span x-show="showPassword" x-cloak>🙈</span>
+                            </button>
+                        </div>
+
+                        @error('password')
+                        <span class="text-red-500 text-xs mt-1 block font-semibold">{{ $message }}</span>
+                        @enderror
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- --------------------------------------------------- البيانات الدراسية  -------------------------------------- -->
+        <div x-show="showSection(3)" x-cloak class="bg-white rounded-3xl shadow-sm border border-gray-100 p-8 space-y-6">
+            <div class="flex items-center gap-3 mb-6 border-b border-gray-50 pb-4">
+                <div class="p-3 bg-emerald-50 text-[#0a5c36] rounded-2xl text-xl">🎓</div>
+                <div>
+                    <h2 class="text-xl font-black text-[#0a5c36]">البيانات الدراسية</h2>
+                    <p class="text-xs text-gray-400 mt-1">المرحلة والمؤسسة التعليمية الحالية</p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="space-y-2">
+                    <label class="block text-sm font-bold text-gray-700">المرحلة الدراسية <span
+                            class="text-red-500">*</span></label>
+                    <select name="educational_stage" x-model="formData.educational_stage"
+                        class="w-full p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36] focus:ring-1 focus:ring-[#0a5c36] transition-all appearance-none"
+                        required>
+                        <option value="" @selected(old('educational_stage', $student->educational_stage ?? '') == '')>-- اختر المرحلة --</option>
+                        <option value="تمهيدي" @selected(old('educational_stage', $student->educational_stage ?? '') == 'تمهيدي')>تمهيدي</option>
+                        <option value="حضانة" @selected(old('educational_stage', $student->educational_stage ?? '') == 'حضانة')>حضانة</option>
+                        <option value="ابتدائي" @selected(old('educational_stage', $student->educational_stage ?? '') == 'ابتدائي')>ابتدائي</option>
+                        <option value="اعدادي" @selected(old('educational_stage', $student->educational_stage ?? '') == 'اعدادي')>اعدادي</option>
+                        <option value="ثانوي" @selected(old('educational_stage', $student->educational_stage ?? '') == 'ثانوي')>ثانوي</option>
+                        <option value="جامعي" @selected(old('educational_stage', $student->educational_stage ?? '') == 'جامعي')>جامعي</option>
+                        <option value="خريج" @selected(old('educational_stage', $student->educational_stage ?? '') == 'خريج')>خريج</option>
+                    </select>
+                    @error('educational_stage')
+                    <span class="text-red-500 text-xs mt-1 block font-semibold">{{ $message }}</span>
+                    @enderror
+                </div>
+                <div class="space-y-2">
+                    <label class="block text-sm font-bold text-gray-700">نوع التعليم <span
+                            class="text-red-500">*</span></label>
+                    <select name="education_type" x-model="formData.education_type"
+                        class="w-full p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36] focus:ring-1 focus:ring-[#0a5c36] transition-all appearance-none"
+                        required>
+                        <option value="" @selected(old('education_type', $student->education_type ?? '') == '')>-- اختر النوع --</option>
+                        <option value="غير محدد" @selected(old('education_type', $student->education_type ?? '') == 'غير محدد')>غير محدد</option>
+                        <option value="أزهري" @selected(old('education_type', $student->education_type ?? '') == 'أزهري')>أزهري</option>
+                        <option value="عام (تربية وتعليم)" @selected(old('education_type', $student->education_type ?? '') == 'عام (تربية وتعليم)')>عام (تربية وتعليم)</option>
+                    </select>
+                    @error('education_type')
+                    <span class="text-red-500 text-xs mt-1 block font-semibold">{{ $message }}</span>
+                    @enderror
+                </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="space-y-2">
+                    <label class="block text-sm font-bold text-gray-700">الصف الدراسي <span
+                            class="text-red-500">*</span></label>
+                    <select name="school_grade" x-model="formData.school_grade"
+                        class="w-full p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36] focus:ring-1 focus:ring-[#0a5c36] transition-all appearance-none"
+                        required>
+                        <option value="" @selected(old('school_grade', $student->school_grade ?? '') == '')>-- اختر الصف --</option>
+                        <option value="لا يوجد" @selected(old('school_grade', $student->school_grade ?? '') == 'لا يوجد')>لا يوجد</option>
+                        <option value="الأول" @selected(old('school_grade', $student->school_grade ?? '') == 'الأول')>الأول</option>
+                        <option value="الثاني" @selected(old('school_grade', $student->school_grade ?? '') == 'الثاني')>الثاني</option>
+                        <option value="الثالث" @selected(old('school_grade', $student->school_grade ?? '') == 'الثالث')>الثالث</option>
+                        <option value="الرابع" @selected(old('school_grade', $student->school_grade ?? '') == 'الرابع')>الرابع</option>
+                        <option value="الخامس" @selected(old('school_grade', $student->school_grade ?? '') == 'الخامس')>الخامس</option>
+                        <option value="السادس" @selected(old('school_grade', $student->school_grade ?? '') == 'السادس')>السادس</option>
+                        <option value="دراسات عليا" @selected(old('school_grade', $student->school_grade ?? '') == 'دراسات عليا')>دراسات عليا</option>
+                    </select>
+                    @error('school_grade')
+                    <span class="text-red-500 text-xs mt-1 block font-semibold">{{ $message }}</span>
+                    @enderror
+                </div>
+
+                <div class="space-y-2">
+                    <label class="block text-sm font-bold text-gray-700">المؤسسة التعليمية (الحضانة / المدرسة / المعهد /
+                        الكلية) <span class="text-red-500">*</span></label>
+                    <input type="text" name="previous_school" x-model="formData.previous_school"
+                        value="{{ old('previous_school', $student->previous_school ?? '') }}"
+                        placeholder="اسم المؤسسة التعليمية بالكامل"
+                        class="w-full p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36] focus:ring-1 focus:ring-[#0a5c36] transition-all"
+                        required>
+                    @error('previous_school')
+                    <span class="text-red-500 text-xs mt-1 block font-semibold">{{ $message }}</span>
+                    @enderror
+                </div>
+            </div>
+
+        </div>
+
+        <!-- --------------------------------------------------- الحالة الصحية للطالب -------------------------------------- -->
+        <div x-show="showSection(4)" x-cloak class="bg-white rounded-3xl shadow-sm border border-gray-100 p-8 space-y-6">
+            <div class="flex items-center gap-3 mb-6 border-b border-gray-50 pb-4">
+                <div class="p-3 bg-emerald-50 text-[#0a5c36] rounded-2xl text-xl">💚</div>
+                <div>
+                    <h2 class="text-xl font-black text-[#0a5c36]">بيانات الرعاية الطلابية</h2>
+                    <p class="text-xs text-gray-400 mt-1">الحالة الصحية، السلوكية، والسمات الشخصية</p>
+                </div>
+            </div>
+
+            <div class="space-y-2">
+                <label class="block text-sm font-bold text-gray-700">الحالة الصحية للطالب <span
+                        class="text-red-500">*</span></label>
+                <div class="flex gap-6 p-3 bg-gray-50 rounded-2xl border border-gray-100">
+                    <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer"><input
+                            type="radio" name="health_status" value="طبيعية" x-model="formData.health_status"
+                            @checked(old('health_status', $student->health_status ?? '') == 'طبيعية')
+                        required> <span>طبيعية (الحمد لله)</span></label>
+                    <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer"><input
+                            type="radio" name="health_status" value="أخرى" x-model="formData.health_status"
+                            @checked(old('health_status', $student->health_status ?? '') == 'أخرى')
+                        required> <span>أخرى</span></label>
+                </div>
+                @error('health_status')
+                <span class="text-red-500 text-xs mt-1 block font-semibold">{{ $message }}</span>
+                @enderror
+                <input type="text" name="health_status_other" x-model="formData.health_status_other"
+                    value="{{ old('health_status_other', $student->health_status_other ?? '') }}"
+                    x-show="formData.health_status === 'أخرى'" placeholder="يرجى توضيح الحالة الصحية..."
+                    class="w-full mt-2 p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36] focus:ring-1 focus:ring-[#0a5c36] transition-all">
+            </div>
+
+            <div class="space-y-2">
+                <label class="block text-sm font-bold text-gray-700">صعوبات التعلم <span
+                        class="text-red-500">*</span></label>
+                <div class="flex gap-6 p-3 bg-gray-50 rounded-2xl border border-gray-100">
+                    <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer"><input
+                            type="radio" name="learning_difficulties" value="لا يوجد"
+                            x-model="formData.learning_difficulties"
+                            @checked(old('learning_difficulties', $student->learning_difficulties ?? '') == 'لا يوجد')
+                        required> <span>لا يوجد (الحمد لله)</span></label>
+                    <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer"><input
+                            type="radio" name="learning_difficulties" value="أخرى"
+                            x-model="formData.learning_difficulties"
+                            @checked(old('learning_difficulties', $student->learning_difficulties ?? '') == 'أخرى')
+                        required> <span>أخرى</span></label>
+                </div>
+                @error('learning_difficulties')
+                <span class="text-red-500 text-xs mt-1 block font-semibold">{{ $message }}</span>
+                @enderror
+                <input type="text" name="learning_difficulties_other"
+                    x-model="formData.learning_difficulties_other"
+                    value="{{ old('learning_difficulties_other', $student->learning_difficulties_other ?? '') }}"
+                    x-show="formData.learning_difficulties === 'أخرى'"
+                    placeholder="يرجى توضيح صعوبات التعلم..."
+                    class="w-full mt-2 p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36] focus:ring-1 focus:ring-[#0a5c36] transition-all">
+            </div>
+
+            <div class="space-y-2">
+                <label class="block text-sm font-bold text-gray-700">السمات الشخصية <span
+                        class="text-red-500">*</span></label>
+                <div class="flex gap-6 p-3 bg-gray-50 rounded-2xl border border-gray-100">
+                    <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer"><input
+                            type="radio" name="personal_traits" value="لا يوجد" x-model="formData.personal_traits"
+                            @checked(old('personal_traits', $student->personal_traits ?? '') == 'لا يوجد')
+                        required> <span>لا يوجد</span></label>
+                    <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer"><input
+                            type="radio" name="personal_traits" value="أخرى" x-model="formData.personal_traits"
+                            @checked(old('personal_traits', $student->personal_traits ?? '') == 'أخرى')
+                        required> <span>أخرى</span></label>
+                </div>
+                @error('personal_traits')
+                <span class="text-red-500 text-xs mt-1 block font-semibold">{{ $message }}</span>
+                @enderror
+                <input type="text" name="personal_traits_other" x-model="formData.personal_traits_other"
+                    value="{{ old('personal_traits_other', $student->personal_traits_other ?? '') }}"
+                    x-show="formData.personal_traits === 'أخرى'"
+                    placeholder="يرجى تحديد السمات البارزة (عنيد، خجول...)"
+                    class="w-full mt-2 p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36] focus:ring-1 focus:ring-[#0a5c36] transition-all">
+            </div>
+
+            <div class="space-y-2">
+                <label class="block text-sm font-bold text-gray-700">الهواية المفضلة <span
+                        class="text-red-500">*</span></label>
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 p-4 bg-gray-50 rounded-2xl border border-gray-100">
+                    <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer"><input
+                            type="checkbox" name="hobbies[]" value="كرة القدم" x-model="formData.hobbies"
+                            class="rounded text-[#0a5c36] focus:ring-[#0a5c36]"> <span>كرة القدم</span></label>
+                    <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer"><input
+                            type="checkbox" name="hobbies[]" value="الكاراتيه" x-model="formData.hobbies"
+                            class="rounded text-[#0a5c36] focus:ring-[#0a5c36]"> <span>الكاراتيه</span></label>
+                    <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer"><input
+                            type="checkbox" name="hobbies[]" value="الرسم" x-model="formData.hobbies"
+                            class="rounded text-[#0a5c36] focus:ring-[#0a5c36]"> <span>الرسم</span></label>
+                    <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer"><input
+                            type="checkbox" name="hobbies[]" value="البرمجة والألعاب الإلكترونية"
+                            x-model="formData.hobbies" class="rounded text-[#0a5c36] focus:ring-[#0a5c36]">
+                        <span>البرمجة والألعاب</span></label>
+                    <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer"><input
+                            type="checkbox" name="hobbies[]" value="الأشغال اليدوية" x-model="formData.hobbies"
+                            class="rounded text-[#0a5c36] focus:ring-[#0a5c36]"> <span>الأشغال اليدوية</span></label>
+                    <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer"><input
+                            type="checkbox" name="hobbies[]" value="القراءة والإطلاع" x-model="formData.hobbies"
+                            class="rounded text-[#0a5c36] focus:ring-[#0a5c36]"> <span>القراءة</span></label>
+                    <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer"><input
+                            type="checkbox" name="hobbies[]" value="أخرى" x-model="formData.hobbies"
+                            class="rounded text-[#0a5c36] focus:ring-[#0a5c36]"> <span>أخرى</span></label>
+                </div>
+
+                <input type="text" name="hobby_other" x-model="formData.hobby_other"
+                    value="{{ old('hobby_other', $student->hobby_other ?? '') }}"
+                    x-show="formData.hobbies && formData.hobbies.includes('أخرى')"
+                    placeholder="يرجى ذكر الهواية الإضافية..."
+                    class="w-full mt-2 p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36] focus:ring-1 focus:ring-[#0a5c36] transition-all"
+                    x-cloak>
+            </div>
+
+            <div class="space-y-2">
+                <label class="block text-sm font-bold text-gray-700">حالة خروج الطالب من المركز <span
+                        class="text-red-500">*</span></label>
+                <div class="flex gap-6 p-3 bg-gray-50 rounded-2xl border border-gray-100">
+                    <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer"><input
+                            type="radio" name="student_exit_status" value="بمفرده"
+                            x-model="formData.student_exit_status"
+                            @checked(old('student_exit_status', $student->student_exit_status ?? '') == 'بمفرده')
+                        required> <span>بمفرده</span></label>
+                    <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer"><input
+                            type="radio" name="student_exit_status" value="مع ولي الأمر أو أحد الأقارب"
+                            x-model="formData.student_exit_status"
+                            @checked(old('student_exit_status', $student->student_exit_status ?? '') == 'مع ولي الأمر أو أحد الأقارب')
+                        required> <span>مع ولي الأمر أو أحد
+                            الأقارب</span></label>
+                </div>
+                @error('student_exit_status')
+                <span class="text-red-500 text-xs mt-1 block font-semibold">{{ $message }}</span>
+                @enderror
+                <input type="text" name="exit_details" x-model="formData.exit_details"
+                    value="{{ old('exit_details', $student->exit_details ?? '') }}"
+                    x-show="formData.student_exit_status === 'مع ولي الأمر أو أحد الأقارب'"
+                    placeholder="يرجى توضيح مع من ستخرج ..."
+                    class="w-full mt-2 p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36] focus:ring-1 focus:ring-[#0a5c36] transition-all">
+            </div>
+
+        </div>
+
+    </div>
+
+    <!--  --------------------------------------------------- تقييم التلاوة وتحديد مستوى الالتحاق -------------------------------------- -->
+    <div x-show="showSection(5)" x-cloak class="bg-white rounded-3xl shadow-sm border border-gray-100 p-8 space-y-6">
+        <div class="space-y-6">
+            <div class="flex items-center gap-3 mb-6 border-b border-gray-50 pb-4">
+                <div class="p-3 bg-[#e8f5ed] text-[#0a5c36] rounded-2xl text-xl">🎤</div>
+                <div>
+                    <h2 class="text-xl font-black text-gray-800">تقييم التلاوة وتحديد مستوى الالتحاق</h2>
+                    <p class="text-xs text-gray-400 mt-1">تحديد المسار الفني والتعليمي للطالب بناء على تقييم الشيخ
+                        المختبر</p>
+                </div>
+            </div>
+
+            <div class="space-y-2">
+                <label class="block text-sm font-bold text-gray-700">مستوى القراءة من المصحف <span
+                        class="text-red-500">*</span></label>
+                <div
+                    class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 p-4 bg-gray-50 rounded-2xl border border-gray-100">
+                    <label
+                        class="flex items-center gap-2 p-3 bg-white border border-gray-200 rounded-xl cursor-pointer hover:border-[#0a5c36]/50 transition-all text-sm font-semibold text-gray-600">
+                        <input type="radio" name="reading" value="مبتدئ" x-model="formData.reading"
+                            @checked(old('reading', $student->reading ?? '') == 'مبتدئ')
+                        class="text-[#0a5c36] focus:ring-[#0a5c36]" required>
+                        <span>مبتدئ <span class="text-xs text-gray-400 font-normal">(لا يقرأ)</span></span>
+                    </label>
+                    <label
+                        class="flex items-center gap-2 p-3 bg-white border border-gray-200 rounded-xl cursor-pointer hover:border-[#0a5c36]/50 transition-all text-sm font-semibold text-gray-600">
+                        <input type="radio" name="reading" value="مقبول" x-model="formData.reading"
+                            @checked(old('reading', $student->reading ?? '') == 'مقبول')
+                        class="text-[#0a5c36] focus:ring-[#0a5c36]">
+                        <span>مقبول <span class="text-xs text-gray-400 font-normal">(يقرأ ببطء)</span></span>
+                    </label>
+                    <label
+                        class="flex items-center gap-2 p-3 bg-white border border-gray-200 rounded-xl cursor-pointer hover:border-[#0a5c36]/50 transition-all text-sm font-semibold text-gray-600">
+                        <input type="radio" name="reading" value="متمكن" x-model="formData.reading"
+                            @checked(old('reading', $student->reading ?? '') == 'متمكن')
+                        class="text-[#0a5c36] focus:ring-[#0a5c36]">
+                        <span>متمكن <span class="text-xs text-gray-400 font-normal">(بدون أحكام)</span></span>
+                    </label>
+                    <label
+                        class="flex items-center gap-2 p-3 bg-white border border-gray-200 rounded-xl cursor-pointer hover:border-[#0a5c36]/50 transition-all text-sm font-semibold text-gray-600">
+                        <input type="radio" name="reading" value="متقن" x-model="formData.reading"
+                            @checked(old('reading', $student->reading ?? '') == 'متقن')
+                        class="text-[#0a5c36] focus:ring-[#0a5c36]">
+                        <span>متقن <span class="text-xs text-gray-400 font-normal">(توجد أحكام)</span></span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="space-y-4 pt-2">
+                <label class="block text-sm font-bold text-gray-700">اختر مستوى تحضير أو التحاق الطالب بعد الاختبار
+                    <span class="text-red-500">*</span></label>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <label
+                        class="flex flex-col p-4 border rounded-2xl cursor-pointer hover:border-[#0a5c36] transition-all"
+                        :class="formData.center_entry_level === 'construction' ? 'border-[#0a5c36] bg-[#e8f5ed]/40' :
+                                'border-gray-100 bg-gray-50'">
+                        <div class="flex items-center gap-2 font-bold text-[#0a5c36]">
+                            <input type="radio" name="center_entry_level" value="construction"
+                                x-model="formData.center_entry_level" required
+                                @checked(old('center_entry_level', $student->center_entry_level ?? '') == 'construction')
+                            class="text-[#0a5c36] focus:ring-[#0a5c36]">
+                            <span>🌱 مستوى البناء</span>
+                        </div>
+                        <span class="text-xs text-gray-500 mt-2 mr-5">الحلقات Tأسيسية وحفظ الأجزاء المنتظمة</span>
+                    </label>
+
+                    <label
+                        class="flex flex-col p-4 border rounded-2xl cursor-pointer hover:border-[#7a6020] transition-all"
+                        :class="formData.center_entry_level === 'itqan' ? 'border-[#b8973a] bg-[#faf8f2]' :
+                                'border-gray-100 bg-gray-50'">
+                        <div class="flex items-center gap-2 font-bold text-[#7a6020]">
+                            <input type="radio" name="center_entry_level" value="itqan"
+                                x-model="formData.center_entry_level"
+                                @checked(old('center_entry_level', $student->center_entry_level ?? '') == 'itqan')
+                            class="text-[#b8973a] focus:ring-[#b8973a]">
+                            <span>⭐ مستوى الإتقان</span>
+                        </div>
+                        <span class="text-xs text-gray-500 mt-2 mr-5">حلقات التثبيت، المراجعة المكثفة
+                            والخاتمين</span>
+                    </label>
+
+                    <label
+                        class="flex flex-col p-4 border rounded-2xl cursor-pointer hover:border-indigo-600 transition-all"
+                        :class="formData.center_entry_level === 'ibda' ? 'border-indigo-600 bg-indigo-50/40' :
+                                'border-gray-100 bg-gray-50'">
+                        <div class="flex items-center gap-2 font-bold text-indigo-800">
+                            <input type="radio" name="center_entry_level" value="ibda"
+                                x-model="formData.center_entry_level"
+                                @checked(old('center_entry_level', $student->center_entry_level ?? '') == 'ibda')
+                            class="text-indigo-600 focus:ring-indigo-500">
+                            <span>🏆 مستوى الإبداع</span>
+                        </div>
+                        <span class="text-xs text-gray-500 mt-2 mr-5">مجالس الإجازات، القراءات والسند المتصل</span>
+                    </label>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+
+
+    <!-- --------------------------------------------------- مستوي البناء ------------------------------------- -->
+    <div x-show="showSection(6)" x-cloak class="bg-white rounded-3xl shadow-sm border border-gray-100 p-8 space-y-6">
+        <div class="flex items-center gap-3 mb-6 border-b border-gray-50 pb-4">
+            <div class="p-3 bg-emerald-50 text-[#0a5c36] rounded-2xl text-xl">🌱</div>
+            <div>
+                <h2 class="text-xl font-black text-[#0a5c36]">مستوى البناء</h2>
+                <p class="text-xs text-gray-400 mt-1">تسكين الطالب في الحلقات وخطة الحفظ</p>
+            </div>
+        </div>
+
+        <div class="space-y-2">
+            <label class="block text-sm font-bold text-gray-700">سورة الالتحاق الحالية <span
+                    class="text-red-500">*</span></label>
+            <select name="current_surah" id="currentSurah" x-model="formData.current_surah"
+                class="w-full p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36] focus:ring-1 focus:ring-[#0a5c36] transition-all"
+                required>
+                <option value="" @selected(old('current_surah', $student->current_surah ?? '') == '')>-- اختر السورة أو حالة الالتحاق --</option>
+
+                <option value="بداية" @selected(old('current_surah', $student->current_surah ?? '') == 'بداية') class="font-bold text-[#0a5c36]">🟢 بداية (مبتدئ تماماً)</option>
+                <option value="خاتم" @selected(old('current_surah', $student->current_surah ?? '') == 'خاتم') class="font-bold text-indigo-600">👑 خاتم (حفظ القرآن كاملاً)</option>
+                <option value="الفاتحة" @selected(old('current_surah', $student->current_surah ?? '') == 'الفاتحة')>1. الفاتحة</option>
+                <option value="البقرة" @selected(old('current_surah', $student->current_surah ?? '') == 'البقرة')>2. البقرة</option>
+                <option value="آل عمران" @selected(old('current_surah', $student->current_surah ?? '') == 'آل عمران')>3. آل عمران</option>
+                <option value="النساء" @selected(old('current_surah', $student->current_surah ?? '') == 'النساء')>4. النساء</option>
+                <option value="المائدة" @selected(old('current_surah', $student->current_surah ?? '') == 'المائدة')>5. المائدة</option>
+                <option value="الأنعام" @selected(old('current_surah', $student->current_surah ?? '') == 'الأنعام')>6. الأنعام</option>
+                <option value="الأعراف" @selected(old('current_surah', $student->current_surah ?? '') == 'الأعراف')>7. الأعراف</option>
+                <option value="الأنفال" @selected(old('current_surah', $student->current_surah ?? '') == 'الأنفال')>8. الأنفال</option>
+                <option value="التوبة" @selected(old('current_surah', $student->current_surah ?? '') == 'التوبة')>9. التوبة</option>
+                <option value="يونس" @selected(old('current_surah', $student->current_surah ?? '') == 'يونس')>10. يونس</option>
+                <option value="هود" @selected(old('current_surah', $student->current_surah ?? '') == 'هود')>11. هود</option>
+                <option value="يوسف" @selected(old('current_surah', $student->current_surah ?? '') == 'يوسف')>12. يوسف</option>
+                <option value="الرعد" @selected(old('current_surah', $student->current_surah ?? '') == 'الرعد')>13. الرعد</option>
+                <option value="إبراهيم" @selected(old('current_surah', $student->current_surah ?? '') == 'إبراهيم')>14. إبراهيم</option>
+                <option value="الحجر" @selected(old('current_surah', $student->current_surah ?? '') == 'الحجر')>15. الحجر</option>
+                <option value="النحل" @selected(old('current_surah', $student->current_surah ?? '') == 'النحل')>16. النحل</option>
+                <option value="الإسراء" @selected(old('current_surah', $student->current_surah ?? '') == 'الإسراء')>17. الإسراء</option>
+                <option value="الكهف" @selected(old('current_surah', $student->current_surah ?? '') == 'الكهف')>18. الكهف</option>
+                <option value="مريم" @selected(old('current_surah', $student->current_surah ?? '') == 'مريم')>19. مريم</option>
+                <option value="طه" @selected(old('current_surah', $student->current_surah ?? '') == 'طه')>20. طه</option>
+                <option value="الأنبياء" @selected(old('current_surah', $student->current_surah ?? '') == 'الأنبياء')>21. الأنبياء</option>
+                <option value="الحج" @selected(old('current_surah', $student->current_surah ?? '') == 'الحج')>22. الحج</option>
+                <option value="المؤمنون" @selected(old('current_surah', $student->current_surah ?? '') == 'المؤمنون')>23. المؤمنون</option>
+                <option value="النور" @selected(old('current_surah', $student->current_surah ?? '') == 'النور')>24. النور</option>
+                <option value="الفرقان" @selected(old('current_surah', $student->current_surah ?? '') == 'الفرقان')>25. الفرقان</option>
+                <option value="الشعراء" @selected(old('current_surah', $student->current_surah ?? '') == 'الشعراء')>26. الشعراء</option>
+                <option value="النمل" @selected(old('current_surah', $student->current_surah ?? '') == 'النمل')>27. النمل</option>
+                <option value="القصص" @selected(old('current_surah', $student->current_surah ?? '') == 'القصص')>28. القصص</option>
+                <option value="العنكبوت" @selected(old('current_surah', $student->current_surah ?? '') == 'العنكبوت')>29. العنكبوت</option>
+                <option value="الروم" @selected(old('current_surah', $student->current_surah ?? '') == 'الروم')>30. الروم</option>
+                <option value="لقمان" @selected(old('current_surah', $student->current_surah ?? '') == 'لقمان')>31. لقمان</option>
+                <option value="السجدة" @selected(old('current_surah', $student->current_surah ?? '') == 'السجدة')>32. السجدة</option>
+                <option value="الأحزاب" @selected(old('current_surah', $student->current_surah ?? '') == 'الأحزاب')>33. الأحزاب</option>
+                <option value="سبأ" @selected(old('current_surah', $student->current_surah ?? '') == 'سبأ')>34. سبأ</option>
+                <option value="فاطر" @selected(old('current_surah', $student->current_surah ?? '') == 'فاطر')>35. فاطر</option>
+                <option value="يس" @selected(old('current_surah', $student->current_surah ?? '') == 'يس')>36. يس</option>
+                <option value="الصافات" @selected(old('current_surah', $student->current_surah ?? '') == 'الصافات')>37. الصافات</option>
+                <option value="ص" @selected(old('current_surah', $student->current_surah ?? '') == 'ص')>38. ص</option>
+                <option value="الزمر" @selected(old('current_surah', $student->current_surah ?? '') == 'الزمر')>39. الزمر</option>
+                <option value="غافر" @selected(old('current_surah', $student->current_surah ?? '') == 'غافر')>40. غافر</option>
+                <option value="فصلت" @selected(old('current_surah', $student->current_surah ?? '') == 'فصلت')>41. فصلت</option>
+                <option value="الشورى" @selected(old('current_surah', $student->current_surah ?? '') == 'الشورى')>42. الشورى</option>
+                <option value="الزخرف" @selected(old('current_surah', $student->current_surah ?? '') == 'الزخرف')>43. الزخرف</option>
+                <option value="الدخان" @selected(old('current_surah', $student->current_surah ?? '') == 'الدخان')>44. الدخان</option>
+                <option value="الجاثية" @selected(old('current_surah', $student->current_surah ?? '') == 'الجاثية')>45. الجاثية</option>
+                <option value="الأحقاف" @selected(old('current_surah', $student->current_surah ?? '') == 'الأحقاف')>46. الأحقاف</option>
+                <option value="محمد" @selected(old('current_surah', $student->current_surah ?? '') == 'محمد')>47. محمد</option>
+                <option value="الفتح" @selected(old('current_surah', $student->current_surah ?? '') == 'الفتح')>48. الفتح</option>
+                <option value="الحجرات" @selected(old('current_surah', $student->current_surah ?? '') == 'الحجرات')>49. الحجرات</option>
+                <option value="ق" @selected(old('current_surah', $student->current_surah ?? '') == 'ق')>50. ق</option>
+                <option value="الذاريات" @selected(old('current_surah', $student->current_surah ?? '') == 'الذاريات')>51. الذاريات</option>
+                <option value="الطور" @selected(old('current_surah', $student->current_surah ?? '') == 'الطور')>52. الطور</option>
+                <option value="النجم" @selected(old('current_surah', $student->current_surah ?? '') == 'النجم')>53. النجم</option>
+                <option value="القمر" @selected(old('current_surah', $student->current_surah ?? '') == 'القمر')>54. القمر</option>
+                <option value="الرحمن" @selected(old('current_surah', $student->current_surah ?? '') == 'الرحمن')>55. الرحمن</option>
+                <option value="الواقعة" @selected(old('current_surah', $student->current_surah ?? '') == 'الواقعة')>56. الواقعة</option>
+                <option value="الحديد" @selected(old('current_surah', $student->current_surah ?? '') == 'الحديد')>57. الحديد</option>
+                <option value="المجادلة" @selected(old('current_surah', $student->current_surah ?? '') == 'المجادلة')>58. المجادلة</option>
+                <option value="الحشر" @selected(old('current_surah', $student->current_surah ?? '') == 'الحشر')>59. الحشر</option>
+                <option value="الممتحنة" @selected(old('current_surah', $student->current_surah ?? '') == 'الممتحنة')>60. الممتحنة</option>
+                <option value="الصف" @selected(old('current_surah', $student->current_surah ?? '') == 'الصف')>61. الصف</option>
+                <option value="الجمعة" @selected(old('current_surah', $student->current_surah ?? '') == 'الجمعة')>62. الجمعة</option>
+                <option value="المنافقون" @selected(old('current_surah', $student->current_surah ?? '') == 'المنافقون')>63. المنافقون</option>
+                <option value="التغابن" @selected(old('current_surah', $student->current_surah ?? '') == 'التغابن')>64. التغابن</option>
+                <option value="الطلاق" @selected(old('current_surah', $student->current_surah ?? '') == 'الطلاق')>65. الطلاق</option>
+                <option value="التحريم" @selected(old('current_surah', $student->current_surah ?? '') == 'التحريم')>66. التحريم</option>
+                <option value="الملك" @selected(old('current_surah', $student->current_surah ?? '') == 'الملك')>67. الملك</option>
+                <option value="القلم" @selected(old('current_surah', $student->current_surah ?? '') == 'القلم')>68. القلم</option>
+                <option value="الحاقة" @selected(old('current_surah', $student->current_surah ?? '') == 'الحاقة')>69. الحاقة</option>
+                <option value="المعارج" @selected(old('current_surah', $student->current_surah ?? '') == 'المعارج')>70. المعارج</option>
+                <option value="نوح" @selected(old('current_surah', $student->current_surah ?? '') == 'نوح')>71. نوح</option>
+                <option value="الجن" @selected(old('current_surah', $student->current_surah ?? '') == 'الجن')>72. الجن</option>
+                <option value="المزمل" @selected(old('current_surah', $student->current_surah ?? '') == 'المزمل')>73. المزمل</option>
+                <option value="المدثر" @selected(old('current_surah', $student->current_surah ?? '') == 'المدثر')>74. المدثر</option>
+                <option value="القيامة" @selected(old('current_surah', $student->current_surah ?? '') == 'القيامة')>75. القيامة</option>
+                <option value="الإنسان" @selected(old('current_surah', $student->current_surah ?? '') == 'الإنسان')>76. الإنسان</option>
+                <option value="المرسلات" @selected(old('current_surah', $student->current_surah ?? '') == 'المرسلات')>77. المرسلات</option>
+                <option value="النبأ" @selected(old('current_surah', $student->current_surah ?? '') == 'النبأ')>78. النبأ</option>
+                <option value="النازعات" @selected(old('current_surah', $student->current_surah ?? '') == 'النازعات')>79. النازعات</option>
+                <option value="عبس" @selected(old('current_surah', $student->current_surah ?? '') == 'عبس')>80. عبس</option>
+                <option value="التكوير" @selected(old('current_surah', $student->current_surah ?? '') == 'التكوير')>81. التكوير</option>
+                <option value="الانفطار" @selected(old('current_surah', $student->current_surah ?? '') == 'الانفطار')>82. الانفطار</option>
+                <option value="المطففين" @selected(old('current_surah', $student->current_surah ?? '') == 'المطففين')>83. المطففين</option>
+                <option value="الانشقاق" @selected(old('current_surah', $student->current_surah ?? '') == 'الانشقاق')>84. الانشقاق</option>
+                <option value="البروج" @selected(old('current_surah', $student->current_surah ?? '') == 'البروج')>85. البروج</option>
+                <option value="الطارق" @selected(old('current_surah', $student->current_surah ?? '') == 'الطارق')>86. الطارق</option>
+                <option value="الأعلى" @selected(old('current_surah', $student->current_surah ?? '') == 'الأعلى')>87. الأعلى</option>
+                <option value="الغاشية" @selected(old('current_surah', $student->current_surah ?? '') == 'الغاشية')>88. الغاشية</option>
+                <option value="الفجر" @selected(old('current_surah', $student->current_surah ?? '') == 'الفجر')>89. الفجر</option>
+                <option value="البلد" @selected(old('current_surah', $student->current_surah ?? '') == 'البلد')>90. البلد</option>
+                <option value="الشمس" @selected(old('current_surah', $student->current_surah ?? '') == 'الشمس')>91. الشمس</option>
+                <option value="الليل" @selected(old('current_surah', $student->current_surah ?? '') == 'الليل')>92. الليل</option>
+                <option value="الضحى" @selected(old('current_surah', $student->current_surah ?? '') == 'الضحى')>93. الضحى</option>
+                <option value="الشرح" @selected(old('current_surah', $student->current_surah ?? '') == 'الشرح')>94. الشرح</option>
+                <option value="التين" @selected(old('current_surah', $student->current_surah ?? '') == 'التين')>95. التين</option>
+                <option value="العلق" @selected(old('current_surah', $student->current_surah ?? '') == 'العلق')>96. العلق</option>
+                <option value="القدر" @selected(old('current_surah', $student->current_surah ?? '') == 'القدر')>97. القدر</option>
+                <option value="البينة" @selected(old('current_surah', $student->current_surah ?? '') == 'البينة')>98. البينة</option>
+                <option value="الزلزلة" @selected(old('current_surah', $student->current_surah ?? '') == 'الزلزلة')>99. الزلزلة</option>
+                <option value="العاديات" @selected(old('current_surah', $student->current_surah ?? '') == 'العاديات')>100. العاديات</option>
+                <option value="القارعة" @selected(old('current_surah', $student->current_surah ?? '') == 'القارعة')>101. القارعة</option>
+                <option value="التكاثر" @selected(old('current_surah', $student->current_surah ?? '') == 'التكاثر')>102. التكاثر</option>
+                <option value="العصر" @selected(old('current_surah', $student->current_surah ?? '') == 'العصر')>103. العصر</option>
+                <option value="الهمزة" @selected(old('current_surah', $student->current_surah ?? '') == 'الهمزة')>104. الهمزة</option>
+                <option value="الفيل" @selected(old('current_surah', $student->current_surah ?? '') == 'الفيل')>105. الفيل</option>
+                <option value="قريش" @selected(old('current_surah', $student->current_surah ?? '') == 'قريش')>106. قريش</option>
+                <option value="الماعون" @selected(old('current_surah', $student->current_surah ?? '') == 'الماعون')>107. الماعون</option>
+                <option value="الكوثر" @selected(old('current_surah', $student->current_surah ?? '') == 'الكوثر')>108. الكوثر</option>
+                <option value="الكافرون" @selected(old('current_surah', $student->current_surah ?? '') == 'الكافرون')>109. الكافرون</option>
+                <option value="النصر" @selected(old('current_surah', $student->current_surah ?? '') == 'النصر')>110. النصر</option>
+                <option value="المسد" @selected(old('current_surah', $student->current_surah ?? '') == 'المسد')>111. المسد</option>
+                <option value="الإخلاص" @selected(old('current_surah', $student->current_surah ?? '') == 'الإخلاص')>112. الإخلاص</option>
+                <option value="الفلق" @selected(old('current_surah', $student->current_surah ?? '') == 'الفلق')>113. الفلق</option>
+                <option value="الناس" @selected(old('current_surah', $student->current_surah ?? '') == 'الناس')>114. الناس</option>
+            </select>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="space-y-2">
+                <label class="block text-sm font-bold text-gray-700">النظام المتبع <span
+                        class="text-red-500">*</span></label>
+                <div class="flex gap-6 p-3 bg-gray-50 rounded-2xl border border-gray-100">
+                    <label
+                        class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer"><input
+                            type="radio" name="study_system" value="فردي"
+                            x-model="formData.study_system"
+                            @checked(old('study_system', $student->study_system ?? '') == 'فردي')> <span>فردي</span></label>
+                    <label
+                        class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer"><input
+                            type="radio" name="study_system" value="جماعي"
+                            x-model="formData.study_system"
+                            @checked(old('study_system', $student->study_system ?? '') == 'جماعي')> <span>جماعي</span></label>
+                </div>
+            </div>
+            <div class="space-y-2">
+                <label class="block text-sm font-bold text-gray-700">اسم الحلقة <span
+                        class="text-red-500">*</span></label>
+                <select name="group_name" x-model="formData.group_name"
+                    class="w-full p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36] focus:ring-1 focus:ring-[#0a5c36] transition-all appearance-none">
+                    <option value="" @selected(old('group_name', $student->group_name ?? '') == '')>-- اختر الحلقة --</option>
+                    @foreach($circles as $circle)
+                    <option value="{{ $circle->name }}" @selected(old('group_name', $student->group_name ?? '') == $circle->name)>{{ $circle->name }}</option>
+                    @endforeach
+                </select>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="space-y-2">
+                <label class="block text-sm font-bold text-gray-700">خطة الحفظ الجديد <span
+                        class="text-red-500">*</span></label>
+                <input type="text" name="new_memorization_plan" x-model="formData.new_memorization_plan"
+                    value="{{ old('new_memorization_plan', $student->new_memorization_plan ?? '') }}"
+                    placeholder="مثال: حفظ 5 سطور"
+                    class="w-full p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36] focus:ring-1 focus:ring-[#0a5c36] transition-all">
+
+            </div>
+            <div class="space-y-2">
+                <label class="block text-sm font-bold text-gray-700">مستوى الحفظ بعد الاختبار <span
+                        class="text-red-500">*</span></label>
+                <select name="behavior_level" x-model="formData.behavior_level"
+                    class="w-full p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36] focus:ring-1 focus:ring-[#0a5c36] transition-all appearance-none">
+                    <option value="" @selected(old('behavior_level', $student->behavior_level ?? '') == '')>-- اختر التقييم --</option>
+                    <option value="ممتاز" @selected(old('behavior_level', $student->behavior_level ?? '') == 'ممتاز')>ممتاز</option>
+                    <option value="جيد" @selected(old('behavior_level', $student->behavior_level ?? '') == 'جيد')>جيد</option>
+                    <option value="تثبيت" @selected(old('behavior_level', $student->behavior_level ?? '') == 'تثبيت')>تثبيت</option>
+                    <option value="تأسيس" @selected(old('behavior_level', $student->behavior_level ?? '') == 'تأسيس')>تأسيس</option>
+                    <option value="إعادة حفظ" @selected(old('behavior_level', $student->behavior_level ?? '') == 'إعادة حفظ')>إعادة حفظ</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="space-y-2">
+            <label class="block text-sm font-bold text-gray-700">خطة الحفظ القديم (المراجعة) <span
+                    class="text-red-500">*</span></label>
+            <div class="flex flex-wrap gap-4 p-3 bg-gray-50 rounded-2xl border border-gray-100">
+                <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer"><input
+                        type="radio" name="old_memorization_plan" value="منتهي"
+                        x-model="formData.old_memorization_plan"
+                        @checked(old('old_memorization_plan', $student->old_memorization_plan ?? '') == 'منتهي')> <span>منتهي</span></label>
+                <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer"><input
+                        type="radio" name="old_memorization_plan" value="فئة الماهر"
+                        x-model="formData.old_memorization_plan"
+                        @checked(old('old_memorization_plan', $student->old_memorization_plan ?? '') == 'فئة الماهر')> <span>فئة الماهر</span></label>
+                <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer"><input
+                        type="radio" name="old_memorization_plan" value="فئة المرتل"
+                        x-model="formData.old_memorization_plan"
+                        @checked(old('old_memorization_plan', $student->old_memorization_plan ?? '') == 'فئة المرتل')> <span>فئة المرتل</span></label>
+                <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer"><input
+                        type="radio" name="old_memorization_plan" value="ترديد"
+                        x-model="formData.old_memorization_plan"
+                        @checked(old('old_memorization_plan', $student->old_memorization_plan ?? '') == 'ترديد')> <span>ترديد</span></label>
+                <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer"><input
+                        type="radio" name="old_memorization_plan" value="أخرى"
+                        x-model="formData.old_memorization_plan"
+                        @checked(old('old_memorization_plan', $student->old_memorization_plan ?? '') == 'أخرى')> <span>أخرى</span></label>
+            </div>
+            <input type="text" name="old_memorization_plan_other"
+                x-model="formData.old_memorization_plan_other"
+                value="{{ old('old_memorization_plan_other', $student->old_memorization_plan_other ?? '') }}"
+                x-show="formData.old_memorization_plan === 'أخرى'"
+                placeholder="يرجى توضيح الخطة الإضافية..."
+                class="w-full mt-2 p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36] focus:ring-1 focus:ring-[#0a5c36] transition-all">
+        </div>
+
+    </div>
+
+    <div x-show="!isEdit" class="flex justify-between items-center pt-6 border-t border-gray-50 mt-8">
+        <button type="button" @click="prevStep()"
+            class="flex items-center gap-2 px-6 py-3 bg-white border-2 border-gray-200 text-gray-700 font-bold rounded-2xl hover:border-gray-300 hover:bg-gray-50 transition-all text-sm shadow-sm">
+            ← السابق
+        </button>
+        <button type="button" @click="nextStep()"
+            class="flex items-center gap-2 px-8 py-3 bg-[#0a5c36] hover:bg-[#084d2d] text-white font-black rounded-2xl shadow-md transition-all text-sm">
+            التالي →
+        </button>
+    </div>
+
+    <!-- --------------------------------------------------- مستوي الاتقان -------------------------------------- -->
+    <div x-show="showSection(7)" x-cloak class="bg-white rounded-3xl shadow-sm border border-gray-100 p-8 space-y-6">
+        <div class="flex items-center gap-3 mb-6 border-b border-gray-50 pb-4">
+            <div class="p-3 bg-amber-50 text-amber-600 rounded-2xl text-xl">⭐</div>
+            <div>
+                <h2 class="text-xl font-black text-amber-600">مستوى الإتقان</h2>
+                <p class="text-xs text-gray-400 mt-1">تفاصيل الحفظ والمراجعة للمتقدمين المتميزين</p>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="space-y-2">
+                <label class="block text-sm font-bold text-gray-700">جهة الحفظ السابقة <span
+                        class="text-red-500">*</span></label>
+                <input type="text" name="previous_memorization_side" x-model="formData.previous_memorization_side"
+                    value="{{ old('previous_memorization_side', $student->previous_memorization_side ?? '') }}"
+                    placeholder="اسم المسجد، المركز، أو الشيخ السابق"
+                    class="w-full p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all">
+            </div>
+            <div class="space-y-2">
+                <label class="block text-sm font-bold text-gray-700">عدد الختمات السابقة <span
+                        class="text-red-500">*</span></label>
+                <input type="text" name="previous_khatamat_count" x-model="formData.previous_khatamat_count"
+                    value="{{ old('previous_khatamat_count', $student->previous_khatamat_count ?? '') }}"
+                    placeholder="مثال: ختمة واحدة أو أكثر"
+                    class="w-full p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all">
+            </div>
+        </div>
+
+        <div class="space-y-2">
+            <label class="block text-sm font-bold text-gray-700">مقدار المراجعة الحالي (الورد اليومي) <span
+                    class="text-red-500">*</span></label>
+            <input type="text" name="current_review_amount" x-model="formData.current_review_amount"
+                value="{{ old('current_review_amount', $student->current_review_amount ?? '') }}"
+                placeholder="مثال: جزء يوميًّا، حزب، نصف جزء..."
+                class="w-full p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all">
+        </div>
+
+        <div class="space-y-2">
+            <label class="block text-sm font-bold text-gray-700">تقييم مستوى الحفظ من المتقدم (1-10) <span
+                    class="text-red-500">*</span></label>
+            <div
+                class="flex items-center gap-1 bg-gray-50 p-4 rounded-2xl border border-gray-100 dir-ltr justify-end">
+                <template x-for="i in 10">
+                    <button type="button" @click="formData.self_rating = (11 - i)"
+                        class="text-2xl transition-colors"
+                        :class="(formData.self_rating >= (11 - i)) ? 'text-amber-400' : 'text-gray-300'">★</button>
+                </template>
+                <input type="hidden" name="self_evaluation" :value="formData.self_rating">
+            </div>
+        </div>
+
+        <div class="space-y-2">
+            <label class="block text-sm font-bold text-gray-700">متون التجويد المحفوظة بإتقان <span
+                    class="text-red-500">*</span></label>
+            <div class="flex flex-wrap gap-4 p-3 bg-gray-50 rounded-2xl border border-gray-100">
+                <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer"><input
+                        type="radio" name="tajweed_matn" value="لا يوجد" x-model="formData.tajweed_matn"
+                        @checked(old('tajweed_matn', $student->tajweed_matn ?? '') == 'لا يوجد'>
+                    <span>لا يوجد</span></label>
+                <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer"><input
+                        type="radio" name="tajweed_matn" value="التحفة" x-model="formData.tajweed_matn"
+                        @checked(old('tajweed_matn', $student->tajweed_matn ?? '') == 'التحفة'>
+                    <span>تحفة الأطفال</span></label>
+                <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer"><input
+                        type="radio" name="tajweed_matn" value="الجزرية" x-model="formData.tajweed_matn"
+                        @checked(old('tajweed_matn', $student->tajweed_matn ?? '') == 'الجزرية'>
+                    <span>المقدمة الجزرية</span></label>
+                <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer"><input
+                        type="radio" name="tajweed_matn" value="أخرى" x-model="formData.tajweed_matn"
+                        @checked(old('tajweed_matn', $student->tajweed_matn ?? '') == 'أخرى'>
+                    <span>أخرى</span></label>
+            </div>
+            <input type="text" name="tajweed_matn_other" x-model="formData.tajweed_matn_other"
+                value="{{ old('tajweed_matn_other', $student->tajweed_matn_other ?? '') }}"
+                x-show="formData.tajweed_matn === 'أخرى'" placeholder="يرجى كتابة اسم المتن..."
+                class="w-full mt-2 p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all">
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="space-y-2">
+                <label class="block text-sm font-bold text-gray-700">المسار المرغوب فيه <span
+                        class="text-red-500">*</span></label>
+                <div class="flex flex-col gap-2 p-3 bg-gray-50 rounded-2xl border border-gray-100">
+                    <label
+                        class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer"><input
+                            type="radio" name="desired_path" value="تثبيت الحفظ"
+                            x-model="formData.desired_path"
+                            @checked(old('desired_path', $student->desired_path ?? '') == 'تثبيت الحفظ')> <span>تثبيت الحفظ وتجويده</span></label>
+                    <label
+                        class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer"><input
+                            type="radio" name="desired_path" value="تصحيح التلاوة"
+                            x-model="formData.desired_path"
+                            @checked(old('desired_path', $student->desired_path ?? '') == 'تصحيح التلاوة')> <span>تصحيح التلاوة والنطق</span></label>
+                    <label
+                        class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer"><input
+                            type="radio" name="desired_path" value="الإجازة والسند"
+                            x-model="formData.desired_path"
+                            @checked(old('desired_path', $student->desired_path ?? '') == 'الإجازة والسند')> <span>الإجازة والسند المتصل</span></label>
+                </div>
+            </div>
+            <div class="space-y-2">
+                <label class="block text-sm font-bold text-gray-700">الوقت المناسب للمجلس <span
+                        class="text-red-500">*</span></label>
+                <div class="grid grid-cols-2 gap-2 p-3 bg-gray-50 rounded-2xl border border-gray-100">
+                    <label
+                        class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer"><input
+                            type="radio" name="preferred_time" value="صباحًا"
+                            x-model="formData.preferred_time"
+                            @checked(old('preferred_time', $student->preferred_time ?? '') == 'صباحًا')> <span>صباحًا</span></label>
+                    <label
+                        class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer"><input
+                            type="radio" name="preferred_time" value="ظهرًا"
+                            x-model="formData.preferred_time"
+                            @checked(old('preferred_time', $student->preferred_time ?? '') == 'ظهرًا')> <span>ظهرًا</span></label>
+                    <label
+                        class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer"><input
+                            type="radio" name="preferred_time" value="عصرًا"
+                            x-model="formData.preferred_time"
+                            @checked(old('preferred_time', $student->preferred_time ?? '') == 'عصرًا')> <span>عصرًا</span></label>
+                    <label
+                        class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer"><input
+                            type="radio" name="preferred_time" value="ليلًا"
+                            x-model="formData.preferred_time"
+                            @checked(old('preferred_time', $student->preferred_time ?? '') == 'ليلًا')> <span>ليلًا</span></label>
+                    <label
+                        class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer col-span-2"><input
+                            type="radio" name="preferred_time" value="أون لاين"
+                            x-model="formData.preferred_time"
+                            @checked(old('preferred_time', $student->preferred_time ?? '') == 'أون لاين')> <span>أون لاين (عبر الإنترنت)</span></label>
+                </div>
+            </div>
+        </div>
+
+        <div class="space-y-2">
+            <label class="block text-sm font-bold text-gray-700">المعلم المفضل للمجلس (مستوى الإتقان)<span
+                    class="text-red-500">*</span></label>
+            <select name="teacher_name" x-model="formData.teacher_name"
+                class="w-full p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all appearance-none">
+                <option value="" @selected(old('teacher_name', $student->teacher_name ?? '') == '')>-- اختر المعلم --</option>
+                <option value="بدون تحديد" @selected(old('teacher_name', $student->teacher_name ?? '') == 'بدون تحديد')>بدون تحديد (حسب المتاح)</option>
+                @foreach ($teachers ?? [] as $teacher)
+                <option value="{{ $teacher->name }}" @selected(old('teacher_name', $student->teacher_name ?? '') == $teacher->name)>{{ $teacher->name }}</option>
+                @endforeach
+            </select>
+        </div>
+    </div>
+
+    <div x-show="!isEdit" class="flex justify-between items-center pt-6 border-t border-gray-50 mt-8">
+        <button type="button" @click="prevStep()"
+            class="flex items-center gap-2 px-6 py-3 bg-white border-2 border-gray-200 text-gray-700 font-bold rounded-2xl hover:border-gray-300 hover:bg-gray-50 transition-all text-sm shadow-sm">
+            ← السابق
+        </button>
+        <button type="button" @click="nextStep()"
+            class="flex items-center gap-2 px-8 py-3 bg-[#0a5c36] hover:bg-[#084d2d] text-white font-black rounded-2xl shadow-md transition-all text-sm">
+            التالي →
+        </button>
+    </div>
+
+    <!-- --------------------------------------------------- مستوي الإبداع -------------------------------------- -->
+    <div x-show="showSection(8)" x-cloak class="bg-white rounded-3xl shadow-sm border border-gray-100 p-8 space-y-6">
+        <div class="flex items-center gap-3 mb-6 border-b border-gray-50 pb-4">
+            <div class="p-3 bg-indigo-50 text-indigo-600 rounded-2xl text-xl">🏆</div>
+            <div>
+                <h2 class="text-xl font-black text-indigo-600">مستوى الإبداع</h2>
+                <p class="text-xs text-gray-400 mt-1">بيانات الروايات والأسانيد التي حصل عليها الطالب</p>
+            </div>
+        </div>
+
+        <div class="space-y-2">
+            <label class="block text-sm font-bold text-gray-700">الإجازات والأسانيد التي حصل عليها سابقًا <span
+                    class="text-red-500">*</span></label>
+            <textarea name="previous_licenses_and_chains" x-model="formData.description"
+                placeholder="يرجى ذكر الإجازات، اسم الشيخ المجيز، والمتن المكتوب بالتفصيل..."
+                class="w-full p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all min-h-[100px]">{{ old('previous_licenses_and_chains', $ibda?->previous_licenses_and_chains ?? $student->description ?? '') }}</textarea>
+        </div>
+
+        <div class="space-y-2">
+            <label class="block text-sm font-bold text-gray-700">المسار والرواية المراد دراستها حاليًا <span
+                    class="text-red-500">*</span></label>
+            <input type="text" name="desired_narration_and_path" x-model="formData.desired_narration_and_path"
+                value="{{ old('desired_narration_and_path', $student->desired_narration_and_path ?? '') }}"
+                placeholder="مثال: رواية ورش عن نافع، القراءات العشر..."
+                class="w-full p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all">
+        </div>
+
+        <div class="space-y-2">
+            <label class="block text-sm font-bold text-gray-700">الوقت المناسب للمجلس <span
+                    class="text-red-500">*</span></label>
+            <div class="grid grid-cols-2 sm:grid-cols-5 gap-2 p-3 bg-gray-50 rounded-2xl border border-gray-100">
+                <label class="flex items-center gap-1 text-xs font-bold text-gray-600 cursor-pointer"><input
+                        type="radio" name="preferred_time" value="صباحًا" x-model="formData.preferred_time"
+                        @checked(old('preferred_time', $student->preferred_time ?? '') == 'صباحًا')>
+                    <span>صباحًا</span></label>
+                <label class="flex items-center gap-1 text-xs font-bold text-gray-600 cursor-pointer"><input
+                        type="radio" name="preferred_time" value="ظهرًا" x-model="formData.preferred_time"
+                        @checked(old('preferred_time', $student->preferred_time ?? '') == 'ظهرًا')>
+                    <span>ظهرًا</span></label>
+                <label class="flex items-center gap-1 text-xs font-bold text-gray-600 cursor-pointer"><input
+                        type="radio" name="preferred_time" value="عصرًا" x-model="formData.preferred_time"
+                        @checked(old('preferred_time', $student->preferred_time ?? '') == 'عصرًا')>
+                    <span>عصرًا</span></label>
+                <label class="flex items-center gap-1 text-xs font-bold text-gray-600 cursor-pointer"><input
+                        type="radio" name="preferred_time" value="ليلًا" x-model="formData.preferred_time"
+                        @checked(old('preferred_time', $student->preferred_time ?? '') == 'ليلًا')>
+                    <span>ليلًا</span></label>
+                <label class="flex items-center gap-1 text-xs font-bold text-gray-600 cursor-pointer"><input
+                        type="radio" name="preferred_time" value="أون لاين" x-model="formData.preferred_time"
+                        @checked(old('preferred_time', $student->preferred_time ?? '') == 'أون لاين')>
+                    <span>عن بُعد</span></label>
+            </div>
+
+            <div class="space-y-2">
+                <label class="block text-sm font-bold text-gray-700">المعلم المفضل للمجلس (مستوى الإبداع)<span
+                        class="text-red-500">*</span></label>
+                <select name="supervisor_name" x-model="formData.supervisor_name"
+                    class="w-full p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all appearance-none">
+                    <option value="" @selected(old('supervisor_name', $student->supervisor_name ?? '') == '')>-- اختر المعلم --</option>
+                    <option value="بدون تحديد" @selected(old('supervisor_name', $student->supervisor_name ?? '') == 'بدون تحديد')>بدون تحديد (حسب المتاح)</option>
+                    <option value="ش عبدالبديع عثمان" @selected(old('supervisor_name', $student->supervisor_name ?? '') == 'ش عبدالبديع عثمان')>ش عبدالبديع عثمان</option>
+                    <option value="ش سعد الشعراوي" @selected(old('supervisor_name', $student->supervisor_name ?? '') == 'ش سعد الشعراوي')>ش سعد الشعراوي</option>
+                    <option value="ش محمد الطيب" @selected(old('supervisor_name', $student->supervisor_name ?? '') == 'ش محمد الطيب')>ش محمد الطيب</option>
+                </select>
+            </div>
+        </div>
+
+    </div>
+
+    <div x-show="!isEdit" class="flex justify-between items-center pt-6 border-t border-gray-50 mt-8">
+        <button type="button" @click="prevStep()"
+            class="flex items-center gap-2 px-6 py-3 bg-white border-2 border-gray-200 text-gray-700 font-bold rounded-2xl hover:border-gray-300 hover:bg-gray-50 transition-all text-sm shadow-sm">
+            ← السابق
+        </button>
+        <button type="button" @click="nextStep()"
+            class="flex items-center gap-2 px-8 py-3 bg-[#0a5c36] hover:bg-[#084d2d] text-white font-black rounded-2xl shadow-md transition-all text-sm">
+            التالي →
+        </button>
+    </div>
+
+    <!-- ------------------------------- التوصيات النهائية والملاحظات الإدارية  -------------------------------- -->
+    <div x-show="showSection(9)" x-cloak class="bg-white rounded-3xl shadow-sm border border-gray-100 p-8 space-y-6">
+        <div class="flex items-center gap-3 mb-6 border-b border-gray-50 pb-4">
+            <div class="p-3 bg-[#e8f5ed] text-[#0a5c36] rounded-2xl text-xl">📝</div>
+            <div>
+                <h2 class="text-xl font-black text-gray-800">التوصيات النهائية والملاحظات الإدارية</h2>
+                <p class="text-xs text-gray-400 mt-1">الاعتماد المالي وقرار الإدارة النهائي لتسجيل الطالب</p>
+            </div>
+        </div>
+
+        <div class="bg-[#e8f5ed]/50 rounded-2xl p-4 text-center border border-[#d4c98a] my-4">
+            <div class="font-serif font-bold text-[#0a5c36] text-lg">« وَلَقَدْ يَسَّرْنَا الْقُرْآنَ لِلذِّكْرِ
+                فَهَلْ مِن مُّدَّكِرٍ »</div>
+            <div class="text-[10px] text-gray-400 mt-1">سورة القمر - آية ١٧</div>
+        </div>
+
+
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
+            <div class="space-y-2">
+                <label class="block text-sm font-bold text-gray-700">رسوم حجز المقعد</label>
+                <input type="text" name="subscription_fees" x-model="formData.subscription_fees"
+                    value="{{ old('subscription_fees', $student->subscription_fees ?? '') }}"
+                    placeholder="مثال: 150"
+                    class="w-full p-3 bg-gray-50 border border-gray-200 rounded-2xl text-sm">
+            </div>
+            <div class="space-y-2">
+                <label class="block text-xs font-black text-gray-600">الأدوات والكتب المستلمة</label>
+                <select name="received_tools" x-model="formData.received_tools"
+                    class="w-full p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium appearance-none">
+                    <option value="" @selected(old('received_tools', $student->received_tools ?? '') == '')>-- اختر نوع العهدة --</option>
+                    <option value="لم يأخذ شيء" @selected(old('received_tools', $student->received_tools ?? '') == 'لم يأخذ شيء')>لم يأخذ شيء</option>
+                    <option value="المصحف فقط" @selected(old('received_tools', $student->received_tools ?? '') == 'المصحف فقط')>المصحف فقط</option>
+                    <option value="المتابعة فقط" @selected(old('received_tools', $student->received_tools ?? '') == 'المتابعة فقط')>دفتر المتابعة فقط</option>
+                    <option value="المصحف والمتابعة" @selected(old('received_tools', $student->received_tools ?? '') == 'المصحف والمتابعة')>المصحف ودفتر المتابعة معًا</option>
+                </select>
+            </div>
+        </div>
+        <div class="space-y-2">
+            <label class="block text-sm font-bold text-gray-700">قرار الإدارة</label>
+            <select name="status" x-model="formData.status"
+                class="w-full p-3 bg-gray-50 border border-gray-200 rounded-2xl text-sm">
+                <option value="pending" @selected(old('status', $student->status ?? '') == 'pending')>قيد الانتظار والمراجعة</option>
+                <option value="active" @selected(old('status', $student->status ?? '') == 'active')>مقبول</option>
+                <option value="inactive" @selected(old('status', $student->status ?? '') == 'inactive')>مرفوض</option>
+            </select>
+        </div>
+        <div class="space-y-2">
+            <div class="flex justify-between items-center">
+                <label class="block text-sm font-bold text-gray-700">ملاحظات الشيخ المختبر / المشرف الفنية</label>
+                <button type="button" @click="startDictation('notes')"
+                    class="text-xs font-bold flex items-center gap-1 px-3 py-1 bg-[#e8f5ed] rounded-full text-[#0a5c36]"
+                    :class="isRecording === 'notes' ? 'animate-pulse bg-red-50 text-red-600' : ''">
+                    <span x-text="isRecording === 'notes' ? '🔴 جاري الاستماع...' : '🎤 إملاء صوتي'"></span>
+                </button>
+            </div>
+            <textarea name="notes" x-model="formData.notes" placeholder="اكتب التوصيات الخاصة بمخارج الحروف والتجويد..."
+                class="w-full p-3 bg-gray-50 border border-gray-200 rounded-2xl text-sm min-h-[100px]">{{ old('notes', $student->notes ?? '') }}</textarea>
+        </div>
+        <div x-show="!isEdit" class="flex justify-between items-center pt-6 border-t border-gray-50 mt-8">
+            <button type="button" @click="prevStep()"
+                class="flex items-center gap-2 px-6 py-3 bg-white border-2 border-gray-200 text-gray-700 font-bold rounded-2xl hover:border-gray-300 hover:bg-gray-50 transition-all text-sm shadow-sm">
+                ← السابق
+            </button>
+            <div></div>
+        </div>
+
+        <div class="flex justify-end pt-6 border-t border-gray-50 mt-8">
+            <button type="submit"
+                class="flex items-center gap-2 px-8 py-3 bg-[#0a5c36] hover:bg-[#084d2d] text-white font-black rounded-2xl shadow-md transition-all text-sm border border-[#0a5c36]">
+                <span x-text="isEdit ? 'حفظ التعديلات ✓' : 'حفظ البيانات وإرسال النموذج ✓'"></span>
+            </button>
+        </div>
+    </div>
+
+    </div>

@@ -3,7 +3,7 @@
         <!-- Header -->
         <div class="flex justify-between items-center mb-10">
             <div>
-                <h1 class="text-3xl font-black text-[#0a5c36]">إضافة مستخدم جديد</h1>
+                <h1 class="text-3xl font-black text-[#0a5c36]">إضافة معلم جديد</h1>
                 <p class="text-gray-500 mt-2">تعيين مستخدم كمعلم أو مشرف في المركز</p>
             </div>
             <a href="{{ route('teachers.index') }}"
@@ -36,7 +36,7 @@
 
                 <!-- Name -->
                 <div>
-                    <label for="name" class="block text-sm font-bold text-gray-700 mb-2">الاسم</label>
+                    <label for="name" class="block text-sm font-bold text-gray-700 mb-2">اسم المعلم</label>
                     <input type="text" name="name" id="name" value="{{ old('name') }}"
                         class="w-full px-4 py-3 bg-gray-50 border-transparent focus:bg-white focus:ring-4 focus:ring-emerald-100 focus:border-[#0a5c36] rounded-2xl outline-none">
                     @error('name')
@@ -72,8 +72,9 @@
                     <label for="role" class="block text-sm font-bold text-gray-700 mb-2">نوع المستخدم</label>
                     <select name="role" id="role" x-model="role"
                         class="w-full px-4 py-3 bg-gray-50 border-transparent focus:bg-white focus:ring-4 focus:ring-emerald-100 focus:border-[#0a5c36] rounded-2xl outline-none">
-                        <option value="teacher">معلم</option>
+                        <option value="manager">مدير</option>
                         <option value="supervisor">مشرف</option>
+                        <option value="teacher">معلم</option>
                     </select>
                     @error('role')
                     <p class="text-red-500 text-xs mt-1">{{ $message }}</p>

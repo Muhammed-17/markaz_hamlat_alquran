@@ -1,18 +1,22 @@
 <x-layouts.markaz-layout>
     <div class="space-y-6">
-        <!-- Header -->
-        <div class="flex items-center justify-between">
-            <div>
-                <h1 class="text-2xl font-bold text-[#0a5c36]">إعدادات أسعار الاشتراكات</h1>
-                <p class="text-gray-500 mt-1">تحديد رسوم الاشتراك لكل مرحلة وحلقة</p>
+        <!-- Header Card -->
+        <div
+            class="bg-[#0b3d2c] rounded-3xl p-6 lg:p-8 text-white relative overflow-hidden flex flex-col md:flex-row justify-between items-center shadow-xl gap-6 mb-8">
+            <div class="order-1 md:order-1 text-right w-full md:w-auto z-10">
+                <h1 class="text-3xl font-black mb-2">إعدادات أسعار الاشتراكات</h1>
+                <p class="text-emerald-100/80 text-sm font-medium">تحديد رسوم الاشتراك لكل مرحلة وحلقة</p>
             </div>
+
+            <!-- Decorative Element -->
+            <div class="absolute -right-10 -bottom-10 w-40 h-40 bg-white/10 rounded-full blur-3xl"></div>
         </div>
 
         <!-- Add/Update Form -->
         <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
             <h2 class="text-lg font-bold text-gray-800 mb-4">إضافة / تعديل سعر</h2>
             <form id="priceForm" action="{{ route('subscription-prices.store') }}" method="POST"
-                class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                class="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
                 @csrf
 
                 <!-- Education Level -->
@@ -30,29 +34,39 @@
                     <option value="other" {{ old('education_level') == 'other' ? 'selected' : '' }}>أخرى</option>
                 </x-custom-select>
 
-
-                <x-custom-select name="circle_level" label="مستوى الحلقة">
-                    <option value="build" {{ old(('circle_level')) == 'build' ? 'selected' : ''}}>بناء</option>
-                    <option value="mastery" {{ old(('circle_level')) == 'mastery' ? 'selected' : ''}}>إتقان</option>
-                    <option value="creativity" {{ old(('circle_level')) == 'creativity' ? 'selected' : ''}}>إبداع</option>
+                <!-- School Grade -->
+                <x-custom-select name="school_grade" label="الصف الدراسي">
+                    <option value="" {{ old('school_grade') == '' ? 'selected' : '' }}>-- اختر الصف --</option>
+                    <option value="لا يوجد" {{ old('school_grade') == 'لا يوجد' ? 'selected' : '' }}>لا يوجد</option>
+                    <option value="الأول" {{ old('school_grade') == 'الأول' ? 'selected' : '' }}>الأول</option>
+                    <option value="الثاني" {{ old('school_grade') == 'الثاني' ? 'selected' : '' }}>الثاني</option>
+                    <option value="الثالث" {{ old('school_grade') == 'الثالث' ? 'selected' : '' }}>الثالث</option>
+                    <option value="الرابع" {{ old('school_grade') == 'الرابع' ? 'selected' : '' }}>الرابع</option>
+                    <option value="الخامس" {{ old('school_grade') == 'الخامس' ? 'selected' : '' }}>الخامس</option>
+                    <option value="السادس" {{ old('school_grade') == 'السادس' ? 'selected' : '' }}>السادس</option>
+                    <option value="دراسات عليا" {{ old('school_grade') == 'دراسات عليا' ? 'selected' : '' }}>دراسات عليا</option>
                 </x-custom-select>
 
-                <x-custom-input name="amount" type="number" value="{{ old('name') }}" placeholder="0.00" label="قيمة الاشتراك (ج.م)" />
+                <x-custom-select name="circle_level" label="مستوى الحلقة">
+                    <option value="build" {{ old('circle_level') == 'build' ? 'selected' : '' }}>بناء</option>
+                    <option value="mastery" {{ old('circle_level') == 'mastery' ? 'selected' : '' }}>إتقان</option>
+                    <option value="creativity" {{ old('circle_level') == 'creativity' ? 'selected' : '' }}>إبداع
+                    </option>
+                </x-custom-select>
+
+                <x-custom-input name="amount" type="number" value="{{ old('amount') }}" placeholder="0.00"
+                    label="قيمة الاشتراك (ج.م)" />
 
                 <div class="flex gap-2">
                     <button type="submit"
                         class="bg-[#10b981] hover:bg-[#059669] text-white px-6 py-2 rounded-lg font-bold transition h-[42px] flex-1">
                         حفظ
                     </button>
-                    <button type="button" onclick="resetForm()"
-                        class="bg-gray-100 hover:bg-gray-200 text-gray-600 px-4 py-2 rounded-lg font-bold transition h-[42px]">
-                        مسح
-                    </button>
                 </div>
             </form>
             @if ($errors->any())
                 <div class="mt-4 p-3 bg-red-50 text-red-700 rounded-lg text-sm">
-                    <ul class="list-disc list-inside">
+                     <ul class="list-disc list-inside">
                         @foreach ($errors->all() as $error)
                             <li>{{ $error }}</li>
                         @endforeach
@@ -67,6 +81,7 @@
                 <thead class="bg-gray-50 text-gray-500 text-sm">
                     <tr>
                         <th class="py-4 px-6 font-medium">المرحلة الدراسية</th>
+                        <th class="py-4 px-6 font-medium">الصف الدراسي</th>
                         <th class="py-4 px-6 font-medium">مستوى الحلقة</th>
                         <th class="py-4 px-6 font-medium">قيمة الاشتراك</th>
                         <th class="py-4 px-6 font-medium">تاريخ التحديث</th>
@@ -78,7 +93,7 @@
                         <tr class="hover:bg-gray-50/50">
                             <td class="py-4 px-6 text-gray-800 font-medium">
                                 @if ($price->education_level == 'preschool')
-                                   حضانة
+                                    حضانة
                                 @elseif ($price->education_level == 'primary')
                                     ابتدائية
                                 @elseif ($price->education_level == 'secondary')
@@ -87,16 +102,17 @@
                                     ثانوية
                                 @elseif ($price->education_level == 'university')
                                     جامعية
-                                @elseif ($price->education_level== 'other')
+                                @elseif ($price->education_level == 'other')
                                     أخرى
                                 @endif
                             </td>
+                            <td class="py-4 px-6 text-gray-600">{{ $price->school_grade ?? '—' }}</td>
                             <td class="py-4 px-6 text-gray-600">
-                                @if ($price->circle_level == "build")
+                                @if ($price->circle_level == 'build')
                                     بناء
-                                @elseif ($price->circle_level == "mastery")
+                                @elseif ($price->circle_level == 'mastery')
                                     إتقان
-                                @elseif ($price->circle_level == "creativity")
+                                @elseif ($price->circle_level == 'creativity')
                                     إبداع
                                 @endif
                             </td>
@@ -105,7 +121,7 @@
                             <td class="py-4 px-6 text-gray-400 text-sm">{{ $price->updated_at->format('Y/m/d') }}</td>
                             <td class="py-4 px-6 flex items-center gap-3">
                                 <button
-                                    onclick="editPrice('{{ $price->education_level }}', '{{ $price->circle_level }}', '{{ $price->amount }}')"
+                                    onclick="editPrice('{{ $price->education_level }}', '{{ $price->school_grade }}', '{{ $price->circle_level }}', '{{ $price->amount }}')"
                                     class="text-blue-400 hover:text-blue-600 transition" title="تعديل">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none"
                                         viewBox="0 0 24 24" stroke="currentColor">
@@ -130,7 +146,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="5" class="py-8 text-center text-gray-400">لا توجد أسعار محددة حالياً</td>
+                            <td colspan="6" class="py-8 text-center text-gray-400">لا توجد أسعار محددة حالياً</td>
                         </tr>
                     @endforelse
                 </tbody>
@@ -139,10 +155,11 @@
     </div>
 
     <script>
-        function editPrice(edu, circle, amount) {
-            document.getElementById('eduLevel').value = edu;
-            document.getElementById('circleLevel').value = circle;
-            document.getElementById('amount').value = amount;
+        function editPrice(edu, grade, circle, amount) {
+            document.querySelector('[name="education_level"]').value = edu;
+            document.querySelector('[name="school_grade"]').value = grade;
+            document.querySelector('[name="circle_level"]').value = circle;
+            document.querySelector('[name="amount"]').value = amount;
             document.getElementById('priceForm').scrollIntoView({
                 behavior: 'smooth'
             });

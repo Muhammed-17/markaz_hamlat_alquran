@@ -51,6 +51,7 @@
         <!-- القائمة -->
         <nav class="space-y-2 text-sm flex-1">
 
+            @role('admin')
             <a href="{{ route('dashboard') }}"
                class="flex items-center gap-3 px-3 py-2 rounded-lg transition
                {{ request()->routeIs('dashboard') ? 'bg-[#0d7a48]' : 'hover:bg-[#0d7a48]' }}">
@@ -60,6 +61,7 @@
                 </svg>
                 <span x-show="!collapsed" x-transition>لوحة التحكم</span>
             </a>
+            @endrole
 
             <a href="{{ route('students.index') }}"
                class="flex items-center gap-3 px-3 py-2 rounded-lg transition

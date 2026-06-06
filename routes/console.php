@@ -1,8 +1,11 @@
 <?php
 
-use Illuminate\Foundation\Inspiring;
-use Illuminate\Support\Facades\Artisan;
+use App\Console\Commands\NotifySequentialAbsences;
+use App\Models\Setting;
+use Illuminate\Support\Facades\Schedule;
 
-Artisan::command('inspire', function () {
-    $this->comment(Inspiring::quote());
-})->purpose('Display an inspiring quote');
+$notifyTime = Setting::getValue('notify_time', '17:30');
+
+Schedule::command('app:notify-sequential-absences')
+    ->dailyAt($notifyTime)
+    ->withoutOverlapping();

@@ -163,6 +163,7 @@
                             <th class="px-8 py-5">التاريخ</th>
                             <th class="px-8 py-5">المسؤول</th>
                             <th class="px-8 py-5">طريقة الدفع</th>
+                            <th class="px-8 py-5">الملاحظات</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-50">
@@ -185,10 +186,40 @@
                                         {{ $sub->payment_method === 'cash' ? 'نقدي' : ($sub->payment_method === 'transfer' ? 'تحويل بنكي' : 'أخرى') }}
                                     </span>
                                 </td>
+                                <td class="px-8 py-5">
+                                    @if($sub->notes)
+                                        <div class="relative max-w-[180px]" x-data="{ open: false }">
+                                            <button @click="open = !open"
+                                                    class="flex items-center gap-1.5 group w-full text-right"
+                                                    title="{{ $sub->notes }}">
+                                                <svg class="w-4 h-4 text-gray-400 shrink-0 group-hover:text-emerald-500 transition-colors"
+                                                     fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                                </svg>
+                                                <span class="truncate text-gray-500 text-sm group-hover:text-gray-700 transition-colors">
+                                                    {{ $sub->notes }}
+                                                </span>
+                                            </button>
+                                            <div x-cloak
+                                                 x-show="open"
+                                                 @click.outside="open = false"
+                                                 x-transition:enter="transition ease-out duration-150"
+                                                 x-transition:enter-start="opacity-0 scale-95"
+                                                 x-transition:enter-end="opacity-100 scale-100"
+                                                 class="absolute z-50 bottom-full right-0 mb-2 p-3 bg-gray-900 text-white text-sm rounded-xl shadow-xl max-w-[260px] break-words">
+                                                <p class="leading-relaxed">{{ $sub->notes }}</p>
+                                                <div class="absolute bottom-0 right-4 w-2 h-2 bg-gray-900 transform translate-y-1 rotate-45"></div>
+                                            </div>
+                                        </div>
+                                    @else
+                                        <span class="text-gray-300">&mdash;</span>
+                                    @endif
+                                </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="5" class="px-8 py-10 text-center text-gray-400 font-medium">لا توجد
+                                <td colspan="6" class="px-8 py-10 text-center text-gray-400 font-medium">لا توجد
                                     اشتراكات مسجلة حالياً</td>
                             </tr>
                         @endforelse

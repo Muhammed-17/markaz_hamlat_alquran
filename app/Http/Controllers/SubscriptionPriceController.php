@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\SubscriptionPrice;
-use Illuminate\Http\Request;
+use App\Http\Requests\StoreSubscriptionPriceRequest;
 
 class SubscriptionPriceController extends Controller
 {
@@ -14,21 +14,18 @@ class SubscriptionPriceController extends Controller
         return view('subscription_prices.index', compact('prices'));
     }
 
-    public function store(Request $request)
+    public function store(StoreSubscriptionPriceRequest $request)
     {
-        $request->validate([
-            'circle_level' => 'required|string',
-            'education_level' => 'required|string',
-            'amount' => 'required|numeric|min:0',
-        ]);
+        $validated = $request->validated();
 
         SubscriptionPrice::updateOrCreate(
             [
-                'circle_level' => $request->circle_level,
-                'education_level' => $request->education_level
+                'circle_level' => $validated['circle_level'],
+                'education_level' => $validated['education_level'],
+                'school_grade' => $validated['school_grade'] ?? null,
             ],
             [
-                'amount' => $request->amount
+                'amount' => $validated['amount']
             ]
         );
 

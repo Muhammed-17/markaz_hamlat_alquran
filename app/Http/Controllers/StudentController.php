@@ -3,83 +3,141 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\CreateStudentRequest;
-use App\Http\Requests\EditStudentRequest;
+use App\Http\Requests\Student\EditStudentRequest;
+use App\Http\Requests\Student\StoreStudentRegistrationRequest;
 use App\Models\Student;
 use App\Models\Circle;
 use App\Models\User;
-use App\Http\Requests\StoreStudentRegistrationRequest;
-use App\Models\StudentConstructionDetail;
-use App\Models\StudentItqanDetail;
-use App\Models\StudentIbdaDetail;
 use App\Models\Teacher;
+use App\Models\Center;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Gate;
 
 class StudentController extends Controller
 {
-    private function normalizeEducationLevel(?string $educationalStage): string
-    {
-        return match ($educationalStage) {
-            'حضانة', 'تمهيدي' => 'preschool',
-            'ابتدائي' => 'primary',
-            'اعدادي' => 'secondary',
-            'ثانوي' => 'high_school',
-            'جامعي' => 'university',
-            default => 'other',
-        };
-    }
+    // ─────────────────────────────────────────
+    // الحقول المشتركة — تعريف مرة واحدة
+    // ─────────────────────────────────────────
+    private array $constructionFields = [
+        'current_surah',
+        'study_system',
+        'group_name',
+        'new_memorization_plan',
+        'placement_evaluation',
+        'old_memorization_plan',
+        'old_memorization_plan_other',
+    ];
 
-    public function index()
-    {
-        $user = Auth::user();
-        $query = Student::with('circle');
+    private array $itqanFields = [
+        'previous_memorization_side',
+        'previous_khatamat_count',
+        'current_review_amount',
+        'self_evaluation',
+        'tajweed_matn',
+        'tajweed_matn_other',
+        'memorized_texts',
+        'desired_path',
+        'preferred_time',
+        'teacher_name',
+        'itqan_details',
+    ];
 
-        if ($user->hasRole('guardian')) {
+    private array $ibdaFields = [
+        'previous_licenses_and_chains',
+        'desired_narration_and_path',
+        'preferred_time',
+        'supervisor_name',
+        'ibda_details',
+    ];
+
+    private array $studentColumns = [
+        'name',
+        'date_of_birth',
+        'gender',
+        'second_phone',
+        'address',
+        'guardian_id',
+        'status',
+        'suspended_at',
+        'circle_id',
+        'student_code',
+        'education_type',
+        'educational_stage',
+        'school_grade',
+        'previous_school',
+        'center_entry_level',
+        'join_date',
+        'whatsapp_number',
+        'health_status',
+        'notes',
+        'supervisor_id',
+        'applicant',
+        'applicant_other',
+        'center_id',
+        'whatsapp_owner',
+        'whatsapp_owner_other',
+        'additional_contact_owner',
+        'additional_contact_owner_other',
+        'learning_difficulties',
+        'personal_traits',
+        'hobbies',
+        'reading',
+        'exit_details',
+        'student_exit_status',
+        'decision',
+    ];
+
+    // ─────────────────────────────────────────
+    public function index() {
+        $this->authorize('viewAny', Student::class);
+
+        $user  = Auth::user();
+        $query = Student::with(['circle', 'center']);
+
+        if ($user->hasPermissionTo('view students')) {
+            // يرى الكل بدون قيود
+
+        } elseif ($user->hasRole('guardian')) {
             $query->where('guardian_id', $user->id);
-        } elseif (!$user->hasRole('admin')) {
-            $query->where(function ($q) use ($user) {
-                if ($user->hasRole('supervisor') && $user->teacher) {
-                    $supervisedCircleIds = Circle::where('supervisor_id', $user->teacher->id)->pluck('id');
-                    $q->orWhereIn('circle_id', $supervisedCircleIds);
-                }
+        } else {
+            // أي role عنده حلقات — معلم أو مشرف أو غيرهم
+            $circleIds = collect();
 
-                if ($user->hasRole('teacher') && $user->teacher) {
-                    $teacherCircleIds = $user->teacher->circles->pluck('id');
-                    $q->orWhereIn('circle_id', $teacherCircleIds);
-                }
-            })->where('status', '!=', 'inactive');
+            if ($user->teacher) {
+                $circleIds = $circleIds
+                    ->merge($user->teacher->circles->pluck('id'))
+                    ->merge(Circle::where('supervisor_id', $user->teacher->id)->pluck('id'));
+            }
+
+            $circleIds->isEmpty()
+                ? $query->whereRaw('1 = 0')
+                : $query->whereIn('circle_id', $circleIds)->where('status', '!=', 'inactive');
         }
 
         $students = $query->orderBy('name')->get();
+        $circles  = Circle::orderBy('name')->get();
+        $centers  = Center::select('id', 'name')->orderBy('name')->get();
 
-        return view('students.index', compact('students'));
+        return view('students.index', compact('students', 'circles', 'centers'));
     }
 
-    private function generateStudentCode(): string
-    {
-        $prefix = 'STU-' . now()->format('Y') . '-';
-        $last = Student::where('student_code', 'like', $prefix . '%')
-            ->orderBy('student_code', 'desc')
-            ->value('student_code');
-        $nextNumber = $last ? (int) substr($last, -5) + 1 : 1;
-        return $prefix . str_pad($nextNumber, 5, '0', STR_PAD_LEFT);
-    }
-
+    // ─────────────────────────────────────────
     public function create()
     {
-        $circles = Circle::all();
-        $guardians = User::role('guardian')->get();
+        $this->authorize('create', Student::class);
+
+        $circles            = Circle::all();
+        $guardians          = User::role('guardian')->get();
         $subscriptionPrices = DB::table('subscription_prices')->get();
-        $teachers = Teacher::all();
-        $supervisors = Teacher::whereHas('user', function ($q) {
+        $teachers           = Teacher::with('user.roles')->get();
+        $supervisors        = Teacher::whereHas('user', function ($q) {
             $q->whereHas('roles', function ($r) {
-                $r->where('name', 'supervisor');
+                $r->where('name', 'supervisor'); // ✅ supervisor فقط
             });
-        })->get();
+        })->with('user.roles')->get();
         $generatedCode = $this->generateStudentCode();
+        $centers       = Center::all();
 
         return view('students.create', compact(
             'circles',
@@ -87,224 +145,234 @@ class StudentController extends Controller
             'subscriptionPrices',
             'teachers',
             'supervisors',
-            'generatedCode'
+            'generatedCode',
+            'centers'
         ));
     }
 
+    // ─────────────────────────────────────────
     public function store(StoreStudentRegistrationRequest $request)
     {
+        $this->authorize('create', Student::class);
+
         DB::beginTransaction();
         try {
             $data = $request->validated();
 
-            // Create or select guardian User account
             if ($data['guardian_id'] === 'new') {
                 $guardian = User::create([
-                    'name' => $data['applicant'] ?? $data['name'],
-                    'email' => $data['parent_email'],
-                    'mobile' => $data['whatsapp_number'] ?? '',
+                    'name'     => $data['applicant'] ?? $data['name'],
+                    'email'    => $data['parent_email'],
+                    'mobile'   => $data['whatsapp_number'] ?? '',
                     'password' => Hash::make($data['password']),
-                    'status' => 'active',
+                    'status'   => 'active',
                 ]);
                 $guardian->assignRole('guardian');
-                $guardianId = $guardian->id;
+                $data['guardian_id'] = $guardian->id;
             } else {
-                $guardianId = (int)$data['guardian_id'];
+                $data['guardian_id'] = (int) $data['guardian_id'];
             }
 
-            // Set guardian_id
-            $data['guardian_id'] = $guardianId;
+            $studentData = array_intersect_key($data, array_flip($this->studentColumns));
 
-            // Determine which detail level fields to extract
-            $constructionFields = ['current_surah', 'study_system', 'group_name', 'new_memorization_plan', 'placement_evaluation', 'old_memorization_plan'];
-            $itqanFields = ['previous_memorization_side', 'previous_khatamat_count', 'current_review_amount', 'self_evaluation', 'memorized_texts', 'desired_path', 'preferred_time', 'teacher_name', 'itqan_details'];
-            $ibdaFields = ['previous_licenses_and_chains', 'desired_narration_and_path', 'preferred_time', 'ibda_details'];
-            $allDetailFields = array_merge($constructionFields, $itqanFields, $ibdaFields);
-
-            // Extract only student table fields
-            $studentData = array_diff_key($data, array_flip($allDetailFields));
-
-            // DB requires education_level and many flows currently fill educational_stage only.
-            if (empty($studentData['education_level'])) {
-                $studentData['education_level'] = $this->normalizeEducationLevel($studentData['educational_stage'] ?? null);
-            }
-
-            // Handle status/suspended_at logic
-            if (isset($studentData['status']) && $studentData['status'] === 'inactive') {
+            if (($studentData['status'] ?? '') === 'inactive') {
                 $studentData['suspended_at'] = now();
             }
 
-            // Create student
             $student = Student::create($studentData);
-
-            // Conditionally create detail record based on center_entry_level
-            switch ($data['center_entry_level']) {
-                case 'construction':
-                    $detailData = array_intersect_key($data, array_flip($constructionFields));
-                    $student->constructionDetail()->create($detailData);
-                    break;
-                case 'itqan':
-                    $detailData = array_intersect_key($data, array_flip($itqanFields));
-                    $student->itqanDetail()->create($detailData);
-                    break;
-                case 'ibda':
-                    $detailData = array_intersect_key($data, array_flip($ibdaFields));
-                    $student->ibdaDetail()->create($detailData);
-                    break;
-            }
+            $this->syncDetailRecord($student, $data, 'create');
 
             DB::commit();
 
-            // JSON response for AJAX (Alpine.js / Axios)
             if ($request->expectsJson() || $request->ajax()) {
                 return response()->json([
-                    'success' => true,
-                    'message' => 'تم تسجيل الطالب بنجاح',
+                    'success'  => true,
+                    'message'  => 'تم تسجيل الطالب بنجاح',
                     'redirect' => route('students.index'),
-                    'student' => $student->load(['constructionDetail', 'itqanDetail', 'ibdaDetail']),
+                    'student'  => $student->load(['constructionDetail', 'itqanDetail', 'ibdaDetail']),
                 ]);
             }
 
-            // Standard HTTP redirect fallback
-            return redirect()->route('students.index')
-                ->with('success', 'تم تسجيل الطالب بنجاح');
+            return redirect()->route('students.index')->with('success', 'تم تسجيل الطالب بنجاح');
         } catch (\Exception $e) {
             DB::rollBack();
-
             $errorMessage = 'حدث خطأ أثناء تسجيل الطالب: ' . $e->getMessage();
 
             if ($request->expectsJson() || $request->ajax()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => $errorMessage,
-                ], 500);
+                return response()->json(['success' => false, 'message' => $errorMessage], 500);
             }
 
-            return redirect()->back()
-                ->with('error', $errorMessage)
-                ->withInput();
+            return redirect()->back()->with('error', $errorMessage)->withInput();
         }
     }
 
+    // ─────────────────────────────────────────
     public function show($id)
     {
-        $student = Student::with(['circle.mainTeacher', 'guardian', 'attendances', 'subscriptions'])
-            ->findOrFail($id);
+        // ✅ authorize قبل تحميل العلاقات
+        $student = Student::findOrFail($id);
+        $this->authorize('view', $student);
 
-        Gate::authorize('view', $student);
+        $student->load([
+            'circle.mainTeacher',
+            'guardian',
+            'attendances',
+            'subscriptions',
+            'constructionDetail',
+            'itqanDetail',
+            'ibdaDetail',
+        ]);
 
-        // Attendance stats
         $totalAttendance = $student->attendances->count();
-        $presentCount = $student->attendances->where('status', 'present')->count();
-        $absentCount = $student->attendances->where('status', 'absent')->count();
-        $lateCount = $student->attendances->where('status', 'late')->count();
-        $excusedCount = $student->attendances->where('status', 'excused')->count();
+        $presentCount    = $student->attendances->where('status', 'present')->count();
+        $absentCount     = $student->attendances->where('status', 'absent')->count();
+        $lateCount       = $student->attendances->where('status', 'late')->count();
+        $excusedCount    = $student->attendances->where('status', 'excused')->count();
+        $attendanceRate  = $totalAttendance > 0
+            ? round(($presentCount / $totalAttendance) * 100)
+            : 0;
 
-        $attendanceRate = $totalAttendance > 0 ? round(($presentCount / $totalAttendance) * 100) : 0;
-
-        // Financial stats — build month timeline frozen at suspension date if inactive
-        $startDate = $student->enrollment_date
-            ? $student->enrollment_date->copy()->startOfMonth()
+        $startDate = $student->join_date
+            ? $student->join_date->copy()->startOfMonth()
             : $student->created_at->copy()->startOfMonth();
 
         $endDate = $student->status === 'inactive' && $student->suspended_at
             ? $student->suspended_at->copy()->startOfMonth()
             : now()->startOfMonth();
 
-        $feeTimeline = collect();
-        $subscriptionIndex = $student->subscriptions->keyBy(fn($sub) => $sub->month->format('Y-m'));
+        $subscriptionIndex = $student->subscriptions->keyBy(fn($s) => $s->month->format('Y-m'));
+        $feeTimeline       = collect();
+        $checkDate         = $startDate->copy();
 
-        $checkDate = $startDate->copy();
         while ($checkDate->lte($endDate)) {
-            $monthKey = $checkDate->format('Y-m');
-            $sub = $subscriptionIndex->get($monthKey);
-
+            $sub = $subscriptionIndex->get($checkDate->format('Y-m'));
             $feeTimeline->push((object) [
-                'month' => $checkDate->copy(),
+                'month'        => $checkDate->copy(),
                 'subscription' => $sub,
-                'is_paid' => $sub && $sub->status === 'مدفوع',
+                'is_paid'      => $sub && $sub->status === 'مدفوع',
             ]);
-
             $checkDate->addMonth();
         }
 
-        $feeTimeline = $feeTimeline->sortByDesc('month');
-        $totalPaidAmount = $student->subscriptions->where('status', 'مدفوع')->sum('amount');
-        $paidMonthsCount = $student->subscriptions->where('status', 'مدفوع')->count();
-
         return view('students.show', [
-            "student" => $student,
-            "attendanceRate" => $attendanceRate,
-            "presentCount" => $presentCount,
-            "absentCount" => $absentCount,
-            "lateCount" => $lateCount,
-            "excusedCount" => $excusedCount,
-            "unpaidMonthsCount" => $student->overdue_months_count,
-            "paidMonthsCount" => $paidMonthsCount,
-            "totalPaidAmount" => $totalPaidAmount,
-            "feeTimeline" => $feeTimeline,
-            "suspendedPastDebt" => $student->suspended_past_debt,
+            'student'           => $student,
+            'attendanceRate'    => $attendanceRate,
+            'presentCount'      => $presentCount,
+            'absentCount'       => $absentCount,
+            'lateCount'         => $lateCount,
+            'excusedCount'      => $excusedCount,
+            'unpaidMonthsCount' => $student->overdue_months_count,
+            'paidMonthsCount'   => $student->subscriptions->where('status', 'مدفوع')->count(),
+            'totalPaidAmount'   => $student->subscriptions->where('status', 'مدفوع')->sum('amount'),
+            'feeTimeline'       => $feeTimeline->sortByDesc('month'),
+            'suspendedPastDebt' => $student->suspended_past_debt,
         ]);
     }
 
+    // ─────────────────────────────────────────
     public function edit($id)
     {
-        $circles = Circle::all();
-        $guardians = User::role('guardian')->get();
-        $subscriptionPrices = DB::table('subscription_prices')->get();
+        $student = Student::findOrFail($id);
+        $this->authorize('update', $student);
 
-        $teachers = Teacher::all();
+        $student->load(['guardian', 'constructionDetail', 'itqanDetail', 'ibdaDetail', 'circle']);
+
         $supervisors = Teacher::whereHas('user', function ($q) {
-            $q->whereHas('roles', function ($r) {
-                $r->where('name', 'supervisor');
-            });
-        })->get();
+            $q->whereHas('roles', fn($r) => $r->where('name', 'supervisor')); // ✅ مصحح
+        })->with('user.roles')->get();
 
-        $student = Student::with(['guardian', 'constructionDetail', 'itqanDetail', 'ibdaDetail'])->findOrFail($id);
         return view('students.edit', [
-            "student" => $student,
-            "circles" => $circles,
-            "guardians" => $guardians,
-            "subscriptionPrices" => $subscriptionPrices,
-            "teachers" => $teachers,
-            "supervisors" => $supervisors
+            'student'            => $student,
+            'circles'            => Circle::all(),
+            'guardians'          => User::role('guardian')->get(),
+            'subscriptionPrices' => DB::table('subscription_prices')->get(),
+            'teachers'           => Teacher::with('user.roles')->get(),
+            'supervisors'        => $supervisors,
+            'centers'            => Center::all(),
+            'construction'       => $student->constructionDetail,
+            'itqan'              => $student->itqanDetail,
+            'ibda'               => $student->ibdaDetail,
         ]);
     }
 
+    // ─────────────────────────────────────────
     public function update(EditStudentRequest $request, $id)
     {
         $student = Student::findOrFail($id);
+        $this->authorize('update', $student);
+
         $data = $request->validated();
 
-        if (($data['guardian_type'] ?? '') === 'new' && !empty($data['guardian_name']) && !empty($data['guardian_mobile'])) {
-            $guardian = User::create([
-                'name' => $data['guardian_name'],
-                'mobile' => $data['guardian_mobile'],
-                'email' => $data['guardian_mobile'] . '@markaz.local',
-                'password' => Hash::make($data['guardian_mobile']),
-                'status' => 'active',
-            ]);
-            $guardian->assignRole('guardian');
-            $data['guardian_id'] = $guardian->id;
-        }
+        DB::beginTransaction();
+        try {
+            $studentData = array_intersect_key($data, array_flip($this->studentColumns));
 
-        unset($data['guardian_type'], $data['guardian_name'], $data['guardian_mobile']);
-
-        if (isset($data['status'])) {
-            if ($data['status'] === 'inactive' && $student->status !== 'inactive') {
-                $data['suspended_at'] = now();
-            } elseif ($data['status'] !== 'inactive') {
-                $data['suspended_at'] = null;
+            if (isset($studentData['status'])) {
+                if ($studentData['status'] === 'inactive' && $student->status !== 'inactive') {
+                    $studentData['suspended_at'] = now();
+                } elseif ($studentData['status'] !== 'inactive') {
+                    $studentData['suspended_at'] = null;
+                }
             }
-        }
 
-        $student->update($data);
-        return redirect()->route('students.index')->with('success', 'تم تحديث الطالب بنجاح');
+            $student->update($studentData);
+            $this->syncDetailRecord($student, $data, 'update');
+
+            DB::commit();
+            return redirect()->route('students.index')->with('success', 'تم تحديث بيانات الطالب بنجاح ✓');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return redirect()->back()->with('error', 'حدث خطأ: ' . $e->getMessage())->withInput();
+        }
     }
 
+    // ─────────────────────────────────────────
     public function destroy($id)
     {
-        Student::findOrFail($id)->delete();
+        $student = Student::findOrFail($id);
+        $this->authorize('delete', $student);
+        $student->delete();
+
         return redirect()->route('students.index')->with('success', 'تم حذف الطالب بنجاح');
+    }
+
+    // ─────────────────────────────────────────
+    // Helpers
+    // ─────────────────────────────────────────
+    private function generateStudentCode(): string
+    {
+        $prefix = 'STU-' . now()->format('Y') . '-';
+        $last   = Student::where('student_code', 'like', $prefix . '%')
+            ->orderBy('student_code', 'desc')
+            ->value('student_code');
+        $next = $last ? (int) substr($last, -5) + 1 : 1;
+        return $prefix . str_pad($next, 5, '0', STR_PAD_LEFT);
+    }
+
+    // ✅ دالة مشتركة لإنشاء/تحديث التفاصيل — تجنب تكرار switch في store و update
+    private function syncDetailRecord(Student $student, array $data, string $mode): void
+    {
+        $entryLevel = $data['center_entry_level'] ?? $student->center_entry_level;
+
+        $map = [
+            'construction' => ['relation' => 'constructionDetail', 'fields' => $this->constructionFields, 'others' => ['itqanDetail', 'ibdaDetail']],
+            'mastery'      => ['relation' => 'itqanDetail',        'fields' => $this->itqanFields,        'others' => ['constructionDetail', 'ibdaDetail']],
+            'creativity'   => ['relation' => 'ibdaDetail',         'fields' => $this->ibdaFields,         'others' => ['constructionDetail', 'itqanDetail']],
+        ];
+
+        if (!isset($map[$entryLevel])) return;
+
+        $config   = $map[$entryLevel];
+        $relation = $config['relation'];
+        $fields   = array_intersect_key($data, array_flip($config['fields']));
+
+        if ($mode === 'create') {
+            $student->$relation()->create($fields);
+        } else {
+            $student->$relation()->updateOrCreate(['student_id' => $student->id], $fields);
+            foreach ($config['others'] as $other) {
+                $student->$other()->delete();
+            }
+        }
     }
 }

@@ -55,10 +55,8 @@
                     <x-input-label for="password" :value="'كلمة مرور جديدة (اختياري)'" />
 
                     <div class="relative">
-                        <x-text-input id="password" class="block mt-1 w-full pl-10"
-                            ::type="show ? 'text' : 'password'" name="password"
-                            placeholder="اتركها فارغة إذا لم ترغب في التغيير"
-                            autocomplete="new-password" />
+                        <x-text-input id="password" class="block mt-1 w-full pl-10" ::type="show ? 'text' : 'password'" name="password"
+                            placeholder="اتركها فارغة إذا لم ترغب في التغيير" autocomplete="new-password" />
 
                         <button type="button" @click="show = !show"
                             class="absolute inset-y-0 left-0 flex items-center px-3 text-gray-400 hover:text-gray-600">
@@ -69,16 +67,29 @@
                     <x-input-error :messages="$errors->get('password')" class="mt-2" />
                 </div>
 
+                <div class="mt-6">
+                    <label for="role" class="block text-sm font-bold text-gray-700 mb-2">نوع المستخدم</label>
+                    <select name="role"
+                        class="w-full px-4 py-3 bg-gray-50 border-transparent focus:bg-white focus:ring-4 focus:ring-emerald-100 focus:border-[#0a5c36] rounded-2xl outline-none">
+                        <option value="teacher" {{ old('role', $role) == 'teacher' ? 'selected' : '' }}>معلم</option>
+                        <option value="supervisor" {{ old('role', $role) == 'supervisor' ? 'selected' : '' }}>مشرف</option>
+                    </select>
+                    @error('role')
+                        <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
+                    @enderror
+                </div>
+
+
             </div>
 
             <!-- Actions -->
-            <div class="flex items-center justify-end gap-4 mt-12 bg-gray-50/50 p-6 rounded-3xl border border-dashed border-gray-200">
+            <div
+                class="flex items-center justify-end gap-4 mt-12 bg-gray-50/50 p-6 rounded-3xl border border-dashed border-gray-200">
                 <a href="{{ route('teachers.index') }}"
                     class="px-8 py-3 rounded-2xl text-gray-500 hover:bg-gray-100 font-bold">
                     إلغاء
                 </a>
-                <button type="submit"
-                    class="px-12 py-3 bg-[#0a5c36] text-white rounded-2xl font-black shadow-lg">
+                <button type="submit" class="px-12 py-3 bg-[#0a5c36] text-white rounded-2xl font-black shadow-lg">
                     تحديث بيانات المعلم
                 </button>
             </div>

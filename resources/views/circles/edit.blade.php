@@ -14,40 +14,43 @@
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
 
-                <!-- Circle Name -->
-                <x-custom-input
-                    name="name"
-                    type="text"
-                    :value="old('name', $circle->name)"
-                    label="اسم الحلقة *" />
+                @role('admin')
+                    <!-- Circle Name -->
+                    <x-custom-input name="name" type="text" :value="old('name', $circle->name)" label="اسم الحلقة *" />
 
-                <!-- Max Students -->
-                <x-custom-input
-                    name="max_students"
-                    type="number"
-                    :value="old('max_students', $circle->max_students)"
-                    label="أقصى عدد للطلاب" />
+                    <!-- Max Students -->
+                    <x-custom-input name="max_students" type="number" :value="old('max_students', $circle->max_students)" label="أقصى عدد للطلاب" />
 
-                <!-- Type -->
-                <x-custom-select name="type" label="نوع الحلقة *">
-                    <option value="group" @selected(old('type', $circle->type) == 'group')>جماعية</option>
-                    <option value="individual" @selected(old('type', $circle->type) == 'individual')>فردية</option>
-                </x-custom-select>
+                    <!-- Type -->
+                    <x-custom-select name="type" label="نوع الحلقة *">
+                        <option value="group" @selected(old('type', $circle->type) == 'group')>جماعية</option>
+                        <option value="individual" @selected(old('type', $circle->type) == 'individual')>فردية</option>
+                    </x-custom-select>
 
-                <!-- Level -->
-                <x-custom-select name="level" label="مستوى الحلقة *">
-                    <option value="build" @selected(old('level', $circle->level) == 'build')>بناء</option>
-                    <option value="mastery" @selected(old('level', $circle->level) == 'mastery')>إتقان</option>
-                    <option value="creativity" @selected(old('level', $circle->level) == 'creativity')>إبداع</option>
-                </x-custom-select>
+                    <!-- Level -->
+                    <x-custom-select name="level" label="مستوى الحلقة *">
+                        <option value="build" @selected(old('level', $circle->level) == 'build')>بناء</option>
+                        <option value="mastery" @selected(old('level', $circle->level) == 'mastery')>إتقان</option>
+                        <option value="creativity" @selected(old('level', $circle->level) == 'creativity')>إبداع</option>
+                    </x-custom-select>
+                @else
+                    <input type="hidden" name="name" value="{{ $circle->name }}">
+                    <input type="hidden" name="type" value="{{ $circle->type }}">
+                    <input type="hidden" name="level" value="{{ $circle->level }}">
+                    <input type="hidden" name="max_students" value="{{ $circle->max_students }}">
+
+                    <div
+                        class="md:col-span-2 bg-emerald-50 p-4 rounded-lg mb-4 text-emerald-800 font-bold border border-emerald-100 text-right">
+                        تعديل الحلقة: {{ $circle->name }}
+                    </div>
+                @endrole
                 <!-- المعلم الأساسي -->
                 <x-custom-select name="teacher_id" label="اختر المعلم">
                     <option value="">اختر المعلم</option>
-                    @foreach($teachers as $teacher)
-                    <option value="{{ $teacher->id }}"
-                        @selected(old('teacher_id', $circle->mainTeacher->first()?->id) == $teacher->id)>
-                        {{ $teacher->name }}
-                    </option>
+                    @foreach ($teachers as $teacher)
+                        <option value="{{ $teacher->id }}" @selected(old('teacher_id', $circle->mainTeacher->first()?->id) == $teacher->id)>
+                            {{ $teacher->name }}
+                        </option>
                     @endforeach
                 </x-custom-select>
 
@@ -55,36 +58,38 @@
                 <!-- المعلم المساعد -->
                 <x-custom-select name="assistant_teacher_id" label="المعلم المساعد">
                     <option value="">اختر المعلم المساعد</option>
-                    @foreach($teachers as $teacher)
-                    <option value="{{ $teacher->id }}"
-                        @selected(old('assistant_teacher_id', $circle->assistantTeacher->first()?->id) == $teacher->id)>
-                        {{ $teacher->name }}
-                    </option>
+                    @foreach ($teachers as $teacher)
+                        <option value="{{ $teacher->id }}" @selected(old('assistant_teacher_id', $circle->assistantTeacher->first()?->id) == $teacher->id)>
+                            {{ $teacher->name }}
+                        </option>
                     @endforeach
                 </x-custom-select>
 
 
                 <!-- المشرف -->
-                <div class="md:col-span-2">
-                    <x-custom-select name="supervisor_id" label="المشرف">
-                        <option value="">اختر المشرف</option>
-                        @foreach($supervisors as $supervisor)
-                        <option value="{{ $supervisor->id }}"
-                            @selected(old('supervisor_id', $circle->supervisor?->id) == $supervisor->id)>
-                            {{ $supervisor->name }}
-                        </option>
-                        @endforeach
-                    </x-custom-select>
-                </div>
+                @role('admin')
+                    <div class="md:col-span-2">
+                        <x-custom-select name="supervisor_id" label="المشرف">
+                            <option value="">اختر المشرف</option>
+                            @foreach ($supervisors as $supervisor)
+                                <option value="{{ $supervisor->id }}" @selected(old('supervisor_id', $circle->supervisor?->id) == $supervisor->id)>
+                                    {{ $supervisor->name }}
+                                </option>
+                            @endforeach
+                        </x-custom-select>
+                    </div>
+                @else
+                    <input type="hidden" name="supervisor_id" value="{{ $circle->supervisor?->id }}">
+                @endrole
 
                 <!-- Notes -->
-                <div class="md:col-span-2">
-                    <x-custom-textarea
-                        name="notes"
-                        label="ملاحظات"
-                        rows="4"
-                        :value="old('notes', $circle->notes)" />
-                </div>
+                @role('admin')
+                    <div class="md:col-span-2">
+                        <x-custom-textarea name="notes" label="ملاحظات" rows="4" :value="old('notes', $circle->notes)" />
+                    </div>
+                @else
+                    <input type="hidden" name="notes" value="{{ $circle->notes }}">
+                @endrole
 
                 <!-- Is Active -->
                 <!-- <div class="md:col-span-2">
@@ -108,8 +113,7 @@
 
             <div class="flex justify-end gap-4 border-t pt-6">
                 <a href="{{ route('circles.index') }}" class="text-gray-600">إلغاء</a>
-                <button type="submit"
-                    class="px-8 py-2 bg-[#0a5c36] text-white rounded-lg">
+                <button type="submit" class="px-8 py-2 bg-[#0a5c36] text-white rounded-lg">
                     تحديث الحلقة
                 </button>
             </div>

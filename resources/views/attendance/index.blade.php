@@ -8,18 +8,21 @@
                 <p class="text-emerald-100/80 text-sm font-medium">تحليل بياني لأداء المركز والحلقات</p>
             </div>
 
-            <div class="flex gap-4 z-10">
+            <div class="flex gap-6 z-10">
+                <a href="{{ route('attendance.report') }}"
+                    class="px-6 py-3 bg-white/10 hover:bg-white/20 border border-white/20 rounded-2xl text-white font-bold transition-all flex items-center gap-2">
+                    <svg class="w-5 h-45" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M10 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                    سجل المتابعة
+                </a>
                 <a href="{{ route('attendance.create') }}"
                     class="px-6 py-3 bg-white/10 hover:bg-white/20 border border-white/20 rounded-2xl text-white font-bold transition-all flex items-center gap-2">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
                     </svg>
-                    تسجيل الحضور
-                </a>
-                <a href="{{ route('attendance.report') }}"
-                    class="px-6 py-3 bg-white/10 hover:bg-white/20 border border-white/20 rounded-2xl text-white font-bold transition-all">
-                    سجل المتابعة
+                    تسجيل الغياب
                 </a>
             </div>
 
@@ -32,7 +35,7 @@
             <div class="bg-white p-8 rounded-[40px] shadow-sm border border-gray-100">
                 <h3 class="text-[#0a5c36] font-black text-xl mb-8 border-b border-gray-50 pb-4">توزيع الحالة (آخر 30
                     يوم)</h3>
-                <div class="relative h-[400px]">
+                <div class="relative h-100">
                     <canvas id="statusChart"></canvas>
                 </div>
             </div>
@@ -41,7 +44,7 @@
             <div class="bg-white p-8 rounded-[40px] shadow-sm border border-gray-100">
                 <h3 class="text-[#0a5c36] font-black text-xl mb-8 border-b border-gray-50 pb-4">معدل الحضور (آخر 7 أيام)
                 </h3>
-                <div class="relative h-[400px]">
+                <div class="relative h-100">
                     <canvas id="dailyChart"></canvas>
                 </div>
             </div>
@@ -71,10 +74,10 @@
                 datasets: [{
                     data: statusData.map(d => d.count),
                     backgroundColor: [
-                        '#10b981', // emerald-500
                         '#ef4444', // red-500
+                        '#3b82f6', // blue-500
                         '#f59e0b', // amber-500
-                        '#3b82f6' // blue-500
+                        '#10b981', // emerald-500
                     ],
                     borderWidth: 0,
                     hoverOffset: 20
