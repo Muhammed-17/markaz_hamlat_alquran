@@ -27,11 +27,14 @@ class Setting extends Model
 
     public static function getValue(string $key, mixed $default = null): mixed
     {
-        $cache = static::cache();
-
-        return $cache->rememberForever($key, function () use ($key, $default) {
-            return static::where('key', $key)->value('value') ?? $default;
-        });
+        try {
+            $cache = static::cache();
+            return $cache->rememberForever($key, function () use ($key, $default) {
+                return static::where('key', $key)->value('value') ?? $default;
+            });
+        } catch (\Exception $e) {
+            return $default;
+        }
     }
 
     public static function setValue(string $key, mixed $value): void
