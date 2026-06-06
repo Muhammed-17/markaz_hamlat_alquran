@@ -27,6 +27,11 @@ class Setting extends Model
 
     public static function getValue(string $key, mixed $default = null): mixed
     {
+        // منع أي اتصال بـ DB أثناء package:discover
+        if (!app()->isBooted()) {
+            return $default;
+        }
+
         $cache = static::cache();
         return $cache->rememberForever($key, function () use ($key, $default) {
             try {
