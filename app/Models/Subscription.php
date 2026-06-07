@@ -61,6 +61,7 @@ class Subscription extends Model
         'amount' => 'decimal:2',
     ];
 
+    
     // علاقة: الاشتراك ← طالبه
     public function student()
     {

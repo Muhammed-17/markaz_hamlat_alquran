@@ -14,7 +14,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string|null $self_evaluation
  * @property string|null $tajweed_matn
  * @property string|null $tajweed_matn_other
- * @property string|null $memorized_texts
  * @property string|null $desired_path
  * @property string|null $preferred_time
  * @property string|null $teacher_name
@@ -52,7 +51,6 @@ class StudentItqanDetail extends Model
         'self_evaluation',
         'tajweed_matn',
         'tajweed_matn_other',
-        'memorized_texts',
         'desired_path',
         'preferred_time',
         'teacher_name',

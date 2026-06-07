@@ -38,6 +38,11 @@ class SubscriptionPrice extends Model
     use HasRoles;
     protected $fillable = ['circle_level', 'education_level', 'school_grade', 'amount'];
 
+    protected static function booted(): void
+    {
+        static::addGlobalScope(new \App\Models\Scopes\CenterScope());
+    }
+
     protected $casts = [
         'amount' => 'decimal:2',
     ];

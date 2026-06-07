@@ -6,37 +6,19 @@ $studentsList = $students->map(fn ($s) => [
 'decision' => $s->decision ?? '',
 'circle_id' => $s->circle_id,
 'circle_name' => $s->circle?->name ?? '',
-'education_level' => $s->education_level ?? '',
-'age' => $s->age ?? ($s->date_of_birth ? $s->date_of_birth->age : null),
-'student_code' => $s->student_code ?? '',
-'phone' => $s->phone ?? '',
-'whatsapp_number' => $s->whatsapp_number ?? '',
+'center_id' => $s->center_id,
 'educational_stage' => $s->educational_stage ?? '',
-'center' => $s->center?->name ?? '',
+'age' => $s->date_of_birth ? $s->date_of_birth->age : null,
+'student_code' => $s->student_code ?? '',
+'whatsapp_number' => $s->whatsapp_number ?? '',
 'school_grade' => $s->school_grade ?? '',
 'show_url' => route('students.show', $s),
-'edit_url' => auth()->user()->can('edit students')
-? route('students.edit', $s)
-: null,
+'edit_url' => auth()->user()->can('update', $s)? route('students.edit', $s): null,
 ]);
 
-$circlesList = $circles
-->map(fn ($c) => ['id' => $c->id, 'name' => $c->name]);
-
-$centersList = $students
-->pluck('center')
-->filter()
-->unique()
-->sort()
-->values()
-->toArray();
-
-$gradesList = $students
-->pluck('school_grade')
-->filter()
-->unique()
-->values()
-->toArray();
+$circlesList = $circles->map(fn ($c) => ['id' => $c->id, 'name' => $c->name]);
+$centersList = $centers->map(fn ($c) => ['id' => $c->id, 'name' => $c->name])->values();
+$gradesList = $students->pluck('school_grade')->filter()->unique()->sort()->values();
 @endphp
 
 <x-layouts.markaz-layout>
@@ -51,23 +33,14 @@ $gradesList = $students
                 q: '',
                 status: '',
                 circleId: '',
-                educationLevel: '',
-                center: '',
+                educationalStage: '',
+                centerId: '',
                 ageMin: '',
                 ageMax: '',
                 schoolGrade: '',
                 decision: '',
                 currentPage: 1,
                 perPage: 20,
-
-                educationLabels: {
-                    preschool: 'حضانة',
-                    primary: 'ابتدائية',
-                    secondary: 'إعدادية',
-                    high_school: 'ثانوية',
-                    university: 'جامعية',
-                    other: 'أخرى',
-                },
 
                 statusLabels: {
                     active: 'مقيد',
@@ -77,6 +50,7 @@ $gradesList = $students
 
                 sortField: 'name',
                 sortAsc: true,
+
                 sortBy(field) {
                     if (this.sortField === field) {
                         this.sortAsc = !this.sortAsc;
@@ -97,58 +71,56 @@ $gradesList = $students
                 },
 
                 get hasFilters() {
-                    return this.q.trim() !== '' || this.status !== '' || this.circleId !== '' ||
-                        this.educationLevel !== '' || this.center !== '' || this.decision !== '' ||
-                        this.ageMin !== '' || this.ageMax !== '' || this.schoolGrade !== '';
+                    return this.q.trim() !== '' || this.status !== '' ||
+                        this.circleId !== '' || this.educationalStage !== '' ||
+                        this.centerId !== '' || this.decision !== '' ||
+                        this.ageMin !== '' || this.ageMax !== '' ||
+                        this.schoolGrade !== '';
                 },
 
                 get filteredStudents() {
                     const term = this.q.trim().toLowerCase();
 
-                    let result = this.students.filter((student) => {
-                        if (this.status && student.status !== this.status) return false;
-                        if (this.circleId && String(student.circle_id) !== String(this.circleId)) return false;
-                        if (this.educationLevel && student.education_level !== this.educationLevel) return false;
-                        if (this.center && student.center !== this.center) return false;
-                        if (this.schoolGrade && student.school_grade !== this.schoolGrade) return false;
-                        if (this.decision && student.decision !== this.decision) return false;
+                    let result = this.students.filter(s => {
+                        if (this.status && s.status !== this.status) return false;
+                        if (this.circleId && String(s.circle_id) !== String(this.circleId)) return false;
+                        if (this.educationalStage && s.educational_stage !== this.educationalStage) return false;
+                        if (this.centerId && String(s.center_id) !== String(this.centerId)) return false;
+                        if (this.schoolGrade && s.school_grade !== this.schoolGrade) return false;
+                        if (this.decision && s.decision !== this.decision) return false;
 
-                        const age = parseInt(student.age);
+                        const age = parseInt(s.age);
                         if (this.ageMin !== '' && !isNaN(age) && age < parseInt(this.ageMin)) return false;
                         if (this.ageMax !== '' && !isNaN(age) && age > parseInt(this.ageMax)) return false;
 
                         if (!term) return true;
 
-                        const haystack = [
-                            student.name,
-                            student.student_code,
-                            student.circle_name,
-                            student.phone,
-                            student.whatsapp_number,
-                            student.educational_stage,
-                            this.educationLabels[student.education_level] || '',
-                            this.statusLabels[student.status] || '',
-                        ].join(' ').toLowerCase();
-
-                        return haystack.includes(term);
+                        return [
+                            s.name,
+                            s.student_code,
+                            s.circle_name,
+                            s.whatsapp_number,
+                            s.educational_stage,
+                            this.statusLabels[s.status] || '',
+                        ].join(' ').toLowerCase().includes(term);
                     });
 
                     result.sort((a, b) => {
-                        let valA = a[this.sortField] ?? '';
-                        let valB = b[this.sortField] ?? '';
+                        let vA = a[this.sortField] ?? '';
+                        let vB = b[this.sortField] ?? '';
 
-                        if (typeof valA === 'string' && typeof valB === 'string') {
+                        if (typeof vA === 'string' && typeof vB === 'string') {
                             return this.sortAsc ?
-                                valA.localeCompare(valB, 'ar', {
+                                vA.localeCompare(vB, 'ar', {
                                     sensitivity: 'base'
                                 }) :
-                                valB.localeCompare(valA, 'ar', {
+                                vB.localeCompare(vA, 'ar', {
                                     sensitivity: 'base'
                                 });
                         }
 
-                        if (valA < valB) return this.sortAsc ? -1 : 1;
-                        if (valA > valB) return this.sortAsc ? 1 : -1;
+                        if (vA < vB) return this.sortAsc ? -1 : 1;
+                        if (vA > vB) return this.sortAsc ? 1 : -1;
                         return 0;
                     });
 
@@ -158,6 +130,7 @@ $gradesList = $students
                 get visibleCount() {
                     return this.filteredStudents.length;
                 },
+
                 get totalPages() {
                     return Math.ceil(this.filteredStudents.length / this.perPage) || 1;
                 },
@@ -173,9 +146,11 @@ $gradesList = $students
                     const cur = this.currentPage;
                     const delta = 2;
                     const range = [];
+
                     for (let i = Math.max(2, cur - delta); i <= Math.min(total - 1, cur + delta); i++) {
                         range.push(i);
                     }
+
                     const list = [1];
                     if (range[0] > 2) list.push('...');
                     list.push(...range);
@@ -188,8 +163,8 @@ $gradesList = $students
                     this.q = '';
                     this.status = '';
                     this.circleId = '';
-                    this.educationLevel = '';
-                    this.center = '';
+                    this.educationalStage = '';
+                    this.centerId = '';
                     this.ageMin = '';
                     this.ageMax = '';
                     this.schoolGrade = '';
@@ -202,10 +177,9 @@ $gradesList = $students
 
     <div class="space-y-6" x-data="studentsIndex()">
 
-        <!-- Header Card -->
-        <div class="bg-[#0b3d2c] rounded-3xl p-6 lg:p-8 text-white relative overflow-hidden flex flex-col md:flex-row justify-between items-center shadow-xl gap-6 mb-8">
+        {{-- Header --}}
+        <div class="bg-[#0b3d2c] rounded-3xl p-6 lg:p-8 text-white relative overflow-hidden flex flex-col md:flex-row justify-between items-center shadow-xl gap-6">
             <div class="order-2 md:order-2 flex flex-wrap items-center gap-4 w-full md:w-auto">
-
                 @can('create students')
                 <a href="{{ route('students.create') }}"
                     class="w-full md:w-auto px-6 py-3 bg-emerald-500 hover:bg-emerald-400 text-white font-bold rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg hover:shadow-emerald-500/20 active:scale-95">
@@ -215,7 +189,6 @@ $gradesList = $students
                     جديد
                 </a>
                 @endcan
-
             </div>
 
             <div class="order-1 md:order-1 text-right w-full md:w-auto z-10">
@@ -229,8 +202,10 @@ $gradesList = $students
             <div class="absolute -right-10 -bottom-10 w-40 h-40 bg-white/10 rounded-full blur-3xl"></div>
         </div>
 
-        <!-- بحث وفلاتر -->
+        {{-- بحث وفلاتر --}}
         <div class="bg-white p-4 rounded-xl border border-gray-100 space-y-4">
+
+            {{-- بحث --}}
             <div class="flex flex-col lg:flex-row gap-4">
                 <div class="flex-1 relative">
                     <input type="search" x-model.debounce.200ms="q"
@@ -250,9 +225,10 @@ $gradesList = $students
 
             {{-- صف الفلاتر الأول --}}
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+
                 <div>
-                    <label for="filter_status" class="block text-xs font-bold text-gray-500 mb-1">الحالة</label>
-                    <select id="filter_status" x-model="status"
+                    <label class="block text-xs font-bold text-gray-500 mb-1">الحالة</label>
+                    <select x-model="status"
                         class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#10b981]/50">
                         <option value="">الكل</option>
                         <option value="active">مقيد</option>
@@ -262,8 +238,8 @@ $gradesList = $students
                 </div>
 
                 <div>
-                    <label for="filter_circle" class="block text-xs font-bold text-gray-500 mb-1">الحلقة</label>
-                    <select id="filter_circle" x-model="circleId"
+                    <label class="block text-xs font-bold text-gray-500 mb-1">الحلقة</label>
+                    <select x-model="circleId"
                         class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#10b981]/50">
                         <option value="">كل الحلقات</option>
                         <template x-for="circle in circles" :key="circle.id">
@@ -273,36 +249,36 @@ $gradesList = $students
                 </div>
 
                 <div>
-                    <label for="filter_education" class="block text-xs font-bold text-gray-500 mb-1">المرحلة الدراسية</label>
-                    <select id="filter_education" x-model="educationLevel"
+                    <label class="block text-xs font-bold text-gray-500 mb-1">المرحلة الدراسية</label>
+                    <select x-model="educationalStage"
                         class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#10b981]/50">
                         <option value="">الكل</option>
-                        <option value="preschool">حضانة</option>
-                        <option value="primary">ابتدائية</option>
-                        <option value="secondary">إعدادية</option>
-                        <option value="high_school">ثانوية</option>
-                        <option value="university">جامعية</option>
-                        <option value="other">أخرى</option>
+                        <option value="تمهيدي">تمهيدي</option>
+                        <option value="حضانة">حضانة</option>
+                        <option value="ابتدائي">ابتدائي</option>
+                        <option value="اعدادي">اعدادي</option>
+                        <option value="ثانوي">ثانوي</option>
+                        <option value="جامعي">جامعي</option>
+                        <option value="خريج">خريج</option>
                     </select>
                 </div>
+
             </div>
 
             {{-- صف الفلاتر الثاني --}}
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-
-                {{-- فلتر الفرع --}}
+                @if($centers->count() > 1)
                 <div>
-                    <label for="filter_center" class="block text-xs font-bold text-gray-500 mb-1">الفرع</label>
-                    <select id="filter_center" x-model="center"
+                    <label class="block text-xs font-bold text-gray-500 mb-1">الفرع</label>
+                    <select x-model="centerId"
                         class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#10b981]/50">
                         <option value="">كل الفروع</option>
-                        <template x-for="c in centers" :key="c">
-                            <option :value="c" x-text="c"></option>
+                        <template x-for="c in centers" :key="c.id">
+                            <option :value="String(c.id)" x-text="c.name"></option>
                         </template>
                     </select>
                 </div>
-
-                {{-- فلتر العمر (نطاق) --}}
+                @endif
                 <div>
                     <label class="block text-xs font-bold text-gray-500 mb-1">العمر (من – إلى)</label>
                     <div class="flex items-center gap-2">
@@ -314,10 +290,9 @@ $gradesList = $students
                     </div>
                 </div>
 
-                {{-- فلتر الصف الدراسي --}}
                 <div>
-                    <label for="filter_grade" class="block text-xs font-bold text-gray-500 mb-1">الصف الدراسي</label>
-                    <select id="filter_grade" x-model="schoolGrade"
+                    <label class="block text-xs font-bold text-gray-500 mb-1">الصف الدراسي</label>
+                    <select x-model="schoolGrade"
                         class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#10b981]/50">
                         <option value="">كل الصفوف</option>
                         <template x-for="g in grades" :key="g">
@@ -325,15 +300,15 @@ $gradesList = $students
                         </template>
                     </select>
                 </div>
+
             </div>
 
             {{-- صف الفلاتر الثالث --}}
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
 
-                {{-- فلتر القرار --}}
                 <div>
-                    <label for="filter_decision" class="block text-xs font-bold text-gray-500 mb-1">قرار الإدارة</label>
-                    <select id="filter_decision" x-model="decision"
+                    <label class="block text-xs font-bold text-gray-500 mb-1">قرار الإدارة</label>
+                    <select x-model="decision"
                         class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#10b981]/50">
                         <option value="">الكل</option>
                         <option value="pending">تحت الاختبار</option>
@@ -341,40 +316,46 @@ $gradesList = $students
                         <option value="rejected">مرفوض</option>
                     </select>
                 </div>
+
             </div>
 
         </div>
 
-        <!-- Table -->
+        {{-- Table --}}
         <div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-x-auto">
             <table class="w-full text-right min-w-[900px]">
                 <thead class="bg-gray-50 text-gray-500 text-sm">
                     <tr>
-                        <th @click="sortBy('name')" class="py-4 px-6 font-medium rounded-tr-xl cursor-pointer hover:bg-gray-100 transition-colors select-none">
+                        <th @click="sortBy('name')"
+                            class="py-4 px-6 font-medium rounded-tr-xl cursor-pointer hover:bg-gray-100 transition-colors select-none">
                             <div class="flex items-center gap-1">
                                 <span>اسم الطالب</span>
                                 <span x-show="sortField === 'name'" x-text="sortAsc ? '↑' : '↓'"></span>
                             </div>
                         </th>
-                        <th @click="sortBy('status')" class="py-4 px-6 font-medium cursor-pointer hover:bg-gray-100 transition-colors select-none">
+                        <th @click="sortBy('status')"
+                            class="py-4 px-6 font-medium cursor-pointer hover:bg-gray-100 transition-colors select-none">
                             <div class="flex items-center gap-1">
                                 <span>الحالة</span>
                                 <span x-show="sortField === 'status'" x-text="sortAsc ? '↑' : '↓'"></span>
                             </div>
                         </th>
-                        <th @click="sortBy('circle_name')" class="py-4 px-6 font-medium cursor-pointer hover:bg-gray-100 transition-colors select-none">
+                        <th @click="sortBy('circle_name')"
+                            class="py-4 px-6 font-medium cursor-pointer hover:bg-gray-100 transition-colors select-none">
                             <div class="flex items-center gap-1">
                                 <span>الحلقة</span>
                                 <span x-show="sortField === 'circle_name'" x-text="sortAsc ? '↑' : '↓'"></span>
                             </div>
                         </th>
-                        <th @click="sortBy('education_level')" class="py-4 px-6 font-medium cursor-pointer hover:bg-gray-100 transition-colors select-none">
+                        <th @click="sortBy('educational_stage')"
+                            class="py-4 px-6 font-medium cursor-pointer hover:bg-gray-100 transition-colors select-none">
                             <div class="flex items-center gap-1">
                                 <span>المرحلة الدراسية</span>
-                                <span x-show="sortField === 'education_level'" x-text="sortAsc ? '↑' : '↓'"></span>
+                                <span x-show="sortField === 'educational_stage'" x-text="sortAsc ? '↑' : '↓'"></span>
                             </div>
                         </th>
-                        <th @click="sortBy('age')" class="py-4 px-6 font-medium cursor-pointer hover:bg-gray-100 transition-colors select-none">
+                        <th @click="sortBy('age')"
+                            class="py-4 px-6 font-medium cursor-pointer hover:bg-gray-100 transition-colors select-none">
                             <div class="flex items-center gap-1">
                                 <span>العمر</span>
                                 <span x-show="sortField === 'age'" x-text="sortAsc ? '↑' : '↓'"></span>
@@ -387,7 +368,9 @@ $gradesList = $students
                 <tbody class="divide-y divide-gray-100">
                     <template x-for="student in paginatedStudents" :key="student.id">
                         <tr class="hover:bg-gray-50/50">
+
                             <td class="py-4 px-6 font-medium text-gray-800" x-text="student.name"></td>
+
                             <td class="py-4 px-6">
                                 <span x-show="student.status === 'active'"
                                     class="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-md text-sm">مقيد</span>
@@ -396,26 +379,16 @@ $gradesList = $students
                                 <span x-show="student.status === 'traveler'"
                                     class="px-3 py-1 bg-cyan-100 text-cyan-700 rounded-md text-sm">مسافر</span>
                             </td>
+
                             <td class="py-4 px-6 text-gray-600" x-text="student.circle_name || '—'"></td>
-                            <td class="py-4 px-6 text-gray-600">
-                                <span x-show="student.education_level === 'preschool'"
-                                    class="px-3 py-1 bg-rose-100 text-rose-700 rounded-full text-xs font-semibold">حضانة</span>
-                                <span x-show="student.education_level === 'primary'"
-                                    class="px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-semibold">ابتدائية</span>
-                                <span x-show="student.education_level === 'secondary'"
-                                    class="px-3 py-1 bg-orange-100 text-orange-700 rounded-full text-xs font-semibold">إعدادية</span>
-                                <span x-show="student.education_level === 'high_school'"
-                                    class="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-xs font-semibold">ثانوية</span>
-                                <span x-show="student.education_level === 'university'"
-                                    class="px-3 py-1 bg-violet-100 text-violet-700 rounded-full text-xs font-semibold">جامعية</span>
-                                <span x-show="student.education_level === 'other'"
-                                    class="px-3 py-1 bg-slate-100 text-slate-700 rounded-full text-xs font-semibold">أخرى</span>
-                            </td>
+
+                            <td class="py-4 px-6 text-gray-600" x-text="student.educational_stage || '—'"></td>
+
                             <td class="py-4 px-6 text-gray-600" x-text="student.age ?? '—'"></td>
+
                             <td class="py-4 px-6">
                                 <div class="flex items-center justify-end gap-3">
 
-                                    {{-- زر العرض: متاح للكل --}}
                                     <a :href="student.show_url"
                                         class="text-green-400 hover:text-green-600 transition">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none"
@@ -427,7 +400,6 @@ $gradesList = $students
                                         </svg>
                                     </a>
 
-                                    {{-- ✅ زر التعديل: بيظهر بس لو edit_url مش null --}}
                                     <a x-show="student.edit_url !== null"
                                         :href="student.edit_url"
                                         class="text-blue-500 hover:text-blue-700 transition">
@@ -440,6 +412,7 @@ $gradesList = $students
 
                                 </div>
                             </td>
+
                         </tr>
                     </template>
 
@@ -452,19 +425,24 @@ $gradesList = $students
                 </tbody>
             </table>
 
-            <!-- Pagination -->
+            {{-- Pagination --}}
             <div class="flex flex-col sm:flex-row items-center justify-between gap-4 px-6 py-4 border-t border-gray-100"
                 x-show="filteredStudents.length > perPage">
                 <div class="text-sm text-gray-500">
                     الصفحة <span class="font-medium text-gray-700" x-text="currentPage"></span>
                     من <span class="font-medium text-gray-700" x-text="totalPages"></span>
-                    — عرض <span class="font-medium text-gray-700" x-text="Math.min((currentPage - 1) * perPage + 1, filteredStudents.length)"></span>–
-                    <span class="font-medium text-gray-700" x-text="Math.min(currentPage * perPage, filteredStudents.length)"></span>
+                    — عرض
+                    <span class="font-medium text-gray-700"
+                        x-text="Math.min((currentPage - 1) * perPage + 1, filteredStudents.length)"></span>–
+                    <span class="font-medium text-gray-700"
+                        x-text="Math.min(currentPage * perPage, filteredStudents.length)"></span>
                     من <span class="font-medium text-gray-700" x-text="filteredStudents.length"></span>
                 </div>
                 <div class="flex items-center gap-1.5" dir="ltr">
                     <button @click="goToPage(currentPage - 1)" :disabled="currentPage === 1"
-                        :class="currentPage === 1 ? 'text-gray-300 border-gray-100 cursor-not-allowed' : 'text-gray-600 border-gray-200 hover:bg-gray-50'"
+                        :class="currentPage === 1
+                            ? 'text-gray-300 border-gray-100 cursor-not-allowed'
+                            : 'text-gray-600 border-gray-200 hover:bg-gray-50'"
                         class="px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors">
                         ‹ السابق
                     </button>
@@ -474,14 +452,18 @@ $gradesList = $students
                             <span x-show="page === '...'" class="px-1.5 text-gray-400 select-none">...</span>
                             <button x-show="page !== '...'" @click="goToPage(page)"
                                 class="px-3 py-1.5 rounded-lg text-sm font-medium transition-all min-w-[36px] text-center"
-                                :class="currentPage === page ? 'bg-[#0a5c36] text-white shadow-sm' : 'text-gray-600 border border-gray-200 hover:bg-gray-50'"
+                                :class="currentPage === page
+                                    ? 'bg-[#0a5c36] text-white shadow-sm'
+                                    : 'text-gray-600 border border-gray-200 hover:bg-gray-50'"
                                 x-text="page">
                             </button>
                         </span>
                     </template>
 
                     <button @click="goToPage(currentPage + 1)" :disabled="currentPage === totalPages"
-                        :class="currentPage === totalPages ? 'text-gray-300 border-gray-100 cursor-not-allowed' : 'text-gray-600 border-gray-200 hover:bg-gray-50'"
+                        :class="currentPage === totalPages
+                            ? 'text-gray-300 border-gray-100 cursor-not-allowed'
+                            : 'text-gray-600 border-gray-200 hover:bg-gray-50'"
                         class="px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors">
                         التالي ›
                     </button>

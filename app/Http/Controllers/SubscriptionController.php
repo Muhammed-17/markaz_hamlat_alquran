@@ -6,73 +6,67 @@ use App\Models\Subscription;
 use App\Models\Circle;
 use App\Models\Student;
 use App\Http\Requests\StoreSubscriptionRequest;
+use App\Traits\ResolvesUserScope;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
 
 class SubscriptionController extends Controller
 {
+    use ResolvesUserScope;
+
+    // ─────────────────────────────────────────
     public function index(Request $request)
     {
-        $user = Auth::user();
+        $this->authorize('viewAny', Subscription::class);
+
+        $user             = Auth::user();
         $selectedCircleId = $request->get('circle_id');
-        $selectedMonth = $request->get('month', now()->format('Y-m'));
+        $selectedMonth    = $request->get('month', now()->format('Y-m'));
+        $monthStart       = Carbon::createFromFormat('Y-m', $selectedMonth)
+            ->startOfMonth()->format('Y-m-d');
 
-        // تحديد الحلقات حسب نوع المستخدم
-        $circles = collect();
-        if ($user->hasRole('admin')) {
-            $circles = Circle::all();
-        } elseif ($user->hasRole('supervisor') && $user->teacher) {
-            $circles = Circle::where('supervisor_id', $user->teacher->id)->get();
-        } elseif ($user->hasRole('teacher') && $user->teacher) {
-            $circles = $user->teacher->circles()->get();
-        }
+        // الحلقات المتاحة — من الـ Trait
+        $circles   = $this->getAccessibleCircles($user);
+        $circleIds = $circles->pluck('id');
 
-        // في حال المعلم او المشرف عنده حلقة واحدة فقط
+        // اختيار تلقائي لو حلقة واحدة بس
         if (!$selectedCircleId && $circles->count() === 1) {
             $selectedCircleId = $circles->first()->id;
         }
 
-        // Base query for stats
+        // Base query مفلتر بالحلقات المتاحة
         $statsBaseQuery = Subscription::query();
 
-        // Role-based filtering for stats
-        if ($user->hasRole('supervisor')) {
-            $supervisedCircleIds = $circles->pluck('id');
-            $statsBaseQuery->whereIn('circle_id', $supervisedCircleIds);
-        } elseif ($user->hasRole('teacher')) {
-            $teacherCircleIds = $circles->pluck('id');
-            $statsBaseQuery->whereIn('circle_id', $teacherCircleIds);
-        } elseif ($user->hasRole('guardian')) {
-            $childIds = $user->students()->pluck('id');
-            $statsBaseQuery->whereIn('student_id', $childIds);
+        if ($user->hasRole('guardian')) {
+            $statsBaseQuery->whereIn('student_id', $user->students()->pluck('id'));
+        } elseif (!$user->hasRole('admin')) {
+            $circleIds->isEmpty()
+                ? $statsBaseQuery->whereRaw('1=0')
+                : $statsBaseQuery->whereIn('circle_id', $circleIds);
         }
 
         if ($selectedCircleId) {
             $statsBaseQuery->where('circle_id', $selectedCircleId);
         }
 
-        // 1. Revenue by Month (Last 6 Months)
-        $monthlyRevenueQuery = (clone $statsBaseQuery)
+        // 1. إيرادات آخر 6 أشهر
+        $monthlyRevenue = (clone $statsBaseQuery)
             ->selectRaw("DATE_FORMAT(month, '%Y-%m') as month_label, SUM(amount) as total")
             ->where('status', 'مدفوع')
             ->groupBy('month_label')
             ->orderBy('month_label', 'asc')
-            ->take(6);
+            ->take(6)
+            ->get();
 
-        $monthlyRevenue = $monthlyRevenueQuery->get();
-
-
-        // 2. Status Distribution
-        $monthStart = Carbon::createFromFormat('Y-m', $selectedMonth)->startOfMonth()->format('Y-m-d');
-
+        // 2. توزيع الحالات
         $statusStats = (clone $statsBaseQuery)
             ->selectRaw('status, count(*) as count, SUM(amount) as total_amount')
             ->where('month', $monthStart)
             ->groupBy('status')
             ->get();
 
-        // 3. Payment Method Distribution
+        // 3. طرق الدفع
         $paymentStats = (clone $statsBaseQuery)
             ->selectRaw('payment_method, count(*) as count')
             ->where('status', 'مدفوع')
@@ -80,33 +74,30 @@ class SubscriptionController extends Controller
             ->groupBy('payment_method')
             ->get();
 
-        // 4. Recently Collected
-        $recentQuery = (clone $statsBaseQuery)
+        // 4. آخر الاشتراكات
+        $recentSubscriptions = (clone $statsBaseQuery)
             ->with(['student', 'circle', 'collectedBy'])
+            ->where('month', $monthStart)
             ->orderBy('created_at', 'desc')
-            ->take(10);
+            ->take(10)
+            ->get();
 
-        if ($selectedMonth) {
-            $recentQuery->where('month', $monthStart);
-        }
-
-        $recentSubscriptions = $recentQuery->get();
-
-        // Calculate Payment Rate (Relative to Total Active Students)
+        // 5. نسبة الدفع والمبلغ غير المدفوع
         $studentsQuery = Student::where('status', 'active');
-        if ($user->hasRole('supervisor')) {
-            $studentsQuery->whereIn('circle_id', $circles->pluck('id'));
-        } elseif ($user->hasRole('teacher')) {
-            $studentsQuery->whereIn('circle_id', $circles->pluck('id'));
-        } elseif ($user->hasRole('guardian')) {
+
+        if ($user->hasRole('guardian')) {
             $studentsQuery->where('guardian_id', $user->id);
+        } elseif (!$user->hasRole('admin')) {
+            $circleIds->isEmpty()
+                ? $studentsQuery->whereRaw('1=0')
+                : $studentsQuery->whereIn('circle_id', $circleIds);
         }
 
         if ($selectedCircleId) {
             $studentsQuery->where('circle_id', $selectedCircleId);
         }
 
-        $students = $studentsQuery->with('circle')->get();
+        $students            = $studentsQuery->with('circle')->get();
         $totalActiveStudents = $students->count();
 
         $paidSubsCount = (clone $statsBaseQuery)
@@ -114,9 +105,10 @@ class SubscriptionController extends Controller
             ->where('status', 'مدفوع')
             ->count();
 
-        $paymentRate = $totalActiveStudents > 0 ? round(($paidSubsCount / $totalActiveStudents) * 100, 1) : 0;
+        $paymentRate = $totalActiveStudents > 0
+            ? round(($paidSubsCount / $totalActiveStudents) * 100, 1)
+            : 0;
 
-        // Calculate Total Expected Revenue & Unpaid Amount
         $prices = \App\Models\SubscriptionPrice::all();
 
         $paidSubscriptionsMap = (clone $statsBaseQuery)
@@ -124,23 +116,19 @@ class SubscriptionController extends Controller
             ->where('status', 'مدفوع')
             ->pluck('amount', 'student_id');
 
-        $realUnpaidAmount = 0;
+        $unpaidAmount = 0;
         foreach ($students as $student) {
-            $circleLevel = $student->circle?->level;
-            $eduLevel = $student->education_level;
-            $priceObj = $prices->where('circle_level', $circleLevel)
-                ->where('education_level', $eduLevel)
+            $priceObj = $prices
+                ->where('circle_level', $student->circle?->level)
+                ->where('education_level', $student->education_level)
                 ->first();
             $expected = $priceObj?->amount ?? 60.00;
-
-            $paid = $paidSubscriptionsMap[$student->id] ?? 0;
+            $paid     = $paidSubscriptionsMap[$student->id] ?? 0;
 
             if ($paid < $expected) {
-                $realUnpaidAmount += ($expected - $paid);
+                $unpaidAmount += ($expected - $paid);
             }
         }
-
-        $unpaidAmount = $realUnpaidAmount;
 
         return view('subscription.index', compact(
             'monthlyRevenue',
@@ -155,24 +143,16 @@ class SubscriptionController extends Controller
         ));
     }
 
-
-    //TODO: function to show create subscription
+    // ─────────────────────────────────────────
     public function create()
     {
-        $user = auth()->user();
-        $circlesQuery = Circle::with(['students' => function ($q) {
-            $q->where('status', 'active');
-        }]);
+        $this->authorize('create', Subscription::class);
 
-        if ($user->hasRole('supervisor')) {
-            $circlesQuery->where('supervisor_id', $user->teacher->id);
-        } elseif ($user->hasRole('teacher')) {
-            $circlesQuery->whereHas('teachers', function ($q) use ($user) {
-                $q->where('teachers.id', $user->teacher->id);
-            });
-        }
-
-        $circles = $circlesQuery->get();
+        $user      = Auth::user();
+        $circles   = $this->getAccessibleCircles($user)->load([
+            'students' => fn($q) =>
+            $q->where('status', 'active')
+        ]);
         $circleIds = $circles->pluck('id');
 
         $students = Student::with(['circle', 'subscriptions'])
@@ -185,54 +165,53 @@ class SubscriptionController extends Controller
         return view('subscription.create', compact('circles', 'students', 'prices'));
     }
 
-    //TODO: function to store subscription
+    // ─────────────────────────────────────────
     public function store(StoreSubscriptionRequest $request)
     {
-        $validated = $request->validated();
+        $this->authorize('create', Subscription::class);
 
-        $month = Carbon::createFromFormat('Y-m', $validated['month'])->startOfMonth()->format('Y-m-d');
+        $validated = $request->validated();
+        $month     = Carbon::createFromFormat('Y-m', $validated['month'])
+            ->startOfMonth()->format('Y-m-d');
 
         Subscription::create([
-            'student_id' => $validated['student_id'],
-            'circle_id' => $validated['circle_id'],
-            'collected_by' => Auth::id(),
-            'amount' => $validated['amount'],
-            'month' => $month,
-            'status' => $validated['status'],
+            'student_id'     => $validated['student_id'],
+            'circle_id'      => $validated['circle_id'],
+            'collected_by'   => Auth::id(),
+            'amount'         => $validated['amount'],
+            'month'          => $month,
+            'status'         => $validated['status'],
             'payment_method' => $validated['payment_method'],
-            'paid_at' => $validated['status'] === 'مدفوع' ? now() : null,
-            'notes' => $validated['notes'] ?? null,
+            'paid_at'        => $validated['status'] === 'مدفوع' ? now() : null,
+            'notes'          => $validated['notes'] ?? null,
         ]);
 
         return redirect()->route('subscriptions.index')->with('success', 'تم تسجيل الاشتراك بنجاح');
     }
+
+    // ─────────────────────────────────────────
     public function lateAndUnpaid(Request $request)
     {
-        $user = Auth::user();
-        $selectedCircleId = $request->get('circle_id');
+        $this->authorize('viewAny', Subscription::class);
 
-        // تحديد الحلقات حسب نوع المستخدم
-        $circles = collect();
-        if ($user->hasRole('admin')) {
-            $circles = Circle::all();
-        } elseif ($user->hasRole('supervisor') && $user->teacher) {
-            $circles = Circle::where('supervisor_id', $user->teacher->id)->get();
-        } elseif ($user->hasRole('teacher') && $user->teacher) {
-            $circles = $user->teacher->circles()->get();
-        }
+        $user             = Auth::user();
+        $selectedCircleId = $request->get('circle_id');
+        $circles          = $this->getAccessibleCircles($user);
+        $circleIds        = $circles->pluck('id');
 
         $query = Student::where('status', 'active')
-            ->with(['subscriptions' => function ($q) {
-                $q->where('status', 'مدفوع');
-            }, 'circle']);
+            ->with([
+                'subscriptions' => fn($q) =>
+                $q->where('status', 'مدفوع'),
+                'circle'
+            ]);
 
-        // Filter by role
-        if ($user->hasRole('supervisor')) {
-            $query->whereIn('circle_id', $circles->pluck('id'));
-        } elseif ($user->hasRole('teacher')) {
-            $query->whereIn('circle_id', $circles->pluck('id'));
-        } elseif ($user->hasRole('guardian')) {
+        if ($user->hasRole('guardian')) {
             $query->where('guardian_id', $user->id);
+        } elseif (!$user->hasRole('admin')) {
+            $circleIds->isEmpty()
+                ? $query->whereRaw('1=0')
+                : $query->whereIn('circle_id', $circleIds);
         }
 
         if ($selectedCircleId && $selectedCircleId !== 'all') {
@@ -240,11 +219,9 @@ class SubscriptionController extends Controller
         }
 
         $students = $query->get()->map(function ($student) {
-            $startDate = $student->enrollment_date
-                ? $student->enrollment_date->copy()->startOfMonth()
+            $startDate = $student->join_date             // ✅ موحد مع باقي الكود
+                ? $student->join_date->copy()->startOfMonth()
                 : $student->created_at->copy()->startOfMonth();
-
-            $currentDate = now()->startOfMonth();
 
             $paidMonths = $student->subscriptions
                 ->pluck('month')
@@ -253,22 +230,26 @@ class SubscriptionController extends Controller
                 ->toArray();
 
             $unpaidMonthsList = [];
+            $checkDate        = $startDate->copy();
 
-            $checkDate = $startDate->copy();
-
-            while ($checkDate->lte($currentDate)) {
+            while ($checkDate->lte(now()->startOfMonth())) {
                 $monthStr = $checkDate->format('Y-m');
                 if (!in_array($monthStr, $paidMonths)) {
-                    $unpaidMonthsList[] = $checkDate->locale('ar')->monthName . ' ' . $checkDate->format('Y');
+                    $unpaidMonthsList[] = $checkDate->locale('ar')->monthName
+                        . ' ' . $checkDate->format('Y');
                 }
                 $checkDate->addMonth();
             }
 
-            $student->unpaid_months_list = $unpaidMonthsList;
+            $student->unpaid_months_list  = $unpaidMonthsList;
             $student->unpaid_months_count = count($unpaidMonthsList);
             return $student;
         })->filter(fn($s) => $s->unpaid_months_count > 0);
 
-        return view('subscription.late_and_unpaid', compact('students', 'circles', 'selectedCircleId'));
+        return view('subscription.late_and_unpaid', compact(
+            'students',
+            'circles',
+            'selectedCircleId'
+        ));
     }
 }

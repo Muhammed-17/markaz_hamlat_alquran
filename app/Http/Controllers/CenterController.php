@@ -37,10 +37,12 @@ class CenterController extends Controller
 
     public function destroy(Center $center)
     {
-        // Prevent deletion if center is in use by students
-        $studentsCount = \App\Models\Student::where('center', $center->name)->count();
+        // ✅ استخدم center_id بدل center
+        $studentsCount = \App\Models\Student::where('center_id', $center->id)->count();
+
         if ($studentsCount > 0) {
-            return redirect()->route('centers.index')->with('error', 'لا يمكن حذف هذا الفرع لأنه مرتبط بطلاب حاليين.');
+            return redirect()->route('centers.index')
+                ->with('error', 'لا يمكن حذف هذا الفرع لأنه مرتبط بـ ' . $studentsCount . ' طالب.');
         }
 
         $center->delete();

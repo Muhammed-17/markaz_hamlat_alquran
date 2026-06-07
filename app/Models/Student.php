@@ -13,6 +13,7 @@ use App\Models\Subscription;
 use App\Models\StudentConstructionDetail;
 use App\Models\StudentItqanDetail;
 use App\Models\StudentIbdaDetail;
+use App\Models\Scopes\CenterScope;
 
 /**
  * @property int $id
@@ -144,7 +145,24 @@ class Student extends Model
         'exit_details',
         'student_exit_status',
         'decision',
+        'health_status_other',
+        'learning_difficulties_other',
+        'personal_traits_other',
+        'hobby_other',
+        'subscription_fees',
+        'received_tools',
     ];
+
+    protected static function booted(): void
+    {
+        static::addGlobalScope(new CenterScope());
+
+        static::creating(function ($model) {
+            if (!$model->center_id && auth()->check()) {
+                $model->center_id = auth()->user()->center_id;
+            }
+        });
+    }
 
     protected function casts(): array
     {
@@ -233,14 +251,19 @@ class Student extends Model
         return $count;
     }
 
+
     public function getSuspendedPastDebtAttribute(): float
     {
         if ($this->status !== 'inactive' || !$this->suspended_at) {
             return 0;
         }
         return (float) $this->subscriptions
-            ->where('status', '!=', 'مدفوع')
+            ->where('status', '!=', 'مدفوع')  // ✅ موحّد
             ->where('month', '<=', $this->suspended_at)
             ->sum('amount');
+    }
+    public function supervisor()
+    {
+        return $this->belongsTo(Teacher::class, 'supervisor_id');
     }
 }

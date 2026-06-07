@@ -210,12 +210,12 @@ $isNextYearReg = ($regMonth >= 7 && $regMonth <= 9);
                     <div class="space-y-2">
                         <label class="block text-sm font-bold text-gray-700">المركز فرع <span
                                 class="text-red-500">*</span></label>
-                        <select name="center" data-field="center"
-                            class="w-full p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36] focus:ring-1 focus:ring-[#0a5c36] transition-all"
-                            required>
-                            <option value="" @selected(old('center', $student->center ?? '') == '')>-- اختر المركز --</option>
+                        <select name="center_id" ...>
                             @foreach($centers ?? [] as $center)
-                            <option value="{{ $center->name }}" @selected(old('center', $student->center ?? '') == $center->name)>{{ $center->name }}</option>
+                            <option value="{{ $center->id }}"
+                                @selected(old('center_id', $student->center_id ?? '') == $center->id)>
+                                {{ $center->name }}
+                            </option>
                             @endforeach
                         </select>
                         @error('center')
@@ -380,7 +380,8 @@ $isNextYearReg = ($regMonth >= 7 && $regMonth <= 9);
                     </div>
 
                     <div class="space-y-2">
-                        <div class="flex justify-between items-center">
+                        <div class="flex justify-between items-
+                        ">
                             <label class="block text-sm font-bold text-gray-700">كلمة المرور للحساب <span
                                     class="text-red-500">*</span></label>
                         </div>
@@ -962,22 +963,22 @@ $isNextYearReg = ($regMonth >= 7 && $regMonth <= 9);
                         <div class="flex flex-wrap gap-4 p-3 bg-gray-50 rounded-2xl border border-gray-100">
                             <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer">
                                 <input type="radio" name="tajweed_matn" value="لا يوجد" data-field="tajweed_matn"
-                                    @checked(old('tajweed_matn', $itqan->memorized_texts ?? '') == 'لا يوجد')>
+                                    @checked(old('tajweed_matn', $itqan->tajweed_matn ?? '') == 'لا يوجد')>
                                 <span>لا يوجد</span>
                             </label>
                             <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer">
                                 <input type="radio" name="tajweed_matn" value="التحفة" data-field="tajweed_matn"
-                                    @checked(old('tajweed_matn', $itqan->memorized_texts ?? '') == 'التحفة')>
+                                    @checked(old('tajweed_matn', $itqan->tajweed_matn ?? '') == 'التحفة')>
                                 <span>تحفة الأطفال</span>
                             </label>
                             <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer">
                                 <input type="radio" name="tajweed_matn" value="الجزرية" data-field="tajweed_matn"
-                                    @checked(old('tajweed_matn', $itqan->memorized_texts ?? '') == 'الجزرية')>
+                                    @checked(old('tajweed_matn', $itqan->tajweed_matn ?? '') == 'الجزرية')>
                                 <span>المقدمة الجزرية</span>
                             </label>
                             <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer">
                                 <input type="radio" name="tajweed_matn" value="أخرى" data-field="tajweed_matn"
-                                    @checked(old('tajweed_matn', $itqan->memorized_texts ?? '') == 'أخرى')>
+                                    @checked(old('tajweed_matn', $itqan->tajweed_matn ?? '') == 'أخرى')>
                                 <span>أخرى</span>
                             </label>
                         </div>

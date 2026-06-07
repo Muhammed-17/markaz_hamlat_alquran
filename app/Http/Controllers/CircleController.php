@@ -2,160 +2,147 @@
 
 namespace App\Http\Controllers;
 
-
 use App\Http\Requests\Circle\CreateCircleRequest;
 use App\Http\Requests\Circle\EditCircleRequest;
 use App\Models\Circle;
 use App\Models\Teacher;
-use GuzzleHttp\Promise\Create;
+use App\Traits\ResolvesUserScope;
+use Illuminate\Support\Facades\Auth;
 
 class CircleController extends Controller
 {
-    /**
-    !* Display a listing of the resource.
-     */
+    use ResolvesUserScope;
+
+    // ─────────────────────────────────────────
     public function index()
     {
-        $user = auth()->user();
-        $query = Circle::with(['mainTeacher', 'assistantTeacher', 'supervisor']);
+        $this->authorize('viewAny', Circle::class);
 
-        if ($user->hasRole('supervisor')) {
-            $query->where('supervisor_id', $user->teacher->id);
-        } elseif ($user->hasRole('teacher')) {
-            $query->whereHas('teachers', function ($q) use ($user) {
-                $q->where('teachers.id', $user->teacher->id);
-            });
-        }
+        $user    = Auth::user();
+        $circles = $this->getAccessibleCircles($user)
+            ->load(['mainTeacher', 'assistantTeacher', 'supervisor']);
 
-        $circles = $query->get();
         return view('circles.index', compact('circles'));
     }
 
-    /**
-    !* Show the form for creating a new resource.
-     */
+    // ─────────────────────────────────────────
     public function create()
     {
-        $teachers = Teacher::with('user.roles')
-            ->orderBy('name')
-            ->get();
+        $this->authorize('create', Circle::class);
 
-        $supervisors = $teachers->filter(function ($teacher) {
-            return $teacher->user->hasRole('supervisor');
-        });
+        $user    = Auth::user();
+        $teacher = $this->getTeacherRecord($user);
 
-        return view('circles.create', compact('teachers', 'supervisors'));
+        return view('circles.create', [
+            'teachers'    => $this->getAccessibleTeachers($teacher),
+            'supervisors' => $this->getAccessibleSupervisors($teacher),
+            'circle'      => new Circle(), // ✅ كائن فارغ بدل null
+        ]);
     }
-
-    /**
-    !* Store a newly created resource in storage.
-     */
+    // ─────────────────────────────────────────
     public function store(CreateCircleRequest $request)
     {
-        $validated = $request->validated();
-        $validated['is_active'] = true;
+        $this->authorize('create', Circle::class);
+
+        $user    = Auth::user();
+        $teacher = $this->getTeacherRecord($user);
+
+        // center_id — admin يختار، الباقي فرعه تلقائياً
+        $centerId = $user->hasRole('admin')
+            ? $request->center_id
+            : $teacher?->center_id;
 
         $circle = Circle::create([
-            'name' => $request->name,
-            'type' => $request->type,
-            'level' => $request->level,
+            'name'          => $request->name,
+            'type'          => $request->type,
+            'level'         => $request->level,
+            'max_students'  => $request->max_students,
+            'notes'         => $request->notes,
             'supervisor_id' => $request->supervisor_id ?? null,
+            'center_id'     => $centerId,
+            'is_active'     => true,
         ]);
 
-        // ربط جميع المعلمين
-        $circle->teachers()->attach($request->teacher_id, [
-            'role' => 'main'
-        ]);
+        if ($request->teacher_id) {
+            $circle->teachers()->attach($request->teacher_id, ['role' => 'main']);
+        }
+        if ($request->assistant_teacher_id) {
+            $circle->teachers()->attach($request->assistant_teacher_id, ['role' => 'assistant']);
+        }
 
-        $circle->teachers()->attach($request->assistant_teacher_id, [
-            'role' => 'assistant'
-        ]);
-
-
-        return redirect()->route('circles.index');
+        return redirect()->route('circles.index')->with('success', 'تم إنشاء الحلقة بنجاح');
     }
 
-    /**
-    !* Display the specified resource.
-     */
+    // ─────────────────────────────────────────
     public function show(string $id)
     {
-        $circle = Circle::findOrFail($id);
+        $circle = Circle::with([
+            'mainTeacher',
+            'assistantTeacher',
+            'supervisor',
+            'students',
+        ])->findOrFail($id);
+
+        $this->authorize('view', $circle);
+
         return view('circles.show', compact('circle'));
     }
 
-    /**
-    !* Show the form for editing the specified resource.
-     */
+    // ─────────────────────────────────────────
     public function edit(string $id)
     {
-        $circle = Circle::with(['mainTeacher', 'assistantTeacher', 'supervisor'])->findOrFail($id);
+        $circle = Circle::with(['mainTeacher', 'assistantTeacher', 'supervisor'])
+            ->findOrFail($id);
 
-        $teachers = Teacher::with('user')->orderBy('name')->get();
+        $this->authorize('update', $circle);
 
-        // المشرفين فقط حسب الدور
-        $supervisors = $teachers->filter(function ($teacher) {
-            return $teacher->user->hasRole('supervisor');
-        });
+        $user    = Auth::user();
+        $teacher = $this->getTeacherRecord($user);
 
-        return view('circles.edit', compact('circle', 'teachers', 'supervisors'));
+        return view('circles.edit', [
+            'circle'      => $circle,
+            'teachers'    => $this->getAccessibleTeachers($teacher),
+            'supervisors' => $this->getAccessibleSupervisors($teacher),
+        ]);
     }
 
-    /**
-    !* Update the specified resource in storage.
-     */
+    // ─────────────────────────────────────────
     public function update(EditCircleRequest $request, string $id)
     {
         $circle = Circle::findOrFail($id);
+        $this->authorize('update', $circle);
 
-        $validated = $request->validated();
-        $validated['is_active'] = true;
-        // $validated['is_active'] = $request->has('is_active');
-
-        // تحديث بيانات الحلقة الأساسية
         $circle->update([
-            'name' => $validated['name'],
-            'type' => $validated['type'],
-            'level' => $validated['level'],
-            'max_students' => $validated['max_students'],
-            'notes' => $validated['notes'] ?? null,
-            'is_active' => $validated['is_active'],
-            'supervisor_id' => $validated['supervisor_id'] ?? null,
+            'name'          => $request->name,
+            'type'          => $request->type,
+            'level'         => $request->level,
+            'max_students'  => $request->max_students,
+            'notes'         => $request->notes ?? null,
+            'supervisor_id' => $request->supervisor_id ?? null,
+            'is_active'     => true,
         ]);
-        // تجهيز بيانات المعلمين مع الدور
-        $teachers = [];
 
+        $teachers = [];
         if ($request->teacher_id) {
             $teachers[$request->teacher_id] = ['role' => 'main'];
         }
-
         if ($request->assistant_teacher_id) {
             $teachers[$request->assistant_teacher_id] = ['role' => 'assistant'];
         }
-
-        // مزامنة جدول pivot مع الأدوار
         $circle->teachers()->sync($teachers);
 
-        return redirect()
-            ->route('circles.index')
-            ->with('success', 'تم تحديث الحلقة بنجاح');
+        return redirect()->route('circles.index')->with('success', 'تم تحديث الحلقة بنجاح');
     }
 
-
-    /**
-    !* Remove the specified resource from storage.
-     */
+    // ─────────────────────────────────────────
     public function destroy(string $id)
     {
         $circle = Circle::findOrFail($id);
+        $this->authorize('delete', $circle);
 
-        // يفصل المعلمين قبل الحذف
         $circle->teachers()->detach();
-
         $circle->delete();
 
-        return redirect()
-            ->route('circles.index')
-            ->with('success', 'تم حذف الحلقة بنجاح');
+        return redirect()->route('circles.index')->with('success', 'تم حذف الحلقة بنجاح');
     }
 }

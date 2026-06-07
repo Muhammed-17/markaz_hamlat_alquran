@@ -4,6 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Spatie\Permission\Traits\HasRoles;
+use App\Models\Scopes\CenterScope;
+
 
 /**
  * @property int $id
@@ -53,6 +55,7 @@ use Spatie\Permission\Traits\HasRoles;
 class Circle extends Model
 {
     use HasRoles;
+    // app/Models/Circle.php — أضف center_id للـ fillable وأضف booted
     protected $fillable = [
         'name',
         'type',
@@ -60,9 +63,20 @@ class Circle extends Model
         'max_students',
         'notes',
         'is_active',
-        'supervisor_id'
+        'supervisor_id',
+        'center_id', // ← أضف
     ];
 
+    protected static function booted(): void
+    {
+        static::addGlobalScope(new CenterScope());
+
+        static::creating(function ($model) {
+            if (!$model->center_id && auth()->check()) {
+                $model->center_id = auth()->user()->center_id;
+            }
+        });
+    }
     public function teachers()
     {
         return $this->belongsToMany(Teacher::class)->withPivot('role')->withTimestamps();
@@ -77,7 +91,7 @@ class Circle extends Model
     {
         return $this->hasMany(Subscription::class);
     }
-    
+
     public function supervisor()
     {
         return $this->belongsTo(Teacher::class, 'supervisor_id');

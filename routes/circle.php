@@ -5,14 +5,15 @@ use App\Http\Controllers\CircleController;
 
 Route::middleware(['auth', 'verified'])->group(function () {
 
-    Route::middleware('permission:view circles')->group(function () {
-        Route::get('/circles', [CircleController::class, 'index'])->name('circles.index');
-        Route::get('/circles/{circle}', [CircleController::class, 'show'])->name('circles.show');
-    });
-
+    // ✅ create لازم يجي قبل {circle}
     Route::middleware('permission:create circles')->group(function () {
         Route::get('/circles/create', [CircleController::class, 'create'])->name('circles.create');
         Route::post('/circles', [CircleController::class, 'store'])->name('circles.store');
+    });
+
+    Route::middleware('permission:view circles')->group(function () {
+        Route::get('/circles', [CircleController::class, 'index'])->name('circles.index');
+        Route::get('/circles/{circle}', [CircleController::class, 'show'])->name('circles.show');
     });
 
     Route::middleware('permission:edit circles')->group(function () {

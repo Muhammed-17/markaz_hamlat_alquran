@@ -46,6 +46,10 @@ class Attendance extends Model
     protected $casts = [
         'date' => 'date',
     ];
+    protected static function booted(): void
+    {
+        static::addGlobalScope(new \App\Models\Scopes\CenterScope());
+    }
 
     // علاقة: الحضور ← طالبه
     public function student()

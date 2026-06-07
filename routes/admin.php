@@ -15,8 +15,6 @@ Route::middleware(['auth', 'verified', 'role:admin'])->prefix('admin')->name('ad
 
     Route::get('/roles', [RolePermissionController::class, 'index'])->name('roles.index');
     Route::post('/roles', [RolePermissionController::class, 'storeRole'])->name('roles.store');
-
-    // ✅ الاتنين هنا بس، بدون أي group تاني
-    Route::get('/roles/{role}/permissions', [RolePermissionController::class, 'edit'])->name('roles.permissions.edit');
     Route::put('/roles/{role}/permissions', [RolePermissionController::class, 'updateRolePermissions'])->name('roles.permissions.update');
+    Route::delete('/roles/{role}', [RolePermissionController::class, 'destroyRole'])->name('roles.destroy');
 });

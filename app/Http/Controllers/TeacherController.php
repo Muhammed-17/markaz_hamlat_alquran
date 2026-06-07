@@ -6,109 +6,163 @@ use App\Http\Requests\Teacher\CreateTeacherRequest;
 use App\Http\Requests\Teacher\EditTeacherRequest;
 use App\Models\Teacher;
 use App\Models\User;
+use App\Traits\ResolvesUserScope;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
-
+use Spatie\Permission\Models\Role;
+use App\Models\Center;
 
 class TeacherController extends Controller
 {
-    public function index()
-    {
-        $user = auth()->user();
-        $query = Teacher::with('user');
+    use ResolvesUserScope;
 
-        if ($user->hasRole('supervisor')) {
-            $query->whereHas('user', function ($q) {
-                $q->whereHas('roles', function ($rq) {
-                    $rq->whereIn('name', ['teacher', 'supervisor']);
-                });
-            });
+    // ─────────────────────────────────────────
+    public function index(Request $request)
+    {
+        $this->authorize('viewAny', Teacher::class);
+
+        $user    = Auth::user();
+        $teacher = $this->getTeacherRecord($user);        // ✅ من الـ Trait
+
+        $query = Teacher::with(['user.roles', 'center']);
+
+        // فلترة بالفرع — admin يرى الكل
+        if (!$user->can('view all teachers')) {
+            $teacher
+                ? $query->where('center_id', $teacher->center_id)
+                : $query->whereRaw('1=0');
+        }
+
+        // بحث بالاسم
+        if ($request->filled('search')) {
+            $query->where('name', 'like', '%' . $request->search . '%');
+        }
+
+        // فلتر الفرع — بصلاحية خاصة
+        if ($request->filled('center_id') && $user->can('filter teachers by center')) {
+            $query->where('center_id', $request->center_id);
+        }
+
+        // فلتر الدور — بصلاحية خاصة
+        if ($request->filled('role') && $user->can('filter teachers by role')) {
+            $query->whereHas(
+                'user.roles',
+                fn($q) =>
+                $q->where('name', $request->role)
+            );
         }
 
         $teachers = $query->get();
-        return view('teachers.index', ["teachers" => $teachers]);
+        $centers  = $this->getAccessibleCenters($user);   // ✅ من الـ Trait
+        $roles    = Role::orderBy('name')->get();
+
+        return view('teachers.index', compact('teachers', 'centers', 'roles'));
     }
 
+    // ─────────────────────────────────────────
     public function create()
     {
-        return view('teachers.create');
+        $this->authorize('create', Teacher::class);
+
+        $user    = Auth::user();
+        $centers = $this->getAccessibleCenters($user);    // ✅ من الـ Trait
+
+        $roles = Role::whereNotIn('name', ['admin', 'guardian'])
+            ->orderBy('name')
+            ->get();
+
+        return view('teachers.create', compact('centers', 'roles'));
     }
 
+    // ─────────────────────────────────────────
     public function store(CreateTeacherRequest $request)
     {
-        // إنشاء المستخدم
+        $this->authorize('create', Teacher::class);
+
         $user = User::create([
-            'name'     => $request->name,
-            'email'    => $request->email,
-            'password' => Hash::make($request->password),
+            'name'      => $request->name,
+            'email'     => $request->email,
+            'password'  => Hash::make($request->password),
+            'center_id' => $request->center_id,
         ]);
 
-        // تعيين الدور (teacher / supervisor)
-        $user->assignRole($request->role);
+        $user->syncRoles($request->roles ?? []);
 
-        // إنشاء سجل teacher مربوط بالمستخدم
         Teacher::create([
-            'user_id' => $user->id,
-            'name'    => $request->name,
+            'user_id'   => $user->id,
+            'name'      => $request->name,
+            'center_id' => $request->center_id,
         ]);
 
-        return redirect()
-            ->route('teachers.index')
-            ->with('success', 'تم إضافة المستخدم بنجاح');
+        return redirect()->route('teachers.index')->with('success', 'تم إضافة المستخدم بنجاح');
     }
 
+    // ─────────────────────────────────────────
     public function edit(Teacher $teacher)
     {
-        $teacher->load('user');
-        $role = $teacher->user->roles->first()?->name;
-        return view('teachers.edit', [
-            "teacher" => $teacher,
-            "role" => $role
-        ]);
+        $this->authorize('update', $teacher);
+
+        $user    = Auth::user();
+        $centers = $this->getAccessibleCenters($user);    // ✅ من الـ Trait
+
+        $teacher->load('user.roles');
+
+        $roles = Role::whereNotIn('name', ['admin', 'guardian'])
+            ->orderBy('name')
+            ->get();
+
+        $currentRoles = $teacher->user->roles->pluck('name')->toArray();
+
+        return view('teachers.edit', compact('teacher', 'centers', 'roles', 'currentRoles'));
     }
 
+    // ─────────────────────────────────────────
     public function update(EditTeacherRequest $request, Teacher $teacher)
     {
-        // تحديث بيانات المعلم
+        $this->authorize('update', $teacher);
+
         $teacher->update([
-            'name' => $request->name,
+            'name'      => $request->name,
+            'center_id' => $request->center_id,
         ]);
 
-        // تحديث بيانات المستخدم المرتبط
         $data = [
-            'name'  => $request->name,
-            'email' => $request->email,
+            'name'      => $request->name,
+            'email'     => $request->email,
+            'center_id' => $request->center_id,
         ];
 
-        // تحديث الباسورد فقط لو تم إدخاله
         if ($request->filled('password')) {
             $data['password'] = Hash::make($request->password);
         }
 
         $teacher->user->update($data);
+        $teacher->user->syncRoles($request->roles ?? []);
 
-        return redirect()
-            ->route('teachers.index')
-            ->with('success', 'تم تحديث البيانات بنجاح');
+        return redirect()->route('teachers.index')->with('success', 'تم تحديث البيانات بنجاح');
     }
 
+    // ─────────────────────────────────────────
     public function destroy(Teacher $teacher)
     {
-        // حذف المستخدم المرتبط (اختياري حسب تصميمك)
+        $this->authorize('delete', $teacher);
+
         $teacher->user->delete();
         $teacher->delete();
 
-        return redirect()
-            ->route('teachers.index')
-            ->with('success', 'تم الحذف بنجاح');
+        return redirect()->route('teachers.index')->with('success', 'تم الحذف بنجاح');
     }
 
+    // ─────────────────────────────────────────
     public function toggle(Teacher $teacher)
     {
+        $this->authorize('toggle', $teacher);
+
         $teacher->user->update([
-            'status' => $teacher->user->status === 'active' ? 'inactive' : 'active'
+            'status' => $teacher->user->status === 'active' ? 'inactive' : 'active',
         ]);
-        // dd($teacher->user->status);
+
         return back()->with('success', 'تم تحديث الحالة بنجاح');
     }
 }

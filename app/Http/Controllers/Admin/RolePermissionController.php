@@ -15,10 +15,6 @@ class RolePermissionController extends Controller
 {
     public function index(): View
     {
-        //     $roles = Role::with('permissions')->get();
-
-        // dd($roles->find(4)->permissions->pluck('id', 'name'));
-        // ✅ fresh() لضمان جلب أحدث بيانات بدون كاش علاقات Eloquent
         $roles       = Role::with('permissions')->get();
         $permissions = Permission::orderBy('name')->get();
 
@@ -31,18 +27,19 @@ class RolePermissionController extends Controller
     public function storeRole(Request $request)
     {
         $validated = $request->validate([
-            'name'           => 'required|string|max:255|unique:roles,name',
-            'permissions'    => 'nullable|array',
-            'permissions.*'  => 'exists:permissions,id',
+            'name'          => 'required|string|max:255|unique:roles,name',
+            'display_name'  => 'nullable|string|max:255', // ✅
+            'permissions'   => 'nullable|array',
+            'permissions.*' => 'exists:permissions,id',
         ]);
 
         $role = Role::create([
-            'name'       => $validated['name'],
-            'guard_name' => 'web',
+            'name'         => $validated['name'],
+            'display_name' => $validated['display_name'] ?? null, // ✅
+            'guard_name'   => 'web',
         ]);
 
         if (!empty($validated['permissions'])) {
-            // ✅ جلب الـ Permission objects بالـ IDs ثم syncPermissions
             $permissions = Permission::whereIn('id', $validated['permissions'])->get();
             $role->syncPermissions($permissions);
         }
@@ -65,51 +62,67 @@ class RolePermissionController extends Controller
 
         $permissionIds = $request->input('permissions', []);
 
-        // 🛡️ خط الدفاع الأقوى ضد الـ Inspect والتلاعب الخارجي
+        // 🛡️ حماية صلاحية admin
         if ($role->name === 'admin') {
-            // ابحث عن المعرف (ID) الخاص بصلاحية إدارة الصلاحيات
-            $adminPermissionId = \Spatie\Permission\Models\Permission::where('name', 'إدارة الصلاحيات')
+            $adminPermissionId = Permission::where('name', 'إدارة الصلاحيات')
                 ->orWhere('display_name', 'إدارة الصلاحيات')
                 ->value('id');
 
-            // إذا تم العثور على الصلاحية ولم تكن موجودة في المصفوفة القادمة من المستخدم، أضفها إجبارياً
             if ($adminPermissionId && !in_array($adminPermissionId, $permissionIds)) {
                 $permissionIds[] = $adminPermissionId;
             }
         }
 
-        // جلب الصلاحيات بناءً على المصفوفة المؤمنة والمحمية
-        $permissions = \Spatie\Permission\Models\Permission::whereIn('id', $permissionIds)->get();
-
-        // 1. حفظ الصلاحيات
+        $permissions = Permission::whereIn('id', $permissionIds)->get();
         $role->syncPermissions($permissions);
 
-        // 2. مسح كاش Spatie
-        app(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
 
-        // 3. ✅ مسح session كل المستخدمين الذين لهم هذا الـ role
         $userIds = \App\Models\User::role($role->name)->pluck('id');
-        \Illuminate\Support\Facades\DB::table('sessions')
-            ->whereIn('user_id', $userIds)
-            ->delete();
+        DB::table('sessions')->whereIn('user_id', $userIds)->delete();
 
         return redirect()->to(url('admin/roles'))
             ->with('success', 'تم تحديث الصلاحيات بنجاح ✓');
     }
+
     // ─────────────────────────────────────────────
-    // مسح الكاش بشكل شامل
+    // حذف دور ✅ جديد
+    // ─────────────────────────────────────────────
+    public function destroyRole(Role $role)
+    {
+        // 🛡️ منع حذف دور admin
+        if ($role->name === 'admin') {
+            return redirect()->route('admin.roles.index')
+                ->with('error', 'لا يمكن حذف دور المدير');
+        }
+
+        // 🛡️ منع حذف الأدوار الأساسية
+        $protectedRoles = ['admin', 'supervisor', 'teacher', 'guardian'];
+        if (in_array($role->name, $protectedRoles)) {
+            return redirect()->route('admin.roles.index')
+                ->with('error', 'لا يمكن حذف الأدوار الأساسية للنظام');
+        }
+
+        // إزالة الصلاحيات أولاً
+        $role->syncPermissions([]);
+
+        // حذف الدور
+        $role->delete();
+
+        $this->clearPermissionCache();
+
+        return redirect()->route('admin.roles.index')
+            ->with('success', 'تم حذف الدور بنجاح ✓');
+    }
+
+    // ─────────────────────────────────────────────
+    // مسح الكاش
     // ─────────────────────────────────────────────
     private function clearPermissionCache(): void
     {
-        // مسح كاش Spatie
         app(PermissionRegistrar::class)->forgetCachedPermissions();
-
-        // مسح كاش Laravel العام (يشمل Redis/Memcached/File)
-        // يستهدف فقط مفتاح Spatie لتجنب مسح كاش التطبيق كله
         $cacheKey = config('permission.cache.key', 'spatie.permission.cache');
         Cache::forget($cacheKey);
-
-        // إعادة تهيئة الـ PermissionRegistrar بالكامل
         app(PermissionRegistrar::class)->setPermissionsTeamId(null);
     }
 }

@@ -74,6 +74,7 @@ class User extends Authenticatable
         'mobile',
         'password',
         'status',
+        'center_id',
     ];
 
     /**

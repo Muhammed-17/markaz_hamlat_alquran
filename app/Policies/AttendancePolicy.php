@@ -4,39 +4,61 @@ namespace App\Policies;
 
 use App\Models\Attendance;
 use App\Models\User;
+use App\Traits\ResolvesUserScope;
 
 class AttendancePolicy
 {
+    use ResolvesUserScope;
+
     public function viewAny(User $user): bool
     {
-        return $user->hasPermissionTo('view attendance') || 
-               $user->hasPermissionTo('view own attendance');
+        return $user->can('view attendance')
+            || $user->can('view own attendance');
     }
 
     public function view(User $user, Attendance $attendance): bool
     {
         if ($user->hasRole('admin')) return true;
-        if ($user->hasRole('guardian')) return $attendance->student->guardian_id === $user->id;
-        if ($user->hasRole(['teacher', 'supervisor'])) {
-            return $attendance->student->circle && 
-                   $attendance->student->circle->teachers->contains('user_id', $user->id);
+
+        if ($user->hasRole('guardian')) {
+            return $user->can('view own attendance')
+                && $attendance->student->guardian_id === $user->id;
         }
-        return false;
+
+        if (!$user->can('view attendance')) return false;
+
+        $teacher = $this->getTeacherRecord($user);
+        if (!$teacher) return false;
+
+        // manager → طلاب فرعه
+        if ($user->hasRole('manager')) {
+            return $attendance->student->center_id === $teacher->center_id;
+        }
+
+        // supervisor/teacher → حلقاتهم
+        $circleIds = $this->getAccessibleCircleIds($user);
+        return $circleIds->contains($attendance->student->circle_id);
     }
 
     public function create(User $user): bool
     {
-        return $user->hasPermissionTo('create attendance');
+        return $user->can('create attendance');
     }
 
     public function update(User $user, Attendance $attendance): bool
     {
+        if (!$user->can('edit attendance')) return false;
         if ($user->hasRole('admin')) return true;
-        if ($user->hasRole('teacher')) {
-            return $attendance->student->circle && 
-                   $attendance->student->circle->teachers->contains('user_id', $user->id);
+
+        $teacher = $this->getTeacherRecord($user);
+        if (!$teacher) return false;
+
+        if ($user->hasRole('manager')) {
+            return $attendance->student->center_id === $teacher->center_id;
         }
-        return false;
+
+        $circleIds = $this->getAccessibleCircleIds($user);
+        return $circleIds->contains($attendance->student->circle_id);
     }
 
     public function delete(User $user, Attendance $attendance): bool
