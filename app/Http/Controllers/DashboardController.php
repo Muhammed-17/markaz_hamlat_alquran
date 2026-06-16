@@ -17,6 +17,9 @@ class DashboardController extends Controller
     public function index(): View
     {
         /** @var User $user */
+        if (Auth::user()->hasRole('guardian')) {
+            return redirect()->route('guardian.dashboard');
+        }
         $user = Auth::user();
         $stats = [];
         $absentStudents = collect();
@@ -25,7 +28,7 @@ class DashboardController extends Controller
         $statusChartData = ['labels' => [], 'data' => []];
 
         // 1. Determine Scope for Students, Circles, and Subscriptions
-        $studentQuery = Student::where('status', '!=', 'inactive');
+        $studentQuery = Student::where('status', '!=', 'متوقف');
         $circleQuery = Circle::where('is_active', true);
         $subscriptionQuery = Subscription::query();
 
@@ -89,7 +92,7 @@ class DashboardController extends Controller
 
             // Calculation for Absent & Unpaid (Shared between Admin/Supervisor and Guardian)
             // Determine students to check for alerts
-            $alertStudentsQuery = Student::where('status', '!=', 'inactive');
+            $alertStudentsQuery = Student::where('status', '!=', 'متوقف');
             if ($user->hasRole('supervisor') && $user->teacher) {
                 $alertStudentsQuery->whereHas('circle', fn($q) => $q->where('supervisor_id', $user->teacher->id));
             } elseif ($user->hasRole('guardian')) {
@@ -157,7 +160,7 @@ class DashboardController extends Controller
         // Additional Role-Specific Stats
         if ($user->hasRole('teacher') && $user->teacher) {
             $stats['my_circles_count'] = $user->teacher->circles()->count();
-            $stats['my_students_count'] = Student::whereIn('circle_id', $user->teacher->circles->pluck('id'))->where('status', '!=', 'inactive')->count();
+            $stats['my_students_count'] = Student::whereIn('circle_id', $user->teacher->circles->pluck('id'))->where('status', '!=', 'متوقف')->count();
         }
 
         if ($user->hasRole('guardian')) {
@@ -175,7 +178,7 @@ class DashboardController extends Controller
 
         // 1) Active children count
         $activeChildrenCount = Student::where('guardian_id', $userId)
-            ->where('status', 'active')
+            ->where('status', 'مقيد')
             ->count();
 
         // 2) Total children count (all statuses)
@@ -220,9 +223,11 @@ class DashboardController extends Controller
 
         // 6) Unpaid months count for all children combined
         $unpaidMonthsTotal = 0;
-        foreach (Student::where('guardian_id', $userId)->with(['subscriptions' => function ($q) {
-            $q->where('status', 'مدفوع');
-        }])->get() as $student) {
+        foreach (
+            Student::where('guardian_id', $userId)->with(['subscriptions' => function ($q) {
+                $q->where('status', 'مدفوع');
+            }])->get() as $student
+        ) {
             $startDate = $student->enrollment_date
                 ? $student->enrollment_date->copy()->startOfMonth()
                 : $student->created_at->copy()->startOfMonth();

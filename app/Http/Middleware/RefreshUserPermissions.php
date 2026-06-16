@@ -16,7 +16,6 @@ class RefreshUserPermissions
      */
     public function handle(Request $request, Closure $next)
     {
-        // app(PermissionRegistrar::class)->forgetCachedPermissions();
 
         return $next($request);
     }

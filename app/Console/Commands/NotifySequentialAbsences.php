@@ -24,7 +24,7 @@ class NotifySequentialAbsences extends Command
         $students = Student::with(['attendances' => function ($q) {
             $q->orderBy('date', 'desc')->take(30);
         }, 'guardian', 'circle'])
-            ->where('status', '!=', 'inactive')
+            ->where('status', '!=', 'متوقف')
             ->whereHas('guardian')
             ->get();
 

@@ -1,4 +1,4 @@
-ؤ<?php
+<?php
 
 namespace Database\Seeders;
 
@@ -12,7 +12,7 @@ class StudentSeeder extends Seeder
 {
     public function run(): void
     {
-        // 1. Ensure Circle exists
+        // 1. التأكد من وجود الحلقة وتوافق حقولها
         $circle = Circle::updateOrCreate(
             ['name' => 'حلقة أبو بكر الصديق'],
             [
@@ -23,7 +23,7 @@ class StudentSeeder extends Seeder
             ]
         );
 
-        // 2. Ensure Guardian User exists
+        // 2. التأكد من وجود ولي الأمر
         $guardian = User::updateOrCreate(
             ['email' => 'mohamed@markaz.com'],
             [
@@ -32,36 +32,55 @@ class StudentSeeder extends Seeder
             ]
         );
 
-        // 3. Students Data
+        if (method_exists($guardian, 'syncRoles')) {
+            $guardian->syncRoles(['guardian']);
+        }
+
+        // 3. مصفوفة الطلاب ببيانات متوافقة تماماً مع الـ Schema الواقعية لديك
         $students = [
-            ['name' => 'محمد أحمد الصالح', 'gender' => 'Male'],
-            ['name' => 'عبدالرحمن علي يوسف', 'gender' => 'Male'],
-            ['name' => 'يوسف إبراهيم عبدالكريم', 'gender' => 'Male'],
-            ['name' => 'عمر خالد عفرات', 'gender' => 'Male'],
-            ['name' => 'عثمان عفان النور', 'gender' => 'Male'],
-            ['name' => 'علي عمر خالد', 'gender' => 'Male'],
-            ['name' => 'حسن محمد أحمد', 'gender' => 'Female'],
-            ['name' => 'أبوعبيدة أحمد السيد ', 'gender' => 'Female'],
-            ['name' => 'سيف عبدالله عمرو', 'gender' => 'Female'],
-            ['name' => 'عمرو السيد عبدالسميع', 'gender' => 'Female'],
+            ['name' => 'محمد أحمد الصالح', 'gender' => 'ذكر', 'status' => 'متوقف', 'stage' => 'ابتدائي', 'grade' => 'الأول'],
+            ['name' => 'عبدالرحمن علي يوسف', 'gender' => 'ذكر', 'status' => 'مقيد', 'stage' => 'ابتدائي', 'grade' => 'الثاني'],
+            ['name' => 'يوسف إبراهيم عبدالكريم', 'gender' => 'ذكر', 'status' => 'مقيد', 'stage' => 'حضانة', 'grade' => 'السادس'],
+            ['name' => 'عمر خالد عفرات', 'gender' => 'ذكر', 'status' => 'مقيد', 'stage' => 'ابتدائي', 'grade' => 'الثالث'],
+            ['name' => 'عثمان عفان النور', 'gender' => 'ذكر', 'status' => 'مقيد', 'stage' => 'ابتدائي', 'grade' => 'الرابع'],
+            ['name' => 'علي عمر خالد', 'gender' => 'ذكر', 'status' => 'متوقف', 'stage' => 'ابتدائي', 'grade' => 'الخامس'],
+            ['name' => 'فاطمة محمد أحمد', 'gender' => 'أنثى', 'status' => 'مقيد', 'stage' => 'ابتدائي', 'grade' => 'الأول'],
+            ['name' => 'عائشة أحمد السيد', 'gender' => 'أنثى', 'status' => 'مقيد', 'stage' => 'ابتدائي', 'grade' => 'الثالث'],
+            ['name' => 'مريم عبدالله عمرو', 'gender' => 'أنثى', 'status' => 'مقيد', 'stage' => 'ابتدائي', 'grade' => 'الثاني'],
+            ['name' => 'زينب السيد عبدالسميع', 'gender' => 'أنثى', 'status' => 'متوقف', 'stage' => 'ابتدائي', 'grade' => 'الرابع'],
         ];
 
-        foreach ($students as $data) {
+        foreach ($students as $index => $data) {
+            // توليد كود طالب افتراضي يشبه نظامك STU-2026-0000X
+            $studentCode = 'STU-' . now()->year . '-' . str_pad($index + 1, 5, '0', STR_PAD_LEFT);
+
             Student::updateOrCreate(
                 ['name' => $data['name'], 'guardian_id' => $guardian->id],
                 [
                     'gender' => $data['gender'],
-                    'education_level' => 'primary',
-                    'phone' => '05' . rand(10000000, 99999999),
-                    'circle_id' => $circle->id,
-                    'current_surah' => 'الفاتحة',
-                    'enrollment_date' => now()->toDateString(),
-                    'status' => 'active',
                     'date_of_birth' => now()->subYears(10)->toDateString(),
+                    'address' => 'صبيح',
+                    'status' => $data['status'],
+                    'suspended_at' => $data['status'] === 'متوقف' ? now() : null,
+                    'circle_id' => $circle->id,
+                    'education_type' => 'أزهري',
+                    'educational_stage' => $data['stage'],
+                    'school_grade' => $data['grade'],
+                    'center_entry_level' => 'construction',
+                    'join_date' => now()->toDateString(),
+                    'student_code' => $studentCode,
+                    'decision' => 'تحت الاختبار',
+                    'center_id' => 1,
+                    'supervisor_id' => 1,
+                    'applicant' => 'الطالب',
+                    'health_status' => 'طبيعية',
+                    'learning_difficulties' => 'لا يوجد',
+                    'personal_traits' => 'لا يوجد',
+                    'reading' => 'مبتدئ',
                 ]
             );
         }
 
-        $this->command->info('✅ تم إضافة الطلاب بنجاح.');
+        $this->command->info('✅ تم إضافة وتحديث الطلاب بنجاح وتوافق تام مع قاعدة البيانات.');
     }
 }

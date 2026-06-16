@@ -221,9 +221,9 @@ class Student extends Model
 
     public function getOverdueMonthsCountAttribute(): int
     {
-        if ($this->status === 'inactive' && $this->suspended_at) {
+        if ($this->status === 'متوقف' && $this->suspended_at) {
             $endDate = $this->suspended_at->copy()->startOfMonth();
-        } elseif ($this->status === 'active') {
+        } elseif ($this->status === 'مقيد') {
             $endDate = now()->startOfMonth();
         } else {
             return 0;
@@ -254,7 +254,7 @@ class Student extends Model
 
     public function getSuspendedPastDebtAttribute(): float
     {
-        if ($this->status !== 'inactive' || !$this->suspended_at) {
+        if ($this->status !== 'متوقف' || !$this->suspended_at) {
             return 0;
         }
         return (float) $this->subscriptions

@@ -30,6 +30,7 @@ class EditCircleRequest extends FormRequest
             'teacher_id' => 'nullable|exists:teachers,id',
             'assistant_teacher_id' => 'nullable|exists:teachers,id',
             'supervisor_id' => 'nullable|exists:teachers,id',
+            'center_id' => ['nullable', 'exists:centers,id'],
 
         ];
     }

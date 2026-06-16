@@ -20,13 +20,11 @@ class SubscriptionPriceController extends Controller
 
         SubscriptionPrice::updateOrCreate(
             [
-                'circle_level' => $validated['circle_level'],
-                'education_level' => $validated['education_level'],
-                'school_grade' => $validated['school_grade'] ?? null,
+                'circle_level'    => $validated['circle_level'],
+                'education_stage' => $validated['education_stage'],
+                // 'school_grade'    => $validated['school_grade'] ?? null,
             ],
-            [
-                'amount' => $validated['amount']
-            ]
+            ['amount' => $validated['amount']]
         );
 
         return redirect()->route('subscription-prices.index')->with('success', 'تم حفظ سعر الاشتراك بنجاح');

@@ -5,7 +5,11 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>{{ config('app.name', 'مركز حملة القرآن') }}</title>
+
+    <title>@yield('title', config('app.name', 'مركز حملة القرآن'))</title>
+
+    <link rel="icon" type="image/png" href="{{ asset('images/logo.png') }}?v=1.1">
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@200..1000&display=swap" rel="stylesheet">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
@@ -15,10 +19,9 @@
 
     <div class="min-h-screen flex flex-col md:flex-row">
 
-        <!-- شريط علوي للجوال -->
         <header class="md:hidden bg-[#0a5c36] text-white flex justify-between items-center p-4 shadow-md">
             <div class="flex items-center gap-2">
-                <x-application-logo class="w-10 h-10 text-white fill-current" />
+                <img src="{{ asset('images/logo.png') }}?v=1.1" alt="Logo" class="w-10 h-10 object-contain">
                 <h1 class="font-bold text-lg">مركز حملة القرآن</h1>
             </div>
             <button id="menu-toggle" class="text-3xl focus:outline-none">☰</button>
@@ -26,7 +29,6 @@
 
         <div id="overlay" class="fixed inset-0 bg-black bg-opacity-50 hidden z-40 md:hidden"></div>
 
-        <!-- الشريط الجانبي -->
         <aside id="sidebar"
             class="w-52 bg-[#0a5c36] text-white min-h-screen fixed md:relative top-0 right-0 transform translate-x-full md:translate-x-0 transition-transform duration-300 ease-in-out z-50 p-6 space-y-6">
 
@@ -35,8 +37,8 @@
             </div>
 
             <div class="text-center">
-                <div class="w-20 h-20 mx-auto bg-white/10 rounded-2xl flex items-center justify-center mb-1">
-                    <x-application-logo class="w-20 h-20 text-white fill-current" />
+                <div class="w-20 h-20 mx-auto bg-white/10 rounded-2xl flex items-center justify-center p-2 mb-1">
+                    <img src="{{ asset('images/logo.png') }}?v=1.1" alt="Logo" class="w-full h-full object-contain">
                 </div>
                 <h1 class="text-lg font-black text-orange-400">مركز حملة القرآن</h1>
                 <p class="text-xs text-blue-400 mt-1">بناء - إتقان - إبداع</p>
@@ -65,11 +67,12 @@
                 </a>
 
                 @else
+                @can("view dashboard")
                 <a href="{{ route('dashboard') }}"
                     class="block px-4 py-2 rounded-lg {{ request()->routeIs('dashboard') ? 'bg-[#0d7a48]' : 'hover:bg-[#0d7a48]' }}">
                     لوحة التحكم
                 </a>
-
+                @endcan
                 @can('view students')
                 <a href="{{ route('students.index') }}"
                     class="block px-4 py-2 rounded-lg {{ request()->routeIs('students.*') ? 'bg-[#0d7a48]' : 'hover:bg-[#0d7a48]' }}">
@@ -90,6 +93,7 @@
                     الحلقات
                 </a>
                 @endcan
+
 
                 @can('view attendance')
                 <a href="{{ route('attendance.index') }}"
@@ -118,7 +122,6 @@
                 </a>
                 @endcan
 
-                <!-- الإعدادات -->
                 @canany(['view settings', 'manage roles', 'view centers', 'view subscription prices'])
                 <div x-data="{ open: {{ (request()->routeIs('subscription-prices.*') || request()->routeIs('centers.*') || request()->routeIs('profile.*') || request()->routeIs('admin.settings.*') || request()->routeIs('admin.roles.*')) ? 'true' : 'false' }} }" class="space-y-1">
                     <button @click="open = !open"
@@ -169,7 +172,6 @@
                 @endcanany
                 @endif
 
-                <!-- تسجيل الخروج -->
                 <div class="pt-6 border-t border-white/10 mt-6">
                     <div class="px-4 py-2 mb-2 text-xs text-orange-200">
                         أهلاً، {{ auth()->user()->name ?? 'مستخدم' }}
@@ -189,7 +191,6 @@
             </nav>
         </aside>
 
-        <!-- المحتوى الرئيسي -->
         <main class="flex-1 p-4 md:p-6 transition-all duration-300">
             {{ $slot }}
         </main>
@@ -245,11 +246,6 @@
             });
         }
 
-        {
-            {
-                --✅رسائل عامة لكل الصفحات--
-            }
-        }
         @if(session('success'))
         Swal.fire({
             icon: 'success',
@@ -283,5 +279,3 @@
 
     @stack('scripts')
 </body>
-
-</html>

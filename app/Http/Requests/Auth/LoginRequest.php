@@ -2,9 +2,11 @@
 
 namespace App\Http\Requests\Auth;
 
+use App\Models\User;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -19,47 +21,53 @@ class LoginRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'email' => ['required', 'string'],
+            'email'    => ['required', 'string'],
             'password' => ['required', 'string'],
         ];
     }
 
-    protected function getLoginField(): string
-    {
-        $value = $this->input('email');
-        return preg_match('/^[0-9+\- ]+$/', $value) ? 'mobile' : 'email';
-    }
-
-    /**
-     * Attempt to authenticate the request's credentials.
-     *
-     * @throws \Illuminate\Validation\ValidationException
-     */
     public function authenticate(): void
     {
         $this->ensureIsNotRateLimited();
 
-        $loginField = $this->getLoginField();
+        $loginValue = $this->input('email');
+        $isNumeric  = preg_match('/^[0-9+\- ]+$/', $loginValue);
 
-        if (! Auth::attempt([
-                $loginField => $this->email,
-                'password' => $this->password,
-                'status' => 'active',
-            ], $this->boolean('remember'))) {
+        $user = null;
 
+        if ($isNumeric) {
+            $user = User::where('mobile', $loginValue)->first()
+                ?? User::where('email', $loginValue)->first();
+        } else {
+            $user = User::where('email', $loginValue)->first();
+        }
+
+        // ✅ دايماً اعمل hash check لمنع timing attacks
+        $dummyHash = '$2y$12$invalidhashfortimingattackpreventioniiiiiiiiiiiiiiiiii';
+
+        if (!$user || !Hash::check($this->input('password'), $user->password ?? $dummyHash)) {
             RateLimiter::hit($this->throttleKey());
-
             throw ValidationException::withMessages([
-                'email' => 'بيانات الدخول غير صحيحة أو الحساب غير مفعل',
+                'email' => 'بيانات الدخول غير صحيحة',
             ]);
         }
 
+        // ✅ تحقق من الـ status بعد التحقق من الباسورد
+        if ($user->status === 'inactive') {
+            // ✅ hit the rate limiter لمنع enumerate الحسابات المعطلة
+            RateLimiter::hit($this->throttleKey());
+            throw ValidationException::withMessages([
+                'email' => 'تم تعطيل حسابك. تواصل مع الإدارة.',
+            ]);
+        }
+
+        Auth::login($user, $this->boolean('remember'));
         RateLimiter::clear($this->throttleKey());
     }
 
     public function ensureIsNotRateLimited(): void
     {
-        if (! RateLimiter::tooManyAttempts($this->throttleKey(), 5)) {
+        if (!RateLimiter::tooManyAttempts($this->throttleKey(), 5)) {
             return;
         }
 

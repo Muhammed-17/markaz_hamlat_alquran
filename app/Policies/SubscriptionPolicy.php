@@ -25,17 +25,8 @@ class SubscriptionPolicy
                 && $subscription->student->guardian_id === $user->id;
         }
 
-        if (!$user->can('view subscriptions')) return false;
-
-        $teacher = $this->getTeacherRecord($user);
-        if (!$teacher) return false;
-
-        if ($user->hasRole('manager')) {
-            return $subscription->student->center_id === $teacher->center_id;
-        }
-
-        $circleIds = $this->getAccessibleCircleIds($user);
-        return $circleIds->contains($subscription->student->circle_id);
+        return $user->can('view subscriptions')
+            && $this->canAccessSubscription($user, $subscription);
     }
 
     public function create(User $user): bool
@@ -45,39 +36,30 @@ class SubscriptionPolicy
 
     public function update(User $user, Subscription $subscription): bool
     {
-        if (!$user->can('edit subscriptions')) return false;
-        if ($user->hasRole('admin')) return true;
-
-        $teacher = $this->getTeacherRecord($user);
-        if (!$teacher) return false;
-
-        if ($user->hasRole('manager')) {
-            return $subscription->student->center_id === $teacher->center_id;
-        }
-
-        $circleIds = $this->getAccessibleCircleIds($user);
-        return $circleIds->contains($subscription->student->circle_id);
+        return $user->can('edit subscriptions')
+            && $this->canAccessSubscription($user, $subscription);
     }
 
-    public function collect(User $user, Subscription $subscription): bool
-    {
-        if (!$user->can('collect subscription')) return false;
-        if ($subscription->student->status === 'inactive') return false;
-        if ($user->hasRole('admin')) return true;
 
-        $teacher = $this->getTeacherRecord($user);
-        if (!$teacher) return false;
-
-        if ($user->hasRole('manager')) {
-            return $subscription->student->center_id === $teacher->center_id;
-        }
-
-        $circleIds = $this->getAccessibleCircleIds($user);
-        return $circleIds->contains($subscription->student->circle_id);
-    }
 
     public function delete(User $user, Subscription $subscription): bool
     {
         return $user->hasRole('admin');
+    }
+
+    // ─── helper مشترك ────────────────────────────────────────────
+    private function canAccessSubscription(User $user, Subscription $subscription): bool
+    {
+        if ($user->hasRole('admin')) return true;
+
+        $teacher = $this->getTeacherRecord($user);
+        if (!$teacher) return false;
+
+        if ($user->hasRole('manager')) {
+            return $subscription->student->center_id === $teacher->center_id;
+        }
+
+        return $this->getAccessibleCircleIds($user)
+            ->contains($subscription->student->circle_id);
     }
 }

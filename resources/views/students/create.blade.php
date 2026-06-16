@@ -1,6 +1,6 @@
 <x-layouts.markaz-layout>
     <div class="max-w-4xl mx-auto py-8">
-        <!-- Header -->
+
         <div class="flex justify-between items-center mb-10">
             <div>
                 <h1 class="text-3xl font-black text-[#0a5c36]">إضافة طالب جديد</h1>
@@ -17,15 +17,8 @@
 
         <form action="{{ route('students.store') }}" method="POST" novalidate id="registrationForm">
             @csrf
-            @include('students.form', [
-                'student' => new \App\Models\Student(),
-                'circles' => $circles,
-                'guardians' => $guardians,
-                'teachers' => $teachers,
-                'supervisors' => $supervisors,
-                'subscriptionPrices' => $subscriptionPrices,
-                'generatedCode' => $generatedCode,
-            ])
+            @include('students.form')
         </form>
+
     </div>
 </x-layouts.markaz-layout>

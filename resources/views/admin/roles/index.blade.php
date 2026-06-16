@@ -1,3 +1,15 @@
+@php
+$groupLabels = [
+'system' => '⚙️ النظام العام',
+'users' => '👥 المستخدمون والأدوار',
+'centers' => '🏢 الفروع والمراكز',
+'teachers' => '👨‍🏫 المعلمون',
+'circles' => '📚 الحلقات',
+'students' => '🎓 الطلاب',
+'attendance' => '📋 الحضور والغياب',
+'subscriptions' => '💳 الاشتراكات والأسعار',
+];
+@endphp
 <x-layouts.markaz-layout>
     <div class="max-w-7xl mx-auto space-y-8">
 
@@ -35,15 +47,29 @@
                     </div>
                 </div>
 
+                {{-- الصلاحيات مجمعة بالـ group --}}
                 <p class="text-sm font-bold text-gray-700 mb-3">الصلاحيات</p>
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-                    @foreach($permissions as $permission)
-                    <label class="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50 cursor-pointer">
-                        <input type="checkbox" name="permissions[]" value="{{ $permission->id }}"
-                            class="rounded border-gray-300 text-[#0a5c36] focus:ring-[#0a5c36]"
-                            {{ in_array($permission->id, old('permissions', [])) ? 'checked' : '' }}>
-                        <span class="text-sm text-gray-700">{{ $permission->display_name ?? $permission->name }}</span>
-                    </label>
+                <div class="space-y-4 mb-6">
+                    @foreach($permissions as $group => $groupPermissions)
+                    <div class="border border-gray-100 rounded-2xl p-4">
+                        <p class="text-xs font-black text-emerald-700 mb-3">
+                            {{ $groupLabels[$group] ?? $group }}
+                        </p>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                            @foreach($groupPermissions as $permission)
+                            <label class="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50 cursor-pointer">
+                                <input type="checkbox"
+                                    name="permissions[]"
+                                    value="{{ $permission->id }}"
+                                    class="rounded border-gray-300 text-[#0a5c36] focus:ring-[#0a5c36]"
+                                    {{ in_array($permission->id, old('permissions', [])) ? 'checked' : '' }}>
+                                <span class="text-sm text-gray-700">
+                                    {{ $permission->display_name ?? $permission->name }}
+                                </span>
+                            </label>
+                            @endforeach
+                        </div>
+                    </div>
                     @endforeach
                 </div>
 
@@ -54,7 +80,6 @@
             </form>
         </div>
 
-        {{-- Section B: Existing Roles --}}
         {{-- Section B: Existing Roles --}}
         <div class="space-y-6 mt-8">
             @foreach($roles ?? [] as $role)
@@ -73,32 +98,40 @@
                     </span>
                 </div>
 
-                {{-- form الصلاحيات --}}
                 <form action="{{ route('admin.roles.permissions.update', $role->id) }}" method="POST">
                     @csrf
                     @method('PUT')
 
-                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-                        @foreach($permissions ?? [] as $permission)
-                        @php
-                        $isManageRoles = $permission->name === 'manage roles' || $permission->display_name === 'manage roles';
-                        $isAdminRole = $role->name === 'admin';
-                        @endphp
+                    {{-- الصلاحيات مجمعة بالـ group --}}
+                    <div class="space-y-4 mb-6">
+                        @foreach($permissions as $group => $groupPermissions)
+                        <div class="border border-gray-100 rounded-2xl p-4">
+                            <p class="text-xs font-black text-emerald-700 mb-3">
+                                {{ $groupLabels[$group] ?? $group }}
+                            </p>
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                @foreach($groupPermissions as $permission)
+                                @php
+                                $isLocked = $permission->name === 'manage roles' && $role->name === 'admin';
+                                @endphp
 
-                        @if($isAdminRole && $isManageRoles)
-                        <input type="hidden" name="permissions[]" value="{{ $permission->id }}">
-                        @else
-                        <label class="flex items-center gap-3 p-3 bg-gray-50 hover:bg-emerald-50/50 rounded-xl cursor-pointer transition-all select-none border border-transparent hover:border-emerald-100">
-                            <input type="checkbox"
-                                name="permissions[]"
-                                value="{{ $permission->id }}"
-                                @checked(in_array($permission->id, $role->permissions->pluck('id')->toArray()))
-                            class="w-4 h-4 text-emerald-600 focus:ring-emerald-500 border-gray-300 rounded-lg">
-                            <span class="text-sm text-gray-700 font-medium">
-                                {{ $permission->display_name ?? $permission->name }}
-                            </span>
-                        </label>
-                        @endif
+                                @if($isLocked)
+                                <input type="hidden" name="permissions[]" value="{{ $permission->id }}">
+                                @else
+                                <label class="flex items-center gap-3 p-3 bg-gray-50 hover:bg-emerald-50/50 rounded-xl cursor-pointer transition-all select-none border border-transparent hover:border-emerald-100">
+                                    <input type="checkbox"
+                                        name="permissions[]"
+                                        value="{{ $permission->id }}"
+                                        @checked(in_array($permission->id, $role->permissions->pluck('id')->toArray()))
+                                    class="w-4 h-4 text-emerald-600 focus:ring-emerald-500 border-gray-300 rounded-lg">
+                                    <span class="text-sm text-gray-700 font-medium">
+                                        {{ $permission->display_name ?? $permission->name }}
+                                    </span>
+                                </label>
+                                @endif
+                                @endforeach
+                            </div>
+                        </div>
                         @endforeach
                     </div>
 
@@ -108,7 +141,7 @@
                             ✓ حفظ وتحديث صلاحيات {{ $role->display_name ?? $role->name }}
                         </button>
 
-                        @if(in_array($role->name, ['admin', 'manager', 'supervisor', 'teacher', 'guardian']))
+                        @if(in_array($role->name, ['admin','general_manager','manager', 'supervisor', 'teacher', 'guardian']))
                         <span class="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-400 rounded-xl text-xs font-bold">
                             🔒 دور أساسي محمي
                         </span>
@@ -120,10 +153,9 @@
                         </button>
                         @endif
                     </div>
-                </form> {{-- ✅ نهاية form الصلاحيات --}}
+                </form>
 
-                {{-- ✅ فورم الحذف خارج form الصلاحيات تماماً --}}
-                @if(!in_array($role->name, ['admin', 'manager', 'supervisor', 'teacher', 'guardian']))
+                @if(!in_array($role->name, ['admin','general_manager','manager', 'supervisor', 'teacher', 'guardian']))
                 <form id="delete-form-{{ $role->id }}"
                     action="{{ route('admin.roles.destroy', $role->id) }}"
                     method="POST" class="hidden">
@@ -135,13 +167,11 @@
             </div>
             @endforeach
         </div>
-
     </div>
 
     @push('scripts')
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
-        // ✅ دالة تأكيد الحذف
         function confirmDelete(roleId, roleName) {
             Swal.fire({
                 title: 'حذف دور: ' + roleName,
@@ -165,20 +195,18 @@
             });
         }
 
-        // ✅ رسائل success/error
         @if(session('success'))
         Swal.fire({
             icon: 'success',
             title: 'تم بنجاح',
-            text: '{{ session('
-            success ') }}',
+            text: @json(session('success')),
             confirmButtonColor: '#0a5c36',
             confirmButtonText: 'حسناً',
             timer: 3000,
             timerProgressBar: true,
             customClass: {
                 popup: 'rounded-3xl font-bold',
-                confirmButton: 'rounded-xl px-6 py-2.5 text-sm',
+                confirmButton: 'rounded-xl px-6 py-2.5 text-sm'
             }
         });
         @endif
@@ -187,17 +215,15 @@
         Swal.fire({
             icon: 'error',
             title: 'خطأ',
-            text: '{{ session('
-            error ') }}',
+            text: @json(session('error')),
             confirmButtonColor: '#dc2626',
             confirmButtonText: 'حسناً',
             customClass: {
                 popup: 'rounded-3xl font-bold',
-                confirmButton: 'rounded-xl px-6 py-2.5 text-sm',
+                confirmButton: 'rounded-xl px-6 py-2.5 text-sm'
             }
         });
         @endif
     </script>
     @endpush
-
 </x-layouts.markaz-layout>

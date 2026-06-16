@@ -1,24 +1,10 @@
 @php
-$studentsList = $students->map(fn ($s) => [
-'id' => $s->id,
-'name' => $s->name,
-'status' => $s->status,
-'decision' => $s->decision ?? '',
-'circle_id' => $s->circle_id,
-'circle_name' => $s->circle?->name ?? '',
-'center_id' => $s->center_id,
-'educational_stage' => $s->educational_stage ?? '',
-'age' => $s->date_of_birth ? $s->date_of_birth->age : null,
-'student_code' => $s->student_code ?? '',
-'whatsapp_number' => $s->whatsapp_number ?? '',
-'school_grade' => $s->school_grade ?? '',
-'show_url' => route('students.show', $s),
-'edit_url' => auth()->user()->can('update', $s)? route('students.edit', $s): null,
-]);
-
 $circlesList = $circles->map(fn ($c) => ['id' => $c->id, 'name' => $c->name]);
 $centersList = $centers->map(fn ($c) => ['id' => $c->id, 'name' => $c->name])->values();
-$gradesList = $students->pluck('school_grade')->filter()->unique()->sort()->values();
+
+// ✅ تحديد الأدوار مرة واحدة في PHP لاستخدامها في الـ View
+$isGuardian = auth()->user()->hasRole('guardian');
+$canViewStudents = auth()->user()->can('view students');
 @endphp
 
 <x-layouts.markaz-layout>
@@ -26,124 +12,146 @@ $gradesList = $students->pluck('school_grade')->filter()->unique()->sort()->valu
     <script>
         function studentsIndex() {
             return {
-                students: @json($studentsList),
+                students: [],
+                meta: {
+                    total: 0,
+                    last_page: 1,
+                    current_page: 1,
+                    per_page: 20
+                },
+                loading: true,
+
                 circles: @json($circlesList),
                 centers: @json($centersList),
-                grades: @json($gradesList),
+
                 q: '',
                 status: '',
                 circleId: '',
                 educationalStage: '',
                 centerId: '',
-                ageMin: '',
-                ageMax: '',
+                // ✅ clamp العمر عند التغيير
+                _ageMin: '',
+                _ageMax: '',
+                get ageMin() { return this._ageMin; },
+                set ageMin(v) {
+                    const n = parseInt(v);
+                    this._ageMin = (v === '' || isNaN(n)) ? '' : Math.max(1, Math.min(99, n));
+                },
+                get ageMax() { return this._ageMax; },
+                set ageMax(v) {
+                    const n = parseInt(v);
+                    this._ageMax = (v === '' || isNaN(n)) ? '' : Math.max(1, Math.min(99, n));
+                },
                 schoolGrade: '',
                 decision: '',
                 currentPage: 1,
-                perPage: 20,
-
-                statusLabels: {
-                    active: 'مقيد',
-                    inactive: 'موقوف',
-                    traveler: 'مسافر',
-                },
-
                 sortField: 'name',
                 sortAsc: true,
+
+                _debounceTimer: null,
+
+                init() {
+                    this.$watch(
+                        () => [
+                            this.status, this.circleId, this.educationalStage,
+                            this.centerId, this.schoolGrade, this.decision,
+                            this.sortField, this.sortAsc,
+                        ],
+                        () => {
+                            this.currentPage = 1;
+                            this.fetch();
+                        }
+                    );
+
+                    // البحث النصي مع debounce
+                    this.$watch('q', () => {
+                        clearTimeout(this._debounceTimer);
+                        this._debounceTimer = setTimeout(() => {
+                            this.currentPage = 1;
+                            this.fetch();
+                        }, 400);
+                    });
+
+                    this.$watch('_ageMin', () => { this.currentPage = 1; this.fetch(); });
+                    this.$watch('_ageMax', () => { this.currentPage = 1; this.fetch(); });
+
+                    this.fetch();
+                },
+
+                async fetch() {
+                    this.loading = true;
+
+                    const params = new URLSearchParams();
+                    if (this.q)               params.set('q', this.q);
+                    if (this.status)          params.set('status', this.status);
+                    if (this.circleId)        params.set('circle_id', this.circleId);
+                    if (this.centerId)        params.set('center_id', this.centerId);
+                    if (this.educationalStage)params.set('educational_stage', this.educationalStage);
+                    if (this.schoolGrade)     params.set('school_grade', this.schoolGrade);
+                    if (this.decision)        params.set('decision', this.decision);
+                    if (this._ageMin)         params.set('age_min', this._ageMin);
+                    if (this._ageMax)         params.set('age_max', this._ageMax);
+                    params.set('sort', this.sortField);
+                    params.set('dir', this.sortAsc ? 'asc' : 'desc');
+                    params.set('page', this.currentPage);
+
+                    try {
+                        const res = await fetch(`/students?${params}`, {
+                            headers: {
+                                'Accept': 'application/json',
+                                'X-Requested-With': 'XMLHttpRequest',
+                            }
+                        });
+
+                        // ✅ التحقق من status code قبل parse
+                        if (!res.ok) {
+                            console.error('Server error:', res.status);
+                            this.loading = false;
+                            return;
+                        }
+
+                        const data = await res.json();
+                        this.students = data.data;
+                        this.meta = {
+                            total:        data.total,
+                            last_page:    data.last_page,
+                            current_page: data.current_page,
+                            per_page:     data.per_page,
+                        };
+                    } catch (e) {
+                        console.error('fetch error', e);
+                    } finally {
+                        this.loading = false;
+                    }
+                },
 
                 sortBy(field) {
                     if (this.sortField === field) {
                         this.sortAsc = !this.sortAsc;
                     } else {
                         this.sortField = field;
-                        this.sortAsc = true;
+                        this.sortAsc   = true;
                     }
                 },
 
                 goToPage(page) {
-                    if (page >= 1 && page <= this.totalPages) {
+                    if (page >= 1 && page <= this.meta.last_page) {
                         this.currentPage = page;
+                        this.fetch();
                     }
                 },
 
-                get totalCount() {
-                    return this.students.length;
-                },
-
                 get hasFilters() {
-                    return this.q.trim() !== '' || this.status !== '' ||
-                        this.circleId !== '' || this.educationalStage !== '' ||
-                        this.centerId !== '' || this.decision !== '' ||
-                        this.ageMin !== '' || this.ageMax !== '' ||
-                        this.schoolGrade !== '';
-                },
-
-                get filteredStudents() {
-                    const term = this.q.trim().toLowerCase();
-
-                    let result = this.students.filter(s => {
-                        if (this.status && s.status !== this.status) return false;
-                        if (this.circleId && String(s.circle_id) !== String(this.circleId)) return false;
-                        if (this.educationalStage && s.educational_stage !== this.educationalStage) return false;
-                        if (this.centerId && String(s.center_id) !== String(this.centerId)) return false;
-                        if (this.schoolGrade && s.school_grade !== this.schoolGrade) return false;
-                        if (this.decision && s.decision !== this.decision) return false;
-
-                        const age = parseInt(s.age);
-                        if (this.ageMin !== '' && !isNaN(age) && age < parseInt(this.ageMin)) return false;
-                        if (this.ageMax !== '' && !isNaN(age) && age > parseInt(this.ageMax)) return false;
-
-                        if (!term) return true;
-
-                        return [
-                            s.name,
-                            s.student_code,
-                            s.circle_name,
-                            s.whatsapp_number,
-                            s.educational_stage,
-                            this.statusLabels[s.status] || '',
-                        ].join(' ').toLowerCase().includes(term);
-                    });
-
-                    result.sort((a, b) => {
-                        let vA = a[this.sortField] ?? '';
-                        let vB = b[this.sortField] ?? '';
-
-                        if (typeof vA === 'string' && typeof vB === 'string') {
-                            return this.sortAsc ?
-                                vA.localeCompare(vB, 'ar', {
-                                    sensitivity: 'base'
-                                }) :
-                                vB.localeCompare(vA, 'ar', {
-                                    sensitivity: 'base'
-                                });
-                        }
-
-                        if (vA < vB) return this.sortAsc ? -1 : 1;
-                        if (vA > vB) return this.sortAsc ? 1 : -1;
-                        return 0;
-                    });
-
-                    return result;
-                },
-
-                get visibleCount() {
-                    return this.filteredStudents.length;
-                },
-
-                get totalPages() {
-                    return Math.ceil(this.filteredStudents.length / this.perPage) || 1;
-                },
-
-                get paginatedStudents() {
-                    if (this.currentPage > this.totalPages) this.currentPage = 1;
-                    const start = (this.currentPage - 1) * this.perPage;
-                    return this.filteredStudents.slice(start, start + this.perPage);
+                    return [
+                        this.q, this.status, this.circleId, this.educationalStage,
+                        this.centerId, this.schoolGrade, this.decision,
+                        this._ageMin, this._ageMax,
+                    ].some(v => String(v).trim() !== '');
                 },
 
                 get pages() {
-                    const total = this.totalPages;
-                    const cur = this.currentPage;
+                    const total = this.meta.last_page;
+                    const cur   = this.currentPage;
                     const delta = 2;
                     const range = [];
 
@@ -160,16 +168,18 @@ $gradesList = $students->pluck('school_grade')->filter()->unique()->sort()->valu
                 },
 
                 resetFilters() {
-                    this.q = '';
-                    this.status = '';
-                    this.circleId = '';
-                    this.educationalStage = '';
-                    this.centerId = '';
-                    this.ageMin = '';
-                    this.ageMax = '';
-                    this.schoolGrade = '';
-                    this.decision = '';
-                    this.currentPage = 1;
+                    Object.assign(this, {
+                        q:               '',
+                        status:          '',
+                        circleId:        '',
+                        educationalStage:'',
+                        centerId:        '',
+                        _ageMin:         '',
+                        _ageMax:         '',
+                        schoolGrade:     '',
+                        decision:        '',
+                        currentPage:     1,
+                    });
                 },
             };
         }
@@ -194,22 +204,24 @@ $gradesList = $students->pluck('school_grade')->filter()->unique()->sort()->valu
             <div class="order-1 md:order-1 text-right w-full md:w-auto z-10">
                 <h1 class="text-3xl font-black mb-2">إدارة الطلاب</h1>
                 <p class="text-emerald-100/80 text-sm font-medium"
-                    x-text="hasFilters ? (visibleCount + ' نتيجة من ' + totalCount) : (totalCount + ' طالب مسجل في النظام')">
-                    {{ $students->count() }} طالب مسجل في النظام
+                    x-text="loading
+                        ? 'جاري التحميل...'
+                        : (hasFilters
+                            ? (meta.total + ' نتيجة')
+                            : (meta.total + ' طالب مسجل في النظام'))">
                 </p>
             </div>
 
             <div class="absolute -right-10 -bottom-10 w-40 h-40 bg-white/10 rounded-full blur-3xl"></div>
         </div>
 
-        {{-- بحث وفلاتر --}}
+        {{-- فلاتر --}}
         <div class="bg-white p-4 rounded-xl border border-gray-100 space-y-4">
 
-            {{-- بحث --}}
             <div class="flex flex-col lg:flex-row gap-4">
                 <div class="flex-1 relative">
-                    <input type="search" x-model.debounce.200ms="q"
-                        placeholder="بحث بالاسم، الكود، الحلقة، الهاتف، أو المرحلة..."
+                    <input type="search" x-model="q"
+                        placeholder="بحث بالاسم، الكود، الهاتف..."
                         class="w-full px-4 py-2.5 pr-10 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#10b981]/50 focus:border-emerald-500">
                     <svg class="w-5 h-5 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"
                         fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -223,35 +235,28 @@ $gradesList = $students->pluck('school_grade')->filter()->unique()->sort()->valu
                 </button>
             </div>
 
-            {{-- صف الفلاتر الأول --}}
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-
                 <div>
                     <label class="block text-xs font-bold text-gray-500 mb-1">الحالة</label>
-                    <select x-model="status"
-                        class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#10b981]/50">
+                    <select x-model="status" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#10b981]/50">
                         <option value="">الكل</option>
-                        <option value="active">مقيد</option>
-                        <option value="inactive">موقوف</option>
-                        <option value="traveler">مسافر</option>
+                        <option value="مقيد">مقيد</option>
+                        <option value="متوقف">متوقف</option>
+                        <option value="مسافر">مسافر</option>
                     </select>
                 </div>
-
                 <div>
                     <label class="block text-xs font-bold text-gray-500 mb-1">الحلقة</label>
-                    <select x-model="circleId"
-                        class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#10b981]/50">
+                    <select x-model="circleId" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#10b981]/50">
                         <option value="">كل الحلقات</option>
                         <template x-for="circle in circles" :key="circle.id">
                             <option :value="String(circle.id)" x-text="circle.name"></option>
                         </template>
                     </select>
                 </div>
-
                 <div>
                     <label class="block text-xs font-bold text-gray-500 mb-1">المرحلة الدراسية</label>
-                    <select x-model="educationalStage"
-                        class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#10b981]/50">
+                    <select x-model="educationalStage" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#10b981]/50">
                         <option value="">الكل</option>
                         <option value="تمهيدي">تمهيدي</option>
                         <option value="حضانة">حضانة</option>
@@ -262,16 +267,13 @@ $gradesList = $students->pluck('school_grade')->filter()->unique()->sort()->valu
                         <option value="خريج">خريج</option>
                     </select>
                 </div>
-
             </div>
 
-            {{-- صف الفلاتر الثاني --}}
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 @if($centers->count() > 1)
                 <div>
                     <label class="block text-xs font-bold text-gray-500 mb-1">الفرع</label>
-                    <select x-model="centerId"
-                        class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#10b981]/50">
+                    <select x-model="centerId" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#10b981]/50">
                         <option value="">كل الفروع</option>
                         <template x-for="c in centers" :key="c.id">
                             <option :value="String(c.id)" x-text="c.name"></option>
@@ -279,45 +281,46 @@ $gradesList = $students->pluck('school_grade')->filter()->unique()->sort()->valu
                     </select>
                 </div>
                 @endif
+
                 <div>
                     <label class="block text-xs font-bold text-gray-500 mb-1">العمر (من – إلى)</label>
                     <div class="flex items-center gap-2">
-                        <input type="number" x-model.number="ageMin" min="1" max="99" placeholder="من"
+                        {{-- ✅ min/max في HTML + setter في Alpine يحمي من قيم خارج النطاق --}}
+                        <input type="number" x-model="ageMin"
+                            min="1" max="99" placeholder="من"
                             class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#10b981]/50">
                         <span class="text-gray-400 shrink-0">–</span>
-                        <input type="number" x-model.number="ageMax" min="1" max="99" placeholder="إلى"
+                        <input type="number" x-model="ageMax"
+                            min="1" max="99" placeholder="إلى"
                             class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#10b981]/50">
                     </div>
                 </div>
 
                 <div>
                     <label class="block text-xs font-bold text-gray-500 mb-1">الصف الدراسي</label>
-                    <select x-model="schoolGrade"
-                        class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#10b981]/50">
+                    <select x-model="schoolGrade" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#10b981]/50">
                         <option value="">كل الصفوف</option>
-                        <template x-for="g in grades" :key="g">
-                            <option :value="g" x-text="g"></option>
-                        </template>
+                        @foreach(['الأول','الثاني','الثالث','الرابع','الخامس','السادس','دراسات عليا','لا يوجد'] as $grade)
+                        <option value="{{ $grade }}">{{ $grade }}</option>
+                        @endforeach
                     </select>
                 </div>
-
             </div>
 
-            {{-- صف الفلاتر الثالث --}}
+            {{-- ✅ فلتر قرار الإدارة — للأدوار الإدارية فقط --}}
+            @if($canViewStudents)
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-
                 <div>
                     <label class="block text-xs font-bold text-gray-500 mb-1">قرار الإدارة</label>
-                    <select x-model="decision"
-                        class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#10b981]/50">
+                    <select x-model="decision" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#10b981]/50">
                         <option value="">الكل</option>
-                        <option value="pending">تحت الاختبار</option>
-                        <option value="accepted">مقبول</option>
-                        <option value="rejected">مرفوض</option>
+                        <option value="تحت الاختبار">تحت الاختبار</option>
+                        <option value="مقبول">مقبول</option>
+                        <option value="مرفوض">مرفوض</option>
                     </select>
                 </div>
-
             </div>
+            @endif
 
         </div>
 
@@ -340,6 +343,7 @@ $gradesList = $students->pluck('school_grade')->filter()->unique()->sort()->valu
                                 <span x-show="sortField === 'status'" x-text="sortAsc ? '↑' : '↓'"></span>
                             </div>
                         </th>
+                        {{-- ✅ circle_name الآن في allowedSorts --}}
                         <th @click="sortBy('circle_name')"
                             class="py-4 px-6 font-medium cursor-pointer hover:bg-gray-100 transition-colors select-none">
                             <div class="flex items-center gap-1">
@@ -366,77 +370,86 @@ $gradesList = $students->pluck('school_grade')->filter()->unique()->sort()->valu
                 </thead>
 
                 <tbody class="divide-y divide-gray-100">
-                    <template x-for="student in paginatedStudents" :key="student.id">
-                        <tr class="hover:bg-gray-50/50">
 
-                            <td class="py-4 px-6 font-medium text-gray-800" x-text="student.name"></td>
+                    {{-- Loading --}}
+                    <tr x-show="loading">
+                        <td colspan="6" class="py-12 text-center">
+                            <div class="inline-flex items-center gap-2 text-gray-400">
+                                <svg class="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10"
+                                        stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+                                </svg>
+                                جاري التحميل...
+                            </div>
+                        </td>
+                    </tr>
 
-                            <td class="py-4 px-6">
-                                <span x-show="student.status === 'active'"
-                                    class="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-md text-sm">مقيد</span>
-                                <span x-show="student.status === 'inactive'"
-                                    class="px-3 py-1 bg-orange-100 text-orange-700 rounded-md text-sm">موقوف</span>
-                                <span x-show="student.status === 'traveler'"
-                                    class="px-3 py-1 bg-cyan-100 text-cyan-700 rounded-md text-sm">مسافر</span>
-                            </td>
+                    <template x-if="!loading">
+                        <template x-for="student in students" :key="student.id">
+                            <tr class="hover:bg-gray-50/50">
+                                <td class="py-4 px-6 font-medium text-gray-800" x-text="student.name"></td>
+                                <td class="py-4 px-6">
+                                    <span x-show="student.status === 'مقيد'"
+                                        class="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-md text-sm">مقيد</span>
+                                    <span x-show="student.status === 'متوقف'"
+                                        class="px-3 py-1 bg-orange-100 text-orange-700 rounded-md text-sm">موقوف</span>
+                                    <span x-show="student.status === 'مسافر'"
+                                        class="px-3 py-1 bg-cyan-100 text-cyan-700 rounded-md text-sm">مسافر</span>
+                                </td>
+                                <td class="py-4 px-6 text-gray-600" x-text="student.circle_name || '—'"></td>
+                                <td class="py-4 px-6 text-gray-600" x-text="student.educational_stage || '—'"></td>
+                                <td class="py-4 px-6 text-gray-600" x-text="student.age ?? '—'"></td>
+                                <td class="py-4 px-6">
+                                    <div class="flex items-center justify-end gap-3">
 
-                            <td class="py-4 px-6 text-gray-600" x-text="student.circle_name || '—'"></td>
+                                        {{-- ✅ show_url مشروط من الـ backend --}}
+                                        <a x-show="student.show_url"
+                                            :href="student.show_url"
+                                            class="text-green-400 hover:text-green-600 transition">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5"
+                                                fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                            </svg>
+                                        </a>
 
-                            <td class="py-4 px-6 text-gray-600" x-text="student.educational_stage || '—'"></td>
+                                        {{-- edit_url مشروط كما كان --}}
+                                        <a x-show="student.edit_url"
+                                            :href="student.edit_url"
+                                            class="text-blue-500 hover:text-blue-700 transition">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5"
+                                                fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                            </svg>
+                                        </a>
 
-                            <td class="py-4 px-6 text-gray-600" x-text="student.age ?? '—'"></td>
-
-                            <td class="py-4 px-6">
-                                <div class="flex items-center justify-end gap-3">
-
-                                    <a :href="student.show_url"
-                                        class="text-green-400 hover:text-green-600 transition">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none"
-                                            viewBox="0 0 24 24" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                        </svg>
-                                    </a>
-
-                                    <a x-show="student.edit_url !== null"
-                                        :href="student.edit_url"
-                                        class="text-blue-500 hover:text-blue-700 transition">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none"
-                                            viewBox="0 0 24 24" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                        </svg>
-                                    </a>
-
-                                </div>
-                            </td>
-
-                        </tr>
+                                    </div>
+                                </td>
+                            </tr>
+                        </template>
                     </template>
 
-                    <tr x-show="filteredStudents.length === 0">
+                    <tr x-show="!loading && students.length === 0">
                         <td colspan="6" class="py-12 px-6 text-center text-gray-500">
                             <span x-show="hasFilters">لا توجد نتائج مطابقة لبحثك أو الفلاتر.</span>
                             <span x-show="!hasFilters">لا يوجد طلاب مسجلون حالياً.</span>
                         </td>
                     </tr>
+
                 </tbody>
             </table>
 
             {{-- Pagination --}}
             <div class="flex flex-col sm:flex-row items-center justify-between gap-4 px-6 py-4 border-t border-gray-100"
-                x-show="filteredStudents.length > perPage">
+                x-show="meta.last_page > 1">
                 <div class="text-sm text-gray-500">
-                    الصفحة <span class="font-medium text-gray-700" x-text="currentPage"></span>
-                    من <span class="font-medium text-gray-700" x-text="totalPages"></span>
-                    — عرض
-                    <span class="font-medium text-gray-700"
-                        x-text="Math.min((currentPage - 1) * perPage + 1, filteredStudents.length)"></span>–
-                    <span class="font-medium text-gray-700"
-                        x-text="Math.min(currentPage * perPage, filteredStudents.length)"></span>
-                    من <span class="font-medium text-gray-700" x-text="filteredStudents.length"></span>
+                    الصفحة <span class="font-medium text-gray-700" x-text="meta.current_page"></span>
+                    من <span class="font-medium text-gray-700" x-text="meta.last_page"></span>
+                    — إجمالي <span class="font-medium text-gray-700" x-text="meta.total"></span> طالب
                 </div>
                 <div class="flex items-center gap-1.5" dir="ltr">
                     <button @click="goToPage(currentPage - 1)" :disabled="currentPage === 1"
@@ -446,7 +459,6 @@ $gradesList = $students->pluck('school_grade')->filter()->unique()->sort()->valu
                         class="px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors">
                         ‹ السابق
                     </button>
-
                     <template x-for="(page, i) in pages" :key="i">
                         <span class="inline-flex items-center">
                             <span x-show="page === '...'" class="px-1.5 text-gray-400 select-none">...</span>
@@ -459,9 +471,8 @@ $gradesList = $students->pluck('school_grade')->filter()->unique()->sort()->valu
                             </button>
                         </span>
                     </template>
-
-                    <button @click="goToPage(currentPage + 1)" :disabled="currentPage === totalPages"
-                        :class="currentPage === totalPages
+                    <button @click="goToPage(currentPage + 1)" :disabled="currentPage === meta.last_page"
+                        :class="currentPage === meta.last_page
                             ? 'text-gray-300 border-gray-100 cursor-not-allowed'
                             : 'text-gray-600 border-gray-200 hover:bg-gray-50'"
                         class="px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors">

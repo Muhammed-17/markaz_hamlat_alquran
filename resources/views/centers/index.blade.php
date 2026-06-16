@@ -26,11 +26,11 @@
 
                 <div class="flex gap-2 w-full">
                     <button type="submit"
-                        class="bg-[#10b981] hover:bg-[#059669] text-white px-6 py-2 rounded-lg font-bold transition h-[42px] flex-1">
+                        class="bg-[#10b981] hover:bg-[#059669] text-white px-6 py-2 rounded-lg font-bold transition h-10.5 flex-1">
                         حفظ
                     </button>
                     <button type="button" onclick="resetForm()" id="cancelBtn"
-                        class="hidden bg-gray-100 hover:bg-gray-200 text-gray-600 px-4 py-2 rounded-lg font-bold transition h-[42px]">
+                        class="hidden bg-gray-100 hover:bg-gray-200 text-gray-600 px-4 py-2 rounded-lg font-bold transition h-10.5">
                         إلغاء
                     </button>
                 </div>

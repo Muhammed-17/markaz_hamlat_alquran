@@ -1,6 +1,6 @@
 <x-layouts.markaz-layout>
     <div class="max-w-5xl mx-auto py-8">
-        <!-- Header -->
+
         <div class="flex justify-between items-center mb-10">
             <div>
                 <h1 class="text-3xl font-black text-[#0a5c36]">تعديل بيانات الطالب</h1>
@@ -18,17 +18,8 @@
         <form action="{{ route('students.update', $student->id) }}" method="POST" novalidate id="registrationForm">
             @csrf
             @method('PUT')
-            @include('students.form', [
-            'student' => $student,
-            'circles' => $circles,
-            'guardians' => $guardians,
-            'teachers' => $teachers,
-            'supervisors' => $supervisors,
-            'centers' => $centers,
-            'construction' => $construction, // ✅
-            'itqan' => $itqan, // ✅
-            'ibda' => $ibda, // ✅
-            ])
+            @include('students.form')
         </form>
+
     </div>
 </x-layouts.markaz-layout>

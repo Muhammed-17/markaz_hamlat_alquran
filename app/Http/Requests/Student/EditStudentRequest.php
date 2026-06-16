@@ -34,7 +34,28 @@ class EditStudentRequest extends FormRequest
             'second_phone'                   => 'nullable|string|max:20',
             'additional_contact_owner'       => 'nullable|string|max:50',
             'additional_contact_owner_other' => 'nullable|string|max:255',
-            'guardian_id'                    => 'nullable|exists:users,id',
+            'guardian_id' => [
+                function ($attribute, $value, $fail) {
+                    if ($value === null || $value === '') return;
+                    if (in_array((string)$value, ['new', 'other', 'none'])) return;
+                    if (!\App\Models\User::where('id', $value)->exists()) {
+                        $fail('ولي الأمر المختار غير موجود.');
+                    }
+                },
+            ],
+            'guardian_name' => [
+                'nullable',
+                'string',
+                'max:255',
+                function ($attribute, $value, $fail) {
+                    if ($this->guardian_id === 'new' && empty($value)) {
+                        $fail('اسم ولي الأمر مطلوب عند إضافة حساب جديد.');
+                    }
+                },
+            ],
+            
+            'parent_email' => 'nullable|string|max:255',
+            'password'     => 'nullable|string|min:6',
 
             // Step 3
             'educational_stage' => 'nullable|string|max:100',
@@ -105,7 +126,7 @@ class EditStudentRequest extends FormRequest
             'gender.in'          => 'الجنس يجب أن يكون ذكر أو أنثى',
             'address.required'   => 'العنوان مطلوب',
             'center_id.exists'   => 'المركز المختار غير موجود',
-            'student_code.unique'=> 'كود الطالب مستخدم مسبقاً',
+            'student_code.unique' => 'كود الطالب مستخدم مسبقاً',
             'center_entry_level.in' => 'مستوى الالتحاق غير صحيح',
         ];
     }

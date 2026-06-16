@@ -5,7 +5,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'verified'])->group(function () {
 
-    Route::middleware('permission:view students')->group(function () {
+    Route::middleware('permission:view students|view own children')->group(function () {
         Route::get('/students', [StudentController::class, 'index'])->name('students.index');
     });
 

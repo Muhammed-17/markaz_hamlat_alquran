@@ -3,49 +3,253 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
+use Spatie\Permission\Models\Role;
 use Spatie\Permission\Models\Permission;
+use Spatie\Permission\PermissionRegistrar;
 
-class PermissionSeeder extends Seeder
+class RolePermissionSeeder extends Seeder
 {
     public function run(): void
     {
+        app()[PermissionRegistrar::class]->forgetCachedPermissions();
+
         $permissions = [
-            ['name' => 'view dashboard',           'display_name' => 'عرض لوحة التحكم'],
-            ['name' => 'view students',            'display_name' => 'عرض الطلاب'],
-            ['name' => 'create students',          'display_name' => 'إضافة طالب'],
-            ['name' => 'edit students',            'display_name' => 'تعديل طالب'],
-            ['name' => 'delete students',          'display_name' => 'حذف طالب'],
-            ['name' => 'assign student to circle', 'display_name' => 'تسكين طالب بحلقة'],
-            ['name' => 'view circles',             'display_name' => 'عرض الحلقات'],
-            ['name' => 'create circles',           'display_name' => 'إضافة حلقة'],
-            ['name' => 'edit circles',             'display_name' => 'تعديل حلقة'],
-            ['name' => 'delete circles',           'display_name' => 'حذف حلقة'],
-            ['name' => 'manage circle teachers',   'display_name' => 'إدارة معلمي الحلقة'],
-            ['name' => 'view attendance',          'display_name' => 'عرض الحضور'],
-            ['name' => 'create attendance',        'display_name' => 'تسجيل حضور'],
-            ['name' => 'edit attendance',          'display_name' => 'تعديل حضور'],
-            ['name' => 'view own attendance',      'display_name' => 'عرض حضوري'],
-            ['name' => 'view subscriptions',       'display_name' => 'عرض الاشتراكات'],
-            ['name' => 'create subscriptions',     'display_name' => 'إضافة اشتراك'],
-            ['name' => 'edit subscriptions',       'display_name' => 'تعديل اشتراك'],
-            ['name' => 'collect subscription',     'display_name' => 'تحصيل اشتراك'],
-            ['name' => 'view own subscriptions',   'display_name' => 'عرض اشتراكاتي'],
-            ['name' => 'view users',               'display_name' => 'عرض المستخدمين'],
-            ['name' => 'create users',             'display_name' => 'إضافة مستخدم'],
-            ['name' => 'edit users',               'display_name' => 'تعديل مستخدم'],
-            ['name' => 'delete users',             'display_name' => 'حذف مستخدم'],
-            ['name' => 'manage roles',             'display_name' => 'إدارة الصلاحيات'],
-            ['name' => 'view prices',              'display_name' => 'عرض الأسعار'],
-            ['name' => 'edit prices',              'display_name' => 'تعديل الأسعار'],
+
+            // ─────────────────────────────────────────────────────────
+            // ADMIN — كل الصلاحيات + إدارة النظام
+            // ─────────────────────────────────────────────────────────
+            'admin' => [
+                // system
+                'view dashboard',
+                'view notifications',
+                'view settings',
+                'edit profile',
+                'view reports',
+                'export data',
+
+                // users
+                'view users',
+                'create users',
+                'edit users',
+                'delete users',
+                'manage roles',
+
+                // centers
+                'view centers',
+                'view all centers',
+                'manage centers',
+
+                // circles
+                'view circles',
+                'view all circles',
+                'create circles',
+                'edit circles',
+                'delete circles',
+                'manage circle teachers',
+
+                // teachers
+                'view teachers',
+                'view all teachers',
+                'create teachers',
+                'edit teachers',
+                'delete teachers',
+                'toggle teacher status',
+
+                // students
+                'view students',
+                'view all students',
+                'create students',
+                'edit students',
+                'delete students',
+                'assign student to circle',
+                'manage student status',
+
+                // attendance
+                'view attendance',
+                'create attendance',
+                'edit attendance',
+
+                // subscriptions
+                'view subscriptions',
+                'create subscriptions',
+                'edit subscriptions',
+                'manage subscription prices',
+                'view subscription prices',
+                'view subscriptions chart',
+            ],
+
+            // ─────────────────────────────────────────────────────────
+            // GENERAL MANAGER — المدير العام
+            // يرى كل الفروع لكن لا يتحكم في النظام (users/roles/settings)
+            // ─────────────────────────────────────────────────────────
+            'general_manager' => [
+                // system
+                'view dashboard',
+                'view notifications',
+                'edit profile',
+                'view reports',
+                'export data',
+                // ❌ view settings   — للـ admin فقط
+                // ❌ manage roles    — للـ admin فقط
+
+                // users — يرى فقط بدون إدارة
+                'view users',
+                // ❌ create/edit/delete users — للـ admin فقط
+                // ❌ manage roles             — للـ admin فقط
+
+                // centers — يرى كل الفروع
+                'view centers',
+                'view all centers',
+                // ❌ manage centers — للـ admin فقط
+
+                // circles — يرى ويدير في كل الفروع
+                'view circles',
+                'view all circles',
+                'create circles',
+                'edit circles',
+                'delete circles',
+                'manage circle teachers',
+
+                // teachers — يرى ويدير في كل الفروع
+                'view teachers',
+                'view all teachers',
+                'create teachers',
+                'edit teachers',
+                'delete teachers',
+                'toggle teacher status',
+
+                // students — يرى ويدير في كل الفروع
+                'view students',
+                'view all students',
+                'create students',
+                'edit students',
+                'delete students',
+                'assign student to circle',
+                'manage student status',
+
+                // attendance
+                'view attendance',
+                'create attendance',
+                'edit attendance',
+
+                // subscriptions
+                'view subscriptions',
+                'create subscriptions',
+                'edit subscriptions',
+                'view subscription prices',
+                'view subscriptions chart',
+                // ❌ manage subscription prices — للـ admin فقط
+            ],
+
+            // ─────────────────────────────────────────────────────────
+            // MANAGER — مدير الفرع
+            // يدير فرعه فقط
+            // ─────────────────────────────────────────────────────────
+            'manager' => [
+                // system
+                'view dashboard',
+                'view notifications',
+                'view settings',
+                'edit profile',
+
+                // centers
+                'view centers',
+
+                // circles
+                'view circles',
+                'view all circles',
+                'create circles',
+                'edit circles',
+                'delete circles',
+                'manage circle teachers',
+
+                // teachers
+                'view teachers',
+                'view all teachers',
+                'create teachers',
+                'edit teachers',
+                'delete teachers',
+                'toggle teacher status',
+
+                // students
+                'view students',
+                'create students',
+                'edit students',
+                'delete students',
+                'assign student to circle',
+                'manage student status',
+
+                // attendance
+                'view attendance',
+                'create attendance',
+                'edit attendance',
+
+                // subscriptions
+                'view subscriptions',
+                'create subscriptions',
+                'edit subscriptions',
+                'view subscription prices',
+                'view subscriptions chart',
+            ],
+
+            // ─────────────────────────────────────────────────────────
+            // SUPERVISOR — المشرف
+            // ─────────────────────────────────────────────────────────
+            'supervisor' => [
+                'view dashboard',
+                'view notifications',
+                'edit profile',
+                'view circles',
+                'view teachers',
+                'view students',
+                'create students',
+                'edit students',
+                'assign student to circle',
+                'view attendance',
+                'create attendance',
+                'edit attendance',
+                'view subscriptions',
+                'view subscription prices',
+            ],
+
+            // ─────────────────────────────────────────────────────────
+            // TEACHER — المعلم
+            // ─────────────────────────────────────────────────────────
+            'teacher' => [
+                'view dashboard',
+                'view notifications',
+                'edit profile',
+                'view circles',
+                'view students',
+                'view attendance',
+                'create attendance',
+                'view subscriptions',
+            ],
+
+            // ─────────────────────────────────────────────────────────
+            // GUARDIAN — ولي الأمر
+            // ─────────────────────────────────────────────────────────
+            'guardian' => [
+                'view notifications',
+                'edit profile',
+                'view own children',
+                'view own attendance',
+                'view own subscriptions',
+            ],
         ];
 
-        foreach ($permissions as $p) {
-            Permission::updateOrCreate(
-                ['name' => $p['name']],
-                ['display_name' => $p['display_name']]
+        foreach ($permissions as $roleName => $rolePermissions) {
+            $role = Role::firstOrCreate(
+                ['name' => $roleName],
+                ['guard_name' => 'web']
             );
+
+            $role->syncPermissions($rolePermissions);
+
+            $this->command->info("✓ [{$roleName}] — " . count($rolePermissions) . " permissions");
         }
 
-        $this->command->info('✅ الصلاحيات تم إنشاؤها.');
+        app()[PermissionRegistrar::class]->forgetCachedPermissions();
+        $this->command->info('✅ تم ضبط جميع الأدوار والصلاحيات بنجاح');
     }
 }

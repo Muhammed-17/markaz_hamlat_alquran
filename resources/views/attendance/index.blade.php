@@ -4,25 +4,18 @@
         <div
             class="bg-[#0a4d31] rounded-3xl p-8 text-white relative overflow-hidden flex flex-col md:flex-row justify-between items-center shadow-xl gap-6">
             <div class="text-right w-full md:w-auto z-10">
-                <h1 class="text-3xl font-black mb-2">إحصائيات الحضور والغياب</h1>
-                <p class="text-emerald-100/80 text-sm font-medium">تحليل بياني لأداء المركز والحلقات</p>
+                <h1 class="text-3xl font-black mb-2">سجل المتابعة التاريخي</h1>
+                <p class="text-emerald-100/80 text-sm font-medium">عرض ومراجعة كافة سجلات الحضور والغياب</p>
             </div>
 
-            <div class="flex gap-6 z-10">
-                <a href="{{ route('attendance.report') }}"
-                    class="px-6 py-3 bg-white/10 hover:bg-white/20 border border-white/20 rounded-2xl text-white font-bold transition-all flex items-center gap-2">
-                    <svg class="w-5 h-45" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M10 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                    </svg>
-                    سجل المتابعة
-                </a>
+            <div class="flex gap-4 z-10">
                 <a href="{{ route('attendance.create') }}"
-                    class="px-6 py-3 bg-white/10 hover:bg-white/20 border border-white/20 rounded-2xl text-white font-bold transition-all flex items-center gap-2">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                    </svg>
-                    تسجيل الغياب
+                    class="px-6 py-3 bg-white/10 hover:bg-white/20 border border-white/20 rounded-2xl text-white font-bold transition-all">
+                    تسجيل الحضور
+                </a>
+                <a href="{{ route('attendance.report') }}"
+                    class="px-6 py-3 bg-white/10 hover:bg-white/20 border border-white/20 rounded-2xl text-white font-bold transition-all">
+                    عرض الإحصائيات
                 </a>
             </div>
 
@@ -30,138 +23,147 @@
             <div class="absolute -right-10 -bottom-10 w-40 h-40 bg-white/10 rounded-full blur-3xl"></div>
         </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <!-- Pie Chart: Status Distribution -->
-            <div class="bg-white p-8 rounded-[40px] shadow-sm border border-gray-100">
-                <h3 class="text-[#0a5c36] font-black text-xl mb-8 border-b border-gray-50 pb-4">توزيع الحالة (آخر 30
-                    يوم)</h3>
-                <div class="relative h-100">
-                    <canvas id="statusChart"></canvas>
+        <!-- Filters Section -->
+        <div class="bg-white p-6 rounded-[30px] shadow-sm border border-gray-100 transition-all">
+            <form action="{{ route('attendance.index') }}" method="GET"
+                class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                <div class="space-y-1">
+                    <label class="text-xs font-bold text-gray-400 px-2">الحلقة</label>
+                    <select name="circle_id"
+                        class="w-full bg-gray-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-emerald-500 font-bold text-gray-700">
+                        <option value="">كل الحلقات</option>
+                        @foreach ($circles as $circle)
+                            <option value="{{ $circle->id }}"
+                                {{ $selectedCircleId == $circle->id ? 'selected' : '' }}>
+                                {{ $circle->name }}
+                            </option>
+                        @endforeach
+                    </select>
                 </div>
+
+                <div class="space-y-1">
+                    <label class="text-xs font-bold text-gray-400 px-2">المسجل</label>
+                    <select name="user_id"
+                        class="w-full bg-gray-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-emerald-500 font-bold text-gray-700">
+                        <option value="">كل المسجلين</option>
+                        @foreach ($registrars as $registrar)
+                            <option value="{{ $registrar->id }}"
+                                {{ $selectedRegistrarId == $registrar->id ? 'selected' : '' }}>
+                                {{ $registrar->name }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <div class="space-y-1">
+                    <label class="text-xs font-bold text-gray-400 px-2">من تاريخ</label>
+                    <input type="date" name="start_date" value="{{ $startDate }}"
+                        class="w-full bg-gray-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-emerald-500 font-bold text-gray-700">
+                </div>
+
+                <div class="space-y-1">
+                    <label class="text-xs font-bold text-gray-400 px-2">إلى تاريخ</label>
+                    <input type="date" name="end_date" value="{{ $endDate }}"
+                        class="w-full bg-gray-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-emerald-500 font-bold text-gray-700">
+                </div>
+
+                <div class="space-y-1">
+                    <label class="text-xs font-bold text-gray-400 px-2">ترتيب التاريخ</label>
+                    <select name="sort_order"
+                        class="w-full bg-gray-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-emerald-500 font-bold text-gray-700">
+                        <option value="desc" {{ $sortOrder == 'desc' ? 'selected' : '' }}>الأحدث أولاً</option>
+                        <option value="asc" {{ $sortOrder == 'asc' ? 'selected' : '' }}>الأقدم أولاً</option>
+                    </select>
+                </div>
+
+                <div class="flex items-end">
+                    <button type="submit"
+                        class="w-full bg-[#0a5c36] text-white rounded-2xl p-4 font-black hover:scale-[1.02] active:scale-95 transition-all shadow-lg shadow-emerald-900/10">
+                        تحديث النتائج
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Table Section -->
+        <div class="bg-white rounded-[40px] shadow-sm border border-gray-100 overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full text-right">
+                    <thead class="bg-gray-50 border-b border-gray-100 font-black text-gray-400 text-sm uppercase">
+                        <tr>
+                            <th class="px-8 py-5 text-center">#</th>
+                            <th class="px-8 py-5">تاريخ</th>
+                            <th class="px-8 py-5">اسم الطالب</th>
+                            <th class="px-8 py-5">الحلقة</th>
+                            <th class="px-8 py-5">الحالة</th>
+                            <th class="px-8 py-5">المسجل</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-50">
+                        @forelse($records as $record)
+                            <tr class="hover:bg-emerald-50/30 transition-all group">
+                                <td class="px-8 py-6 font-bold text-gray-500 text-center">
+                                    {{ ($records->currentPage() - 1) * $records->perPage() + $loop->iteration }}
+                                </td>
+                                <td class="px-8 py-6 font-bold text-gray-700">{{ $record->date }}</td>
+                                <td class="px-8 py-6">
+                                    <div class="flex items-center gap-3">
+                                        <div
+                                            class="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center text-gray-400 group-hover:bg-white group-hover:text-emerald-500 shadow-sm transition-all">
+                                            <svg class="w-5 h-5" fill="none" stroke="currentColor"
+                                                viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                            </svg>
+                                        </div>
+                                        <span class="font-bold text-gray-800">{{ $record->student->name }}</span>
+                                    </div>
+                                </td>
+                                <td class="px-8 py-6">
+                                    <span
+                                        class="px-4 py-2 bg-gray-100 rounded-xl text-gray-600 font-bold text-xs uppercase">{{ $record->student->circle->name ?? '-' }}</span>
+                                </td>
+                                <td class="px-8 py-6 font-black">
+                                    @if ($record->status === 'present')
+                                        <span class="text-emerald-500 flex items-center gap-2">
+                                            <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                                            حاضر
+                                        </span>
+                                    @elseif($record->status === 'absent')
+                                        <span class="text-red-500 flex items-center gap-2">
+                                            <span class="w-2 h-2 rounded-full bg-red-500"></span>
+                                            غائب
+                                        </span>
+                                    @elseif($record->status === 'late')
+                                        <span class="text-amber-500 flex items-center gap-2">
+                                            <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+                                            متأخر
+                                        </span>
+                                    @else
+                                        <span class="text-blue-500 flex items-center gap-2">
+                                            <span class="w-2 h-2 rounded-full bg-blue-500"></span>
+                                            بعذر
+                                        </span>
+                                    @endif
+                                </td>
+                                <td class="px-8 py-6 text-gray-500 font-medium">{{ $record->user->name ?? ($record->student->circle->mainTeacher->first()?->name ?? 'بواسطة المعلم') }}</td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="6" class="px-8 py-20 text-center text-gray-400 font-medium">
+                                    لا توجد سجلات مطابقة لهذه الفلاتر.
+                                </td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
             </div>
 
-            <!-- Line Chart: Daily Presence -->
-            <div class="bg-white p-8 rounded-[40px] shadow-sm border border-gray-100">
-                <h3 class="text-[#0a5c36] font-black text-xl mb-8 border-b border-gray-50 pb-4">معدل الحضور (آخر 7 أيام)
-                </h3>
-                <div class="relative h-100">
-                    <canvas id="dailyChart"></canvas>
+            @if ($records->hasPages())
+                <div class="px-8 py-6 bg-gray-50 border-t border-gray-100">
+                    {{ $records->links() }}
                 </div>
-            </div>
+            @endif
         </div>
     </div>
-
-    <!-- Chart.js Library -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-    <script>
-        const statusData = @json($stats);
-        const dailyData = @json($dailyStats);
-
-        // Status Distribution Chart
-        new Chart(document.getElementById('statusChart'), {
-            type: 'doughnut',
-            data: {
-                labels: statusData.map(d => {
-                    const translations = {
-                        'present': 'حاضر',
-                        'absent': 'غائب',
-                        'late': 'متأخر',
-                        'excused': 'بعذر'
-                    };
-                    return translations[d.status] || d.status;
-                }),
-                datasets: [{
-                    data: statusData.map(d => d.count),
-                    backgroundColor: [
-                        '#ef4444', // red-500
-                        '#3b82f6', // blue-500
-                        '#f59e0b', // amber-500
-                        '#10b981', // emerald-500
-                    ],
-                    borderWidth: 0,
-                    hoverOffset: 20
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        position: 'bottom',
-                        rtl: true,
-                        labels: {
-                            font: {
-                                family: 'Cairo',
-                                size: 14,
-                                weight: 'bold'
-                            },
-                            padding: 20
-                        }
-                    }
-                },
-                cutout: '70%'
-            }
-        });
-
-        // Daily Presence Chart
-        new Chart(document.getElementById('dailyChart'), {
-            type: 'line',
-            data: {
-                labels: dailyData.map(d => d.date),
-                datasets: [{
-                    label: 'عدد الطلاب الحاضرين',
-                    data: dailyData.map(d => d.count),
-                    borderColor: '#10b981',
-                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                    fill: true,
-                    tension: 0.4,
-                    pointBackgroundColor: '#10b981',
-                    pointRadius: 6,
-                    pointHoverRadius: 8
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        rtl: true,
-                        grid: {
-                            borderDash: [5, 5]
-                        },
-                        ticks: {
-                            font: {
-                                family: 'Cairo'
-                            }
-                        }
-                    },
-                    x: {
-                        rtl: true,
-                        grid: {
-                            display: false
-                        },
-                        ticks: {
-                            font: {
-                                family: 'Cairo'
-                            }
-                        }
-                    }
-                },
-                plugins: {
-                    legend: {
-                        rtl: true,
-                        labels: {
-                            font: {
-                                family: 'Cairo',
-                                size: 14,
-                                weight: 'bold'
-                            }
-                        }
-                    }
-                }
-            }
-        });
-    </script>
 </x-layouts.markaz-layout>

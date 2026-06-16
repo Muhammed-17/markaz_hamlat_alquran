@@ -18,12 +18,11 @@ class TeacherController extends Controller
     use ResolvesUserScope;
 
     // ─────────────────────────────────────────
-    public function index(Request $request)
-    {
+    public function index(Request $request){
         $this->authorize('viewAny', Teacher::class);
 
         $user    = Auth::user();
-        $teacher = $this->getTeacherRecord($user);        // ✅ من الـ Trait
+        $teacher = $this->getTeacherRecord($user);
 
         $query = Teacher::with(['user.roles', 'center']);
 
@@ -39,22 +38,20 @@ class TeacherController extends Controller
             $query->where('name', 'like', '%' . $request->search . '%');
         }
 
-        // فلتر الفرع — بصلاحية خاصة
+        // فلتر الفرع
         if ($request->filled('center_id') && $user->can('filter teachers by center')) {
             $query->where('center_id', $request->center_id);
         }
 
-        // فلتر الدور — بصلاحية خاصة
+        // فلتر الدور
         if ($request->filled('role') && $user->can('filter teachers by role')) {
-            $query->whereHas(
-                'user.roles',
-                fn($q) =>
+            $query->whereHas('user.roles', fn($q) =>
                 $q->where('name', $request->role)
             );
         }
 
         $teachers = $query->get();
-        $centers  = $this->getAccessibleCenters($user);   // ✅ من الـ Trait
+        $centers  = $this->getAccessibleCenters($user);
         $roles    = Role::orderBy('name')->get();
 
         return view('teachers.index', compact('teachers', 'centers', 'roles'));
@@ -66,7 +63,7 @@ class TeacherController extends Controller
         $this->authorize('create', Teacher::class);
 
         $user    = Auth::user();
-        $centers = $this->getAccessibleCenters($user);    // ✅ من الـ Trait
+        $centers = $this->getAccessibleCenters($user);
 
         $roles = Role::whereNotIn('name', ['admin', 'guardian'])
             ->orderBy('name')
@@ -104,7 +101,7 @@ class TeacherController extends Controller
         $this->authorize('update', $teacher);
 
         $user    = Auth::user();
-        $centers = $this->getAccessibleCenters($user);    // ✅ من الـ Trait
+        $centers = $this->getAccessibleCenters($user);
 
         $teacher->load('user.roles');
 

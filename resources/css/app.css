@@ -3,3 +3,7 @@
 select {
     background-position: left 0.75rem center;
 }
+/* في app.css */
+.form-input {
+    @apply w-full p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36] focus:ring-1 transition-all;
+}

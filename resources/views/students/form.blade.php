@@ -1,8 +1,8 @@
 @php
 $isEdit = isset($student) && $student->exists;
-$construction = $construction ?? $student->constructionDetail ?? null;
-$itqan = $itqan ?? $student->itqanDetail ?? null;
-$ibda = $ibda ?? $student->ibdaDetail ?? null;
+$construction = $construction ?? ($student->constructionDetail ?? null);
+$itqan = $itqan ?? ($student->itqanDetail ?? null);
+$ibda = $ibda ?? ($student->ibdaDetail ?? null);
 
 $regMonth = now()->month;
 $isNextYearReg = ($regMonth >= 7 && $regMonth <= 9);
@@ -15,16 +15,29 @@ $isNextYearReg = ($regMonth >= 7 && $regMonth <= 9);
     'السادس' => 'لا يوجد',
     ];
 
-    $savedGrade = $student->school_grade ?? '';
+    $savedGrade = isset($student) ? ($student->school_grade ?? '') : '';
     $suggestedGrade = ($isNextYearReg && !$isEdit && isset($gradePromotion[$savedGrade]))
     ? $gradePromotion[$savedGrade]
     : $savedGrade;
+
+    $guardianData = null;
+    if (isset($student) && $student->guardian_id && $student->guardian) {
+    $guardianData = [
+    'id' => $student->guardian->id,
+    'name' => $student->guardian->name,
+    'mobile' => $student->guardian->mobile ?? '',
+    'email' => $student->guardian->email ?? '',
+    'is_active' => ($student->guardian->status ?? '') === 'active',
+    ];
+    }
+
+    $guardianQueryName = old(
+    'guardian_name',
+    optional(\App\Models\User::find(old('guardian_id', isset($student) ? $student->guardian_id : '')))->name ?? ''
+    );
     @endphp
 
-
-
     <div id="student-form" class="space-y-8">
-
 
         @if ($errors->any())
         <div class="bg-red-50 border border-red-100 rounded-2xl p-5 space-y-3">
@@ -39,7 +52,7 @@ $isNextYearReg = ($regMonth >= 7 && $regMonth <= 9);
         </div>
         @endif
 
-        <!-- ----------------------------------------- بيانات المشرف والالتحاق ------------------------------------------- -->
+        <!-- ───────────────── بيانات المشرف والالتحاق ───────────────── -->
         <div id="step-1" class="bg-white rounded-3xl shadow-sm border border-gray-100 p-8 space-y-6">
             <div class="flex items-center gap-3 mb-6 border-b border-gray-50 pb-4">
                 <div class="p-3 bg-[#e8f5ed] text-[#0a5c36] rounded-2xl text-xl">📋</div>
@@ -51,30 +64,48 @@ $isNextYearReg = ($regMonth >= 7 && $regMonth <= 9);
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div class="space-y-2">
-                    <label class="block text-sm font-bold text-gray-700">المشرف المقيم / مسجل البيانات <span
-                            class="text-red-500">*</span></label>
-                    <select name="supervisor_id" data-field="supervisor_id" required
+                    <label class="block text-sm font-bold text-gray-700">
+                        المشرف المقيم / مسجل البيانات <span class="text-red-500">*</span>
+                    </label>
+
+                    @if($lockedSupervisor ?? false)
+                    <div class="w-full p-3 bg-gray-100 border border-gray-200 rounded-2xl text-sm font-medium text-gray-700 flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span>
+                        {{ $lockedSupervisor->user?->name ?? $lockedSupervisor->name }}
+                    </div>
+                    <input type="hidden" name="supervisor_id" value="{{ $lockedSupervisor->id }}">
+                    @else
+                    <select name="supervisor_id" data-field="supervisor_id"
                         class="w-full p-3 border rounded-2xl text-sm font-medium focus:outline-none focus:ring-1 transition-all">
-                        <option value="" @selected(old('supervisor_id', $student->supervisor_id ?? '') == '')>-- اختر المشرف --</option>
+                        <option value="{{ old('supervisor_id', $student->supervisor_id ?? '') == '' ? 'selected' : '' }}">
+                            -- اختر المشرف --
+                        </option>
                         @foreach ($supervisors ?? [] as $supervisor)
                         @php
-                        $roleLabel = '';
-                        if (isset($supervisor->role)) {
-                        $roleLabel = $supervisor->role === 'admin' ? 'المدير' : 'مشرف';
-                        } elseif ($supervisor->user && $supervisor->user->roles->count() > 0) {
-                        $roleName = $supervisor->user->roles->first()->name;
-                        $roleLabel = ($roleName === 'admin' || $roleName === 'supervisor') ? 'المدير' : 'مشرف';
-                        } else {
-                        $roleLabel = 'مشرف';
-                        }
+                        $roleName = $supervisor->user?->roles?->first()?->name ?? '';
+                        $roleLabel = match($roleName) {
+                        'admin' => 'المسؤول',
+                        'general_manager' => 'المدير العام',
+                        'manager' => 'مدير فرع',
+                        'supervisor' => 'مشرف',
+                        default => 'مشرف',
+                        };
                         @endphp
-                        <option value="{{ $supervisor->id }}" {{ old('supervisor_id', $student->supervisor_id ?? '') == $supervisor->id ? 'selected' : '' }}>
-                            {{ $supervisor->name }} ({{ $roleLabel }})
+                        <option value="{{ $supervisor->id }}"
+                            {{ old('supervisor_id', $student->supervisor_id ?? '') == $supervisor->id ? 'selected' : '' }}>
+                            {{ $supervisor->user?->name ?? $supervisor->name }} ({{ $roleLabel }})
                         </option>
                         @endforeach
                     </select>
+
+                    @if(($supervisors ?? collect())->isEmpty())
+                    <p class="text-xs text-amber-500 mt-1">لا يوجد مشرفون متاحون</p>
+                    @endif
+                    @endif
+
                     <span data-error-for="supervisor_id" class="hidden text-red-500 text-xs font-medium">هذا الحقل مطلوب</span>
                 </div>
+
                 <div class="space-y-2">
                     <label class="block text-sm font-bold text-gray-700">تاريخ المقابلة / التسجيل</label>
                     <input type="date" name="join_date" data-field="join_date"
@@ -83,10 +114,9 @@ $isNextYearReg = ($regMonth >= 7 && $regMonth <= 9);
                     <span data-error-for="join_date" class="hidden text-red-500 text-xs font-medium">هذا الحقل مطلوب</span>
                 </div>
             </div>
-
         </div>
 
-        <!-- --------------------------------------------------- البيانات الأساسية -------------------------------------- -->
+        <!-- ───────────────── البيانات الأساسية ───────────────── -->
         <div id="step-2" class="bg-white rounded-3xl shadow-sm border border-gray-100 p-8 space-y-6">
             <div class="space-y-6">
                 <div class="flex items-center gap-3 mb-6 border-b border-gray-50 pb-4">
@@ -98,38 +128,20 @@ $isNextYearReg = ($regMonth >= 7 && $regMonth <= 9);
                 </div>
 
                 <div class="space-y-2">
-                    <label class="block text-sm font-bold text-gray-700">مقدم طلب التسجيل <span
-                            class="text-red-500">*</span></label>
+                    <label class="block text-sm font-bold text-gray-700">مقدم طلب التسجيل <span class="text-red-500">*</span></label>
                     <div class="flex flex-wrap gap-4 p-4 bg-gray-50 rounded-2xl border border-gray-100">
+                        @foreach(['الأم', 'الأب', 'الطالب', 'أخرى'] as $applicantOption)
                         <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer">
-                            <input type="radio" name="applicant" value="الأم" data-field="applicant"
-                                @checked(old('applicant', $student->applicant ?? '') == 'الأم')
+                            <input type="radio" name="applicant" value="{{ $applicantOption }}" data-field="applicant"
+                                @checked(old('applicant', $student->applicant ?? '') == $applicantOption)
                             class="rounded-full text-[#0a5c36] focus:ring-[#0a5c36]">
-                            <span>الأم</span>
+                            <span>{{ $applicantOption === 'الطالب' ? 'الطالب نفسه' : $applicantOption }}</span>
                         </label>
-                        <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer">
-                            <input type="radio" name="applicant" value="الأب" data-field="applicant"
-                                @checked(old('applicant', $student->applicant ?? '') == 'الأب')
-                            class="rounded-full text-[#0a5c36] focus:ring-[#0a5c36]">
-                            <span>الأب</span>
-                        </label>
-                        <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer">
-                            <input type="radio" name="applicant" value="الطالب" data-field="applicant"
-                                @checked(old('applicant', $student->applicant ?? '') == 'الطالب')
-                            class="rounded-full text-[#0a5c36] focus:ring-[#0a5c36]">
-                            <span>الطالب نفسه</span>
-                        </label>
-                        <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer">
-                            <input type="radio" name="applicant" value="أخرى" data-field="applicant"
-                                @checked(old('applicant', $student->applicant ?? '') == 'أخرى')
-                            class="rounded-full text-[#0a5c36] focus:ring-[#0a5c36]">
-                            <span>أخرى</span>
-                        </label>
+                        @endforeach
                     </div>
                     @error('applicant')
                     <span class="text-red-500 text-xs mt-1 block font-semibold">{{ $message }}</span>
                     @enderror
-                    {{-- يظهر عند اختيار أخرى --}}
                     <input type="text" name="applicant_other" data-field="applicant_other"
                         value="{{ old('applicant_other', $student->applicant_other ?? '') }}"
                         data-show-when="applicant=أخرى"
@@ -144,12 +156,11 @@ $isNextYearReg = ($regMonth >= 7 && $regMonth <= 9);
                         <input type="text" name="student_code" data-field="student_code"
                             value="{{ old('student_code', $student->student_code ?? $generatedCode ?? '') }}"
                             placeholder="كود الطالب"
-                            class="w-full p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36] focus:ring-1 focus:ring-[#0a5c36] transition-all"
-                            required>
+                            readonly
+                            class="w-full p-3 bg-gray-100 border border-gray-200 rounded-2xl text-sm font-medium text-gray-500 cursor-not-allowed">
                     </div>
                     <div class="space-y-2">
-                        <label class="block text-sm font-bold text-gray-700">اسم الطالب (رباعيًّا) <span
-                                class="text-red-500">*</span></label>
+                        <label class="block text-sm font-bold text-gray-700">اسم الطالب (رباعيًّا) <span class="text-red-500">*</span></label>
                         <input type="text" name="name" data-field="name" placeholder="الاسم الرباعي كاملًا"
                             value="{{ old('name', $student->name ?? '') }}"
                             class="w-full p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36] focus:ring-1 focus:ring-[#0a5c36] transition-all"
@@ -162,21 +173,16 @@ $isNextYearReg = ($regMonth >= 7 && $regMonth <= 9);
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div class="space-y-2">
-                        <label class="block text-sm font-bold text-gray-700">النوع <span
-                                class="text-red-500">*</span></label>
+                        <label class="block text-sm font-bold text-gray-700">النوع <span class="text-red-500">*</span></label>
                         <div class="flex gap-6 p-3 bg-gray-50 rounded-2xl border border-gray-100">
+                            @foreach(['ذكر', 'أنثى'] as $genderOption)
                             <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer">
-                                <input type="radio" name="gender" value="ذكر" data-field="gender"
-                                    @checked(old('gender', $student->gender ?? '') == 'ذكر')
+                                <input type="radio" name="gender" value="{{ $genderOption }}" data-field="gender"
+                                    @checked(old('gender', $student->gender ?? '') == $genderOption)
                                 class="text-[#0a5c36] focus:ring-[#0a5c36]" required>
-                                <span>ذكر</span>
+                                <span>{{ $genderOption }}</span>
                             </label>
-                            <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer">
-                                <input type="radio" name="gender" value="أنثى" data-field="gender"
-                                    @checked(old('gender', $student->gender ?? '') == 'أنثى')
-                                class="text-[#0a5c36] focus:ring-[#0a5c36]" required>
-                                <span>أنثى</span>
-                            </label>
+                            @endforeach
                         </div>
                         @error('gender')
                         <span class="text-red-500 text-xs mt-1 block font-semibold">{{ $message }}</span>
@@ -196,8 +202,7 @@ $isNextYearReg = ($regMonth >= 7 && $regMonth <= 9);
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div class="space-y-2">
-                        <label class="block text-sm font-bold text-gray-700">العنوان التفصيلي (المركز - القرية - الشارع)
-                            <span class="text-red-500">*</span></label>
+                        <label class="block text-sm font-bold text-gray-700">العنوان التفصيلي <span class="text-red-500">*</span></label>
                         <input type="text" name="address" data-field="address"
                             value="{{ old('address', $student->address ?? '') }}"
                             placeholder="مثال: الشرقية - ههيا - قرية صبيح"
@@ -208,9 +213,8 @@ $isNextYearReg = ($regMonth >= 7 && $regMonth <= 9);
                         @enderror
                     </div>
                     <div class="space-y-2">
-                        <label class="block text-sm font-bold text-gray-700">المركز فرع <span
-                                class="text-red-500">*</span></label>
-                        <select name="center_id" ...>
+                        <label class="block text-sm font-bold text-gray-700">المركز فرع <span class="text-red-500">*</span></label>
+                        <select name="center_id" class="w-full p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36] focus:ring-1 focus:ring-[#0a5c36] transition-all appearance-none">
                             @foreach($centers ?? [] as $center)
                             <option value="{{ $center->id }}"
                                 @selected(old('center_id', $student->center_id ?? '') == $center->id)>
@@ -218,7 +222,7 @@ $isNextYearReg = ($regMonth >= 7 && $regMonth <= 9);
                             </option>
                             @endforeach
                         </select>
-                        @error('center')
+                        @error('center_id')
                         <span class="text-red-500 text-xs mt-1 block font-semibold">{{ $message }}</span>
                         @enderror
                     </div>
@@ -233,19 +237,22 @@ $isNextYearReg = ($regMonth >= 7 && $regMonth <= 9);
                             value="{{ old('whatsapp_number', $student->whatsapp_number ?? '') }}"
                             id="whatsappInput"
                             placeholder="01xxxxxxxxx"
+                            inputmode="numeric"
+                            pattern="[0-9]*"
+                            oninput="this.value = this.value.replace(/[^0-9]/g, '')"
                             class="w-full p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36] focus:ring-1 focus:ring-[#0a5c36] transition-all">
                         @error('whatsapp_number')
                         <span class="text-red-500 text-xs mt-1 block font-semibold">{{ $message }}</span>
                         @enderror
-                        {{-- مؤشر نتيجة البحث --}}
-                        <div id="guardianSearchResult" class="hidden mt-1 text-xs font-semibold px-2 py-1 rounded-xl"></div>
                     </div>
-
                     <div class="space-y-2">
                         <label class="block text-sm font-bold text-gray-700">رقم اتصال إضافي</label>
                         <input type="tel" name="second_phone" data-field="second_phone"
                             value="{{ old('second_phone', $student->second_phone ?? '') }}"
                             placeholder="01xxxxxxxxx"
+                            inputmode="numeric"
+                            pattern="[0-9]*"
+                            oninput="this.value = this.value.replace(/[^0-9]/g, '')"
                             class="w-full p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36] focus:ring-1 focus:ring-[#0a5c36] transition-all">
                         @error('second_phone')
                         <span class="text-red-500 text-xs mt-1 block font-semibold">{{ $message }}</span>
@@ -254,160 +261,189 @@ $isNextYearReg = ($regMonth >= 7 && $regMonth <= 9);
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    @foreach([
+                    ['name' => 'whatsapp_owner', 'label' => 'صاحب رقم الواتساب', 'other_name' => 'whatsapp_owner_other'],
+                    ['name' => 'additional_contact_owner', 'label' => 'صاحب الرقم الإضافي', 'other_name' => 'additional_contact_owner_other'],
+                    ] as $ownerField)
                     <div class="space-y-2">
-                        <label class="block text-sm font-bold text-gray-700">صاحب رقم الواتساب</label>
+                        <label class="block text-sm font-bold text-gray-700">{{ $ownerField['label'] }}</label>
                         <div class="flex flex-wrap gap-4 p-3 bg-gray-50 rounded-2xl border border-gray-100">
+                            @foreach(['الأم', 'الأب', 'الطالب', 'أخرى'] as $ownerOption)
                             <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer">
-                                <input type="radio" name="whatsapp_owner" value="الأم" data-field="whatsapp_owner"
-                                    @checked(old('whatsapp_owner', $student->whatsapp_owner ?? '') == 'الأم')
+                                <input type="radio" name="{{ $ownerField['name'] }}" value="{{ $ownerOption }}"
+                                    data-field="{{ $ownerField['name'] }}"
+                                    @checked(old($ownerField['name'], $student->{$ownerField['name']} ?? '') == $ownerOption)
                                 class="text-[#0a5c36] focus:ring-[#0a5c36]">
-                                <span>الأم</span>
+                                <span>{{ $ownerOption }}</span>
                             </label>
-                            <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer">
-                                <input type="radio" name="whatsapp_owner" value="الأب" data-field="whatsapp_owner"
-                                    @checked(old('whatsapp_owner', $student->whatsapp_owner ?? '') == 'الأب')
-                                class="text-[#0a5c36] focus:ring-[#0a5c36]">
-                                <span>الأب</span>
-                            </label>
-                            <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer">
-                                <input type="radio" name="whatsapp_owner" value="الطالب" data-field="whatsapp_owner"
-                                    @checked(old('whatsapp_owner', $student->whatsapp_owner ?? '') == 'الطالب')
-                                class="text-[#0a5c36] focus:ring-[#0a5c36]">
-                                <span>الطالب</span>
-                            </label>
-                            <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer">
-                                <input type="radio" name="whatsapp_owner" value="أخرى" data-field="whatsapp_owner"
-                                    @checked(old('whatsapp_owner', $student->whatsapp_owner ?? '') == 'أخرى')
-                                class="text-[#0a5c36] focus:ring-[#0a5c36]">
-                                <span>أخرى</span>
-                            </label>
+                            @endforeach
                         </div>
-                        @error('whatsapp_owner')
-                        <span class="text-red-500 text-xs mt-1 block font-semibold">{{ $message }}</span>
-                        @enderror
-                        {{-- يظهر عند اختيار أخرى --}}
-                        <input type="text" name="whatsapp_owner_other" data-field="whatsapp_owner_other"
-                            value="{{ old('whatsapp_owner_other', $student->whatsapp_owner_other ?? '') }}"
-                            data-show-when="whatsapp_owner=أخرى"
+                        <input type="text" name="{{ $ownerField['other_name'] }}"
+                            value="{{ old($ownerField['other_name'], $student->{$ownerField['other_name']} ?? '') }}"
+                            data-show-when="{{ $ownerField['name'] }}=أخرى"
                             placeholder="يرجى التحديد..."
                             class="w-full mt-2 p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36]"
                             style="display:none;">
                     </div>
-                    <div class="space-y-2">
-                        <label class="block text-sm font-bold text-gray-700">صاحب الرقم الإضافي</label>
-                        <div class="flex flex-wrap gap-4 p-3 bg-gray-50 rounded-2xl border border-gray-100">
-                            <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer">
-                                <input type="radio" name="additional_contact_owner" value="الأم" data-field="additional_contact_owner"
-                                    @checked(old('additional_contact_owner', $student->additional_contact_owner ?? '') == 'الأم')
-                                class="text-[#0a5c36] focus:ring-[#0a5c36]">
-                                <span>الأم</span>
-                            </label>
-                            <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer">
-                                <input type="radio" name="additional_contact_owner" value="الأب" data-field="additional_contact_owner"
-                                    @checked(old('additional_contact_owner', $student->additional_contact_owner ?? '') == 'الأب')
-                                class="text-[#0a5c36] focus:ring-[#0a5c36]">
-                                <span>الأب</span>
-                            </label>
-                            <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer">
-                                <input type="radio" name="additional_contact_owner" value="الطالب" data-field="additional_contact_owner"
-                                    @checked(old('additional_contact_owner', $student->additional_contact_owner ?? '') == 'الطالب')
-                                class="text-[#0a5c36] focus:ring-[#0a5c36]">
-                                <span>الطالب</span>
-                            </label>
-                            <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer">
-                                <input type="radio" name="additional_contact_owner" value="أخرى" data-field="additional_contact_owner"
-                                    @checked(old('additional_contact_owner', $student->additional_contact_owner ?? '') == 'أخرى')
-                                class="text-[#0a5c36] focus:ring-[#0a5c36]">
-                                <span>أخرى</span>
-                            </label>
-                        </div>
-                        @error('additional_contact_owner')
-                        <span class="text-red-500 text-xs mt-1 block font-semibold">{{ $message }}</span>
-                        @enderror
-                        {{-- يظهر عند اختيار أخرى --}}
-                        <input type="text" name="additional_contact_owner_other" data-field="additional_contact_owner_other"
-                            value="{{ old('additional_contact_owner_other', $student->additional_contact_owner_other ?? '') }}"
-                            data-show-when="additional_contact_owner=أخرى"
-                            placeholder="يرجى التحديد..."
-                            class="w-full mt-2 p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36]"
-                            style="display:none;">
-                    </div>
+                    @endforeach
                 </div>
 
-                {{-- ====== تعديل 1 و 2: حقل ولي الأمر مع البحث + خيار أخرى ====== --}}
+                {{-- ───── ولي الأمر ───── --}}
                 <div class="space-y-2">
-                    <label class="block text-sm font-bold text-gray-700">تحديد ولي الأمر <span
-                            class="text-red-500">*</span></label>
-                    <select name="guardian_id" id="guardianSelect" data-field="guardian_id" required
-                        class="w-full p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36] focus:ring-1 focus:ring-[#0a5c36] transition-all">
-                        <option value="new" @selected(old('guardian_id', $student->guardian_id ?? '') == 'new')>+ إضافة ولي أمر جديد</option>
-                        <option value="other" @selected(old('guardian_id', $student->guardian_id ?? '') == 'other')>✏️ أخرى (إدخال يدوي)</option>
-                        @foreach($guardians as $guardian)
-                        <option value="{{ $guardian->id }}" @selected(old('guardian_id', $student->guardian_id ?? '') == $guardian->id)>{{ $guardian->name }} ({{ $guardian->email }})</option>
-                        @endforeach
-                    </select>
+                    <label class="block text-sm font-bold text-gray-700">
+                        تحديد ولي الأمر <span class="text-red-500">*</span>
+                    </label>
+
+                    <div class="relative" x-data="guardianSearch()">
+
+                        {{-- حقل البحث --}}
+                        <div class="relative">
+                            <input type="text" id="guardianSearchInput"
+                                x-model="query"
+                                @input.debounce.400ms="search()"
+                                @focus="if(query.length >= 2) search()"
+                                @click.outside="results = []"
+                                placeholder="ابحث بالاسم، الهاتف، الإيميل، أو رقم الحساب..."
+                                autocomplete="off"
+                                class="w-full p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36] focus:ring-1 focus:ring-[#0a5c36] transition-all">
+
+                            {{-- مؤشر التحميل --}}
+                            <div x-show="searching" class="absolute left-3 top-1/2 -translate-y-1/2">
+                                <svg class="animate-spin h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+                                </svg>
+                            </div>
+                        </div>
+
+                        {{-- نتائج البحث --}}
+                        <div x-show="results.length > 0"
+                            class="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-2xl shadow-lg overflow-hidden">
+                            <template x-for="guardian in results" :key="guardian.id">
+                                <div @click="select(guardian)"
+                                    class="px-4 py-3 hover:bg-emerald-50 cursor-pointer flex justify-between items-center border-b border-gray-50 last:border-0">
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-xs font-mono bg-gray-100 text-gray-500 px-2 py-0.5 rounded-lg"
+                                            x-text="'#' + guardian.id"></span>
+                                        <span class="font-bold text-gray-800 text-sm" x-text="guardian.name"></span>
+                                        {{-- ✅ مؤشر حالة الحساب --}}
+                                        <span x-show="guardian.is_active"
+                                            class="text-xs bg-emerald-100 text-emerald-600 px-1.5 py-0.5 rounded-md font-medium">نشط</span>
+                                        <span x-show="!guardian.is_active"
+                                            class="text-xs bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded-md font-medium">غير نشط</span>
+                                    </div>
+                                    <div class="flex flex-col items-end gap-0.5">
+                                        <span class="text-gray-500 text-xs font-medium"
+                                            x-text="guardian.mobile ? '📱 ' + guardian.mobile : ''"></span>
+                                        <span class="text-gray-400 text-xs"
+                                            x-text="guardian.email ? '🔑 ' + guardian.email : ''"></span>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+
+                        {{-- ✅ رسالة لا نتائج --}}
+                        <div x-show="noResults && !searching && query.length >= 2"
+                            class="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-2xl shadow-lg p-3 text-sm text-gray-500 text-center">
+                            لم يُعثر على ولي أمر — يمكنك إضافة حساب جديد
+                        </div>
+
+                        {{-- ولي الأمر المختار --}}
+                        <div x-show="selected"
+                            class="mt-2 px-3 py-2 bg-emerald-50 border border-emerald-100 rounded-xl flex justify-between items-center">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <span class="text-xs font-mono bg-emerald-100 text-emerald-600 px-2 py-0.5 rounded-lg"
+                                    x-text="selected?.id ? '#' + selected.id : ''"></span>
+                                <span class="text-emerald-700 text-sm font-bold"
+                                    x-text="'✅ ' + (selected?.name ?? '')"></span>
+                                {{-- ✅ تحذير إذا الحساب غير نشط --}}
+                                <span x-show="selected?.is_active === false"
+                                    class="text-xs bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded-md font-medium">
+                                    ⚠️ غير نشط
+                                </span>
+                                <template x-if="selected?.mobile">
+                                    <span class="text-emerald-500 text-xs font-medium"
+                                        x-text="'· 📱 ' + selected.mobile"></span>
+                                </template>
+                                <template x-if="selected?.email && !selected?.mobile">
+                                    <span class="text-emerald-400 text-xs"
+                                        x-text="'· 🔑 ' + selected.email"></span>
+                                </template>
+                            </div>
+                            <button type="button" @click="clear()"
+                                class="text-gray-400 hover:text-red-500 text-xs mr-2">✕ تغيير</button>
+                        </div>
+
+                        {{-- أزرار الإضافة --}}
+                        <div x-show="!selected" class="mt-2 flex gap-4">
+                            <button type="button" @click="createNew()"
+                                class="text-sm text-emerald-600 font-bold hover:underline">
+                                + إضافة ولي أمر جديد
+                            </button>
+                            <button type="button" @click="skipGuardian()"
+                                class="text-sm text-gray-500 font-bold hover:underline">
+                                تسجيل بدون ولي أمر حاليًا
+                            </button>
+                        </div>
+                    </div>
+
+                    {{-- hidden input --}}
+                    <input type="hidden" name="guardian_id" id="guardianIdInput"
+                        value="{{ old('guardian_id', $student->guardian_id ?? '') }}">
+
                     @error('guardian_id')
                     <span class="text-red-500 text-xs mt-1 block font-semibold">{{ $message }}</span>
                     @enderror
 
-                    {{-- تعديل 2: حقل الإدخال اليدوي عند اختيار "أخرى" --}}
-                    <input type="text" name="guardian_name_manual" data-field="guardian_name_manual"
-                        value="{{ old('guardian_name_manual', $student->guardian_name_manual ?? '') }}"
-                        data-show-when="guardian_id=other"
-                        placeholder="اكتب اسم ولي الأمر يدوياً..."
-                        class="w-full mt-2 p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36] focus:ring-1 focus:ring-[#0a5c36] transition-all"
-                        style="display:none;">
-                </div>
+                    {{-- حقول إنشاء حساب جديد --}}
+                    <div id="newGuardianFields" class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2" style="display:none;">
 
-                {{-- حقول إنشاء حساب جديد — تظهر عند اختيار "new" --}}
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2" data-show-when="guardian_id=new" style="display:none;">
-                    <div class="space-y-2">
-                        <div class="flex justify-between items-center">
-                            <label class="block text-sm font-bold text-gray-700">اسم المستخدم / البريد الإلكتروني <span
-                                    class="text-red-500">*</span></label>
+                        {{-- ✅ تنبيه وجود حساب مطابق --}}
+                        <div id="guardianExistsAlert" class="md:col-span-2 hidden">
+                            <div class="p-3 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-700 font-medium">
+                                ⚠️ يوجد حساب مطابق لهذا الإيميل أو الهاتف —
+                                <button type="button" onclick="useExistingGuardian()"
+                                    class="underline font-bold">استخدامه بدلاً من إنشاء جديد</button>
+                            </div>
                         </div>
-                        <div class="relative">
-                            <input type="text" name="parent_email" id="parentEmailInput" data-field="parent_email"
+
+                        <div class="space-y-2 md:col-span-2">
+                            <label class="block text-sm font-bold text-gray-700">
+                                اسم ولي الأمر <span class="text-red-500">*</span>
+                            </label>
+                            <input type="text" name="guardian_name" id="guardianNameInput"
+                                value="{{ old('guardian_name') }}"
+                                placeholder="اسم ولي الأمر كاملًا"
+                                class="w-full p-3 bg-gray-50 border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36] focus:ring-1 focus:ring-[#0a5c36] transition-all">
+                        </div>
+
+                        <div class="space-y-2">
+                            <label class="block text-sm font-bold text-gray-700">
+                                البريد الإلكتروني <span class="text-red-500">*</span>
+                            </label>
+                            {{-- ✅ إضافة @blur لفحص وجود الحساب --}}
+                            <input type="email" name="parent_email" id="parentEmailInput"
                                 value="{{ old('parent_email') }}"
-                                placeholder="سيتم ملؤه تلقائياً برقم الواتساب"
-                                class="w-full p-3 bg-gray-50/80 border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36] focus:ring-1 focus:ring-[#0a5c36] transition-all ltr"
-                                data-required-when="guardian_id=new">
-                            <div class="absolute left-3 top-3.5 text-gray-300 pointer-events-none">✉️</div>
+                                placeholder="example@email.com"
+                                onblur="checkGuardianExists()"
+                                class="w-full p-3 bg-gray-50 border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36] focus:ring-1 focus:ring-[#0a5c36] transition-all">
+                            {{-- ✅ نتيجة الفحص --}}
+                            <div id="emailCheckResult" class="hidden text-xs font-medium mt-1"></div>
                         </div>
-                        @error('parent_email')
-                        <span class="text-red-500 text-xs mt-1 block font-semibold">{{ $message }}</span>
-                        @enderror
-                    </div>
 
-                    <div class="space-y-2">
-                        <div class="flex justify-between items-
-                        ">
-                            <label class="block text-sm font-bold text-gray-700">كلمة المرور للحساب <span
-                                    class="text-red-500">*</span></label>
+                        <div class="space-y-2">
+                            <label class="block text-sm font-bold text-gray-700">كلمة المرور</label>
+                            {{-- ✅ بدون value لمنع ظهورها في الـ source --}}
+                            <input type="password" name="password" id="passwordInput"
+                                placeholder="اتركها فارغة للتوليد التلقائي"
+                                class="w-full p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36] focus:ring-1 focus:ring-[#0a5c36] transition-all">
                         </div>
-                        <div class="relative">
-                            <div class="absolute right-3 top-3.5 text-gray-400 pointer-events-none text-xs">🔒</div>
-                            <input type="password" id="passwordInput" name="password" data-field="password"
-                                value="{{ old('password') }}"
-                                placeholder="سيتم ملؤها تلقائياً برقم الواتساب"
-                                class="w-full p-3 pr-10 pl-10 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36] focus:ring-1 focus:ring-[#0a5c36] transition-all ltr"
-                                data-required-when="guardian_id=new">
-                            <button type="button" data-action="togglePassword"
-                                class="absolute left-3 top-2.5 p-1 text-gray-400 hover:text-[#0a5c36] focus:outline-none transition-colors text-sm">
-                                <span id="passwordShowIcon">👁️</span>
-                                <span id="passwordHideIcon" style="display:none;">🙈</span>
-                            </button>
-                        </div>
-                        @error('password')
-                        <span class="text-red-500 text-xs mt-1 block font-semibold">{{ $message }}</span>
-                        @enderror
                     </div>
                 </div>
-
             </div>
         </div>
 
-        <!-- --------------------------------------------------- البيانات الدراسية -------------------------------------- -->
+        <!-- ───────────────── البيانات الدراسية ───────────────── -->
         <div id="step-3" class="bg-white rounded-3xl shadow-sm border border-gray-100 p-8 space-y-6">
             <div class="flex items-center gap-3 mb-6 border-b border-gray-50 pb-4">
                 <div class="p-3 bg-emerald-50 text-[#0a5c36] rounded-2xl text-xl">🎓</div>
@@ -419,27 +455,24 @@ $isNextYearReg = ($regMonth >= 7 && $regMonth <= 9);
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div class="space-y-2">
-                    <label class="block text-sm font-bold text-gray-700">المرحلة الدراسية <span
-                            class="text-red-500">*</span></label>
+                    <label class="block text-sm font-bold text-gray-700">المرحلة الدراسية <span class="text-red-500">*</span></label>
                     <select name="educational_stage" data-field="educational_stage"
                         class="w-full p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36] focus:ring-1 focus:ring-[#0a5c36] transition-all appearance-none"
                         required>
                         <option value="" @selected(old('educational_stage', $student->educational_stage ?? '') == '')>-- اختر المرحلة --</option>
-                        <option value="تمهيدي" @selected(old('educational_stage', $student->educational_stage ?? '') == 'تمهيدي')>تمهيدي</option>
-                        <option value="حضانة" @selected(old('educational_stage', $student->educational_stage ?? '') == 'حضانة')>حضانة</option>
-                        <option value="ابتدائي" @selected(old('educational_stage', $student->educational_stage ?? '') == 'ابتدائي')>ابتدائي</option>
-                        <option value="اعدادي" @selected(old('educational_stage', $student->educational_stage ?? '') == 'اعدادي')>اعدادي</option>
-                        <option value="ثانوي" @selected(old('educational_stage', $student->educational_stage ?? '') == 'ثانوي')>ثانوي</option>
-                        <option value="جامعي" @selected(old('educational_stage', $student->educational_stage ?? '') == 'جامعي')>جامعي</option>
-                        <option value="خريج" @selected(old('educational_stage', $student->educational_stage ?? '') == 'خريج')>خريج</option>
+                        @foreach(['تمهيدي', 'حضانة', 'ابتدائي', 'اعدادي', 'ثانوي', 'جامعي', 'خريج'] as $stage)
+                        <option value="{{ $stage }}" @selected(old('educational_stage', $student->educational_stage ?? '') == $stage)>
+                            {{ $stage }}
+                        </option>
+                        @endforeach
                     </select>
                     @error('educational_stage')
                     <span class="text-red-500 text-xs mt-1 block font-semibold">{{ $message }}</span>
                     @enderror
                 </div>
+
                 <div class="space-y-2">
-                    <label class="block text-sm font-bold text-gray-700">نوع التعليم <span
-                            class="text-red-500">*</span></label>
+                    <label class="block text-sm font-bold text-gray-700">نوع التعليم <span class="text-red-500">*</span></label>
                     <select name="education_type" data-field="education_type"
                         class="w-full p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36] focus:ring-1 focus:ring-[#0a5c36] transition-all appearance-none"
                         required>
@@ -455,9 +488,7 @@ $isNextYearReg = ($regMonth >= 7 && $regMonth <= 9);
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div class="space-y-2">
-                    <label class="block text-sm font-bold text-gray-700">الصف الدراسي <span
-                            class="text-red-500">*</span></label>
-                    {{-- ====== تعديل 3: الصف المقترح بمراعاة السنة المصرية ====== --}}
+                    <label class="block text-sm font-bold text-gray-700">الصف الدراسي <span class="text-red-500">*</span></label>
                     @if($isNextYearReg && !$isEdit && isset($gradePromotion[$savedGrade]))
                     <div class="mb-1 text-xs text-amber-600 font-semibold bg-amber-50 px-3 py-1.5 rounded-xl border border-amber-100">
                         ⚠️ موسم تسجيل — الصف المقترح للعام الجديد: {{ $gradePromotion[$savedGrade] }}
@@ -467,14 +498,9 @@ $isNextYearReg = ($regMonth >= 7 && $regMonth <= 9);
                         class="w-full p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36] focus:ring-1 focus:ring-[#0a5c36] transition-all appearance-none"
                         required>
                         <option value="" @selected(old('school_grade', $suggestedGrade)=='' )>-- اختر الصف --</option>
-                        <option value="لا يوجد" @selected(old('school_grade', $suggestedGrade)=='لا يوجد' )>لا يوجد</option>
-                        <option value="الأول" @selected(old('school_grade', $suggestedGrade)=='الأول' )>الأول</option>
-                        <option value="الثاني" @selected(old('school_grade', $suggestedGrade)=='الثاني' )>الثاني</option>
-                        <option value="الثالث" @selected(old('school_grade', $suggestedGrade)=='الثالث' )>الثالث</option>
-                        <option value="الرابع" @selected(old('school_grade', $suggestedGrade)=='الرابع' )>الرابع</option>
-                        <option value="الخامس" @selected(old('school_grade', $suggestedGrade)=='الخامس' )>الخامس</option>
-                        <option value="السادس" @selected(old('school_grade', $suggestedGrade)=='السادس' )>السادس</option>
-                        <option value="دراسات عليا" @selected(old('school_grade', $suggestedGrade)=='دراسات عليا' )>دراسات عليا</option>
+                        @foreach(['لا يوجد', 'الأول', 'الثاني', 'الثالث', 'الرابع', 'الخامس', 'السادس', 'دراسات عليا'] as $grade)
+                        <option value="{{ $grade }}" @selected(old('school_grade', $suggestedGrade)==$grade)>{{ $grade }}</option>
+                        @endforeach
                     </select>
                     @error('school_grade')
                     <span class="text-red-500 text-xs mt-1 block font-semibold">{{ $message }}</span>
@@ -482,8 +508,7 @@ $isNextYearReg = ($regMonth >= 7 && $regMonth <= 9);
                 </div>
 
                 <div class="space-y-2">
-                    <label class="block text-sm font-bold text-gray-700">المؤسسة التعليمية (الحضانة / المدرسة / المعهد /
-                        الكلية) <span class="text-red-500">*</span></label>
+                    <label class="block text-sm font-bold text-gray-700">المؤسسة التعليمية <span class="text-red-500">*</span></label>
                     <input type="text" name="previous_school" data-field="previous_school"
                         value="{{ old('previous_school', $student->previous_school ?? '') }}"
                         placeholder="اسم المؤسسة التعليمية بالكامل"
@@ -494,10 +519,9 @@ $isNextYearReg = ($regMonth >= 7 && $regMonth <= 9);
                     @enderror
                 </div>
             </div>
-
         </div>
 
-        <!-- --------------------------------------------------- الحالة الصحية للطالب -------------------------------------- -->
+        <!-- ───────────────── بيانات الرعاية الطلابية ───────────────── -->
         <div id="step-4" class="bg-white rounded-3xl shadow-sm border border-gray-100 p-8 space-y-6">
             <div class="flex items-center gap-3 mb-6 border-b border-gray-50 pb-4">
                 <div class="p-3 bg-emerald-50 text-[#0a5c36] rounded-2xl text-xl">💚</div>
@@ -507,139 +531,55 @@ $isNextYearReg = ($regMonth >= 7 && $regMonth <= 9);
                 </div>
             </div>
 
+            @foreach([
+            ['field' => 'health_status', 'label' => 'الحالة الصحية للطالب', 'options' => [['value' => 'طبيعية', 'label' => 'طبيعية (الحمد لله)'], ['value' => 'أخرى', 'label' => 'أخرى']], 'other_field' => 'health_status_other', 'other_placeholder' => 'يرجى توضيح الحالة الصحية...'],
+            ['field' => 'learning_difficulties', 'label' => 'صعوبات التعلم', 'options' => [['value' => 'لا يوجد', 'label' => 'لا يوجد (الحمد لله)'], ['value' => 'أخرى', 'label' => 'أخرى']], 'other_field' => 'learning_difficulties_other', 'other_placeholder' => 'يرجى توضيح صعوبات التعلم...'],
+            ['field' => 'personal_traits', 'label' => 'السمات الشخصية', 'options' => [['value' => 'لا يوجد', 'label' => 'لا يوجد'], ['value' => 'أخرى', 'label' => 'أخرى']], 'other_field' => 'personal_traits_other', 'other_placeholder' => 'يرجى تحديد السمات البارزة (عنيد، خجول...)'],
+            ] as $radioGroup)
             <div class="space-y-2">
-                <label class="block text-sm font-bold text-gray-700">الحالة الصحية للطالب <span
-                        class="text-red-500">*</span></label>
+                <label class="block text-sm font-bold text-gray-700">{{ $radioGroup['label'] }} <span class="text-red-500">*</span></label>
                 <div class="flex gap-6 p-3 bg-gray-50 rounded-2xl border border-gray-100">
+                    @foreach($radioGroup['options'] as $opt)
                     <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer">
-                        <input type="radio" name="health_status" value="طبيعية" data-field="health_status"
-                            @checked(old('health_status', $student->health_status ?? '') == 'طبيعية') required>
-                        <span>طبيعية (الحمد لله)</span>
+                        <input type="radio" name="{{ $radioGroup['field'] }}" value="{{ $opt['value'] }}"
+                            data-field="{{ $radioGroup['field'] }}"
+                            @checked(old($radioGroup['field'], $student->{$radioGroup['field']} ?? '') == $opt['value'])
+                        required>
+                        <span>{{ $opt['label'] }}</span>
                     </label>
-                    <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer">
-                        <input type="radio" name="health_status" value="أخرى" data-field="health_status"
-                            @checked(old('health_status', $student->health_status ?? '') == 'أخرى') required>
-                        <span>أخرى</span>
-                    </label>
+                    @endforeach
                 </div>
-                @error('health_status')
+                @error($radioGroup['field'])
                 <span class="text-red-500 text-xs mt-1 block font-semibold">{{ $message }}</span>
                 @enderror
-                {{-- يظهر عند اختيار أخرى --}}
-                <input type="text" name="health_status_other" data-field="health_status_other"
-                    value="{{ old('health_status_other', $student->health_status_other ?? '') }}"
-                    data-show-when="health_status=أخرى"
-                    placeholder="يرجى توضيح الحالة الصحية..."
+                <input type="text" name="{{ $radioGroup['other_field'] }}"
+                    value="{{ old($radioGroup['other_field'], $student->{$radioGroup['other_field']} ?? '') }}"
+                    data-show-when="{{ $radioGroup['field'] }}=أخرى"
+                    placeholder="{{ $radioGroup['other_placeholder'] }}"
                     class="w-full mt-2 p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36] focus:ring-1 focus:ring-[#0a5c36] transition-all"
                     style="display:none;">
             </div>
+            @endforeach
 
             <div class="space-y-2">
-                <label class="block text-sm font-bold text-gray-700">صعوبات التعلم <span
-                        class="text-red-500">*</span></label>
-                <div class="flex gap-6 p-3 bg-gray-50 rounded-2xl border border-gray-100">
-                    <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer">
-                        <input type="radio" name="learning_difficulties" value="لا يوجد" data-field="learning_difficulties"
-                            @checked(old('learning_difficulties', $student->learning_difficulties ?? '') == 'لا يوجد') required>
-                        <span>لا يوجد (الحمد لله)</span>
-                    </label>
-                    <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer">
-                        <input type="radio" name="learning_difficulties" value="أخرى" data-field="learning_difficulties"
-                            @checked(old('learning_difficulties', $student->learning_difficulties ?? '') == 'أخرى') required>
-                        <span>أخرى</span>
-                    </label>
-                </div>
-                @error('learning_difficulties')
-                <span class="text-red-500 text-xs mt-1 block font-semibold">{{ $message }}</span>
-                @enderror
-                {{-- يظهر عند اختيار أخرى --}}
-                <input type="text" name="learning_difficulties_other" data-field="learning_difficulties_other"
-                    value="{{ old('learning_difficulties_other', $student->learning_difficulties_other ?? '') }}"
-                    data-show-when="learning_difficulties=أخرى"
-                    placeholder="يرجى توضيح صعوبات التعلم..."
-                    class="w-full mt-2 p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36] focus:ring-1 focus:ring-[#0a5c36] transition-all"
-                    style="display:none;">
-            </div>
-
-            <div class="space-y-2">
-                <label class="block text-sm font-bold text-gray-700">السمات الشخصية <span
-                        class="text-red-500">*</span></label>
-                <div class="flex gap-6 p-3 bg-gray-50 rounded-2xl border border-gray-100">
-                    <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer">
-                        <input type="radio" name="personal_traits" value="لا يوجد" data-field="personal_traits"
-                            @checked(old('personal_traits', $student->personal_traits ?? '') == 'لا يوجد') required>
-                        <span>لا يوجد</span>
-                    </label>
-                    <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer">
-                        <input type="radio" name="personal_traits" value="أخرى" data-field="personal_traits"
-                            @checked(old('personal_traits', $student->personal_traits ?? '') == 'أخرى') required>
-                        <span>أخرى</span>
-                    </label>
-                </div>
-                @error('personal_traits')
-                <span class="text-red-500 text-xs mt-1 block font-semibold">{{ $message }}</span>
-                @enderror
-                {{-- يظهر عند اختيار أخرى --}}
-                <input type="text" name="personal_traits_other" data-field="personal_traits_other"
-                    value="{{ old('personal_traits_other', $student->personal_traits_other ?? '') }}"
-                    data-show-when="personal_traits=أخرى"
-                    placeholder="يرجى تحديد السمات البارزة (عنيد، خجول...)"
-                    class="w-full mt-2 p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36] focus:ring-1 focus:ring-[#0a5c36] transition-all"
-                    style="display:none;">
-            </div>
-
-            <div class="space-y-2">
-                <label class="block text-sm font-bold text-gray-700">الهواية المفضلة <span
-                        class="text-red-500">*</span></label>
+                <label class="block text-sm font-bold text-gray-700">الهواية المفضلة <span class="text-red-500">*</span></label>
                 <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 p-4 bg-gray-50 rounded-2xl border border-gray-100">
                     @php
                     $savedHobbies = old('hobbies', $student->hobbies ?? []);
                     if (is_string($savedHobbies)) $savedHobbies = json_decode($savedHobbies, true) ?? [];
+                    $hobbiesList = ['كرة القدم', 'الكاراتيه', 'الرسم', 'البرمجة والألعاب الإلكترونية', 'الأشغال اليدوية', 'القراءة والإطلاع', 'أخرى'];
                     @endphp
+                    @foreach($hobbiesList as $hobby)
                     <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer">
-                        <input type="checkbox" name="hobbies[]" value="كرة القدم" data-field="hobbies"
-                            @checked(in_array('كرة القدم', $savedHobbies))
+                        <input type="checkbox" name="hobbies[]" value="{{ $hobby }}"
+                            data-field="hobbies"
+                            @if($hobby==='أخرى' ) id="hobbyOtherCheckbox" @endif
+                            @checked(in_array($hobby, $savedHobbies))
                             class="rounded text-[#0a5c36] focus:ring-[#0a5c36]">
-                        <span>كرة القدم</span>
+                        <span>{{ $hobby === 'البرمجة والألعاب الإلكترونية' ? 'البرمجة والألعاب' : ($hobby === 'القراءة والإطلاع' ? 'القراءة' : $hobby) }}</span>
                     </label>
-                    <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer">
-                        <input type="checkbox" name="hobbies[]" value="الكاراتيه" data-field="hobbies"
-                            @checked(in_array('الكاراتيه', $savedHobbies))
-                            class="rounded text-[#0a5c36] focus:ring-[#0a5c36]">
-                        <span>الكاراتيه</span>
-                    </label>
-                    <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer">
-                        <input type="checkbox" name="hobbies[]" value="الرسم" data-field="hobbies"
-                            @checked(in_array('الرسم', $savedHobbies))
-                            class="rounded text-[#0a5c36] focus:ring-[#0a5c36]">
-                        <span>الرسم</span>
-                    </label>
-                    <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer">
-                        <input type="checkbox" name="hobbies[]" value="البرمجة والألعاب الإلكترونية" data-field="hobbies"
-                            @checked(in_array('البرمجة والألعاب الإلكترونية', $savedHobbies))
-                            class="rounded text-[#0a5c36] focus:ring-[#0a5c36]">
-                        <span>البرمجة والألعاب</span>
-                    </label>
-                    <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer">
-                        <input type="checkbox" name="hobbies[]" value="الأشغال اليدوية" data-field="hobbies"
-                            @checked(in_array('الأشغال اليدوية', $savedHobbies))
-                            class="rounded text-[#0a5c36] focus:ring-[#0a5c36]">
-                        <span>الأشغال اليدوية</span>
-                    </label>
-                    <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer">
-                        <input type="checkbox" name="hobbies[]" value="القراءة والإطلاع" data-field="hobbies"
-                            @checked(in_array('القراءة والإطلاع', $savedHobbies))
-                            class="rounded text-[#0a5c36] focus:ring-[#0a5c36]">
-                        <span>القراءة</span>
-                    </label>
-                    <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer">
-                        <input type="checkbox" name="hobbies[]" value="أخرى" id="hobbyOtherCheckbox" data-field="hobbies"
-                            @checked(in_array('أخرى', $savedHobbies))
-                            class="rounded text-[#0a5c36] focus:ring-[#0a5c36]">
-                        <span>أخرى</span>
-                    </label>
+                    @endforeach
                 </div>
-                {{-- يظهر عند تحديد checkbox أخرى --}}
                 <input type="text" name="hobby_other" data-field="hobby_other"
                     value="{{ old('hobby_other', $student->hobby_other ?? '') }}"
                     id="hobbyOtherInput"
@@ -649,24 +589,21 @@ $isNextYearReg = ($regMonth >= 7 && $regMonth <= 9);
             </div>
 
             <div class="space-y-2">
-                <label class="block text-sm font-bold text-gray-700">حالة خروج الطالب من المركز <span
-                        class="text-red-500">*</span></label>
+                <label class="block text-sm font-bold text-gray-700">حالة خروج الطالب من المركز <span class="text-red-500">*</span></label>
                 <div class="flex gap-6 p-3 bg-gray-50 rounded-2xl border border-gray-100">
+                    @foreach(['بمفرده', 'مع ولي الأمر أو أحد الأقارب'] as $exitOption)
                     <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer">
-                        <input type="radio" name="student_exit_status" value="بمفرده" data-field="student_exit_status"
-                            @checked(old('student_exit_status', $student->student_exit_status ?? '') == 'بمفرده') required>
-                        <span>بمفرده</span>
+                        <input type="radio" name="student_exit_status" value="{{ $exitOption }}"
+                            data-field="student_exit_status"
+                            @checked(old('student_exit_status', $student->student_exit_status ?? '') == $exitOption)
+                        required>
+                        <span>{{ $exitOption }}</span>
                     </label>
-                    <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer">
-                        <input type="radio" name="student_exit_status" value="مع ولي الأمر أو أحد الأقارب" data-field="student_exit_status"
-                            @checked(old('student_exit_status', $student->student_exit_status ?? '') == 'مع ولي الأمر أو أحد الأقارب') required>
-                        <span>مع ولي الأمر أو أحد الأقارب</span>
-                    </label>
+                    @endforeach
                 </div>
                 @error('student_exit_status')
                 <span class="text-red-500 text-xs mt-1 block font-semibold">{{ $message }}</span>
                 @enderror
-                {{-- يظهر عند اختيار "مع ولي الأمر أو أحد الأقارب" --}}
                 <input type="text" name="exit_details" data-field="exit_details"
                     value="{{ old('exit_details', $student->exit_details ?? '') }}"
                     data-show-when="student_exit_status=مع ولي الأمر أو أحد الأقارب"
@@ -677,95 +614,75 @@ $isNextYearReg = ($regMonth >= 7 && $regMonth <= 9);
 
             <div x-data="{ selectedLevel: '{{ old('center_entry_level', $student->center_entry_level ?? 'construction') }}' }">
 
-                <!-- --------------------------------------------------- تقييم التلاوة وتحديد مستوى الالتحاق -------------------------------------- -->
+                <!-- ───────────────── تقييم التلاوة ───────────────── -->
                 <div id="step-5" class="bg-white rounded-3xl shadow-sm border border-gray-100 p-8 space-y-6">
-                    <div class="space-y-6">
-                        <div class="flex items-center gap-3 mb-6 border-b border-gray-50 pb-4">
-                            <div class="p-3 bg-[#e8f5ed] text-[#0a5c36] rounded-2xl text-xl">🎤</div>
-                            <div>
-                                <h2 class="text-xl font-black text-gray-800">تقييم التلاوة وتحديد مستوى الالتحاق</h2>
-                                <p class="text-xs text-gray-400 mt-1">تحديد المسار الفني والتعليمي للطالب بناء على تقييم الشيخ المختبر</p>
-                            </div>
+                    <div class="flex items-center gap-3 mb-6 border-b border-gray-50 pb-4">
+                        <div class="p-3 bg-[#e8f5ed] text-[#0a5c36] rounded-2xl text-xl">🎤</div>
+                        <div>
+                            <h2 class="text-xl font-black text-gray-800">تقييم التلاوة وتحديد مستوى الالتحاق</h2>
+                            <p class="text-xs text-gray-400 mt-1">تحديد المسار الفني والتعليمي للطالب بناء على تقييم الشيخ المختبر</p>
                         </div>
+                    </div>
 
-                        <div class="space-y-2">
-                            <label class="block text-sm font-bold text-gray-700">مستوى القراءة من المصحف <span
-                                    class="text-red-500">*</span></label>
-                            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 p-4 bg-gray-50 rounded-2xl border border-gray-100">
-                                <label class="flex items-center gap-2 p-3 bg-white border border-gray-200 rounded-xl cursor-pointer hover:border-[#0a5c36]/50 transition-all text-sm font-semibold text-gray-600">
-                                    <input type="radio" name="reading" value="مبتدئ" data-field="reading"
-                                        @checked(old('reading', $student->reading ?? '') == 'مبتدئ')
-                                    class="text-[#0a5c36] focus:ring-[#0a5c36]" required>
-                                    <span>مبتدئ <span class="text-xs text-gray-400 font-normal">(لا يقرأ)</span></span>
-                                </label>
-                                <label class="flex items-center gap-2 p-3 bg-white border border-gray-200 rounded-xl cursor-pointer hover:border-[#0a5c36]/50 transition-all text-sm font-semibold text-gray-600">
-                                    <input type="radio" name="reading" value="مقبول" data-field="reading"
-                                        @checked(old('reading', $student->reading ?? '') == 'مقبول')
-                                    class="text-[#0a5c36] focus:ring-[#0a5c36]">
-                                    <span>مقبول <span class="text-xs text-gray-400 font-normal">(يقرأ ببطء)</span></span>
-                                </label>
-                                <label class="flex items-center gap-2 p-3 bg-white border border-gray-200 rounded-xl cursor-pointer hover:border-[#0a5c36]/50 transition-all text-sm font-semibold text-gray-600">
-                                    <input type="radio" name="reading" value="متمكن" data-field="reading"
-                                        @checked(old('reading', $student->reading ?? '') == 'متمكن')
-                                    class="text-[#0a5c36] focus:ring-[#0a5c36]">
-                                    <span>متمكن <span class="text-xs text-gray-400 font-normal">(بدون أحكام)</span></span>
-                                </label>
-                                <label class="flex items-center gap-2 p-3 bg-white border border-gray-200 rounded-xl cursor-pointer hover:border-[#0a5c36]/50 transition-all text-sm font-semibold text-gray-600">
-                                    <input type="radio" name="reading" value="متقن" data-field="reading"
-                                        @checked(old('reading', $student->reading ?? '') == 'متقن')
-                                    class="text-[#0a5c36] focus:ring-[#0a5c36]">
-                                    <span>متقن <span class="text-xs text-gray-400 font-normal">(توجد أحكام)</span></span>
-                                </label>
-                            </div>
+                    <div class="space-y-2">
+                        <label class="block text-sm font-bold text-gray-700">مستوى القراءة من المصحف <span class="text-red-500">*</span></label>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 p-4 bg-gray-50 rounded-2xl border border-gray-100">
+                            @foreach([
+                            ['value' => 'مبتدئ', 'desc' => 'لا يقرأ'],
+                            ['value' => 'مقبول', 'desc' => 'يقرأ ببطء'],
+                            ['value' => 'متمكن', 'desc' => 'بدون أحكام'],
+                            ['value' => 'متقن', 'desc' => 'توجد أحكام'],
+                            ] as $readingOption)
+                            <label class="flex items-center gap-2 p-3 bg-white border border-gray-200 rounded-xl cursor-pointer hover:border-[#0a5c36]/50 transition-all text-sm font-semibold text-gray-600">
+                                <input type="radio" name="reading" value="{{ $readingOption['value'] }}"
+                                    data-field="reading"
+                                    @checked(old('reading', $student->reading ?? '') == $readingOption['value'])
+                                class="text-[#0a5c36] focus:ring-[#0a5c36]" required>
+                                <span>{{ $readingOption['value'] }} <span class="text-xs text-gray-400 font-normal">({{ $readingOption['desc'] }})</span></span>
+                            </label>
+                            @endforeach
                         </div>
+                    </div>
 
-                        <div class="space-y-4 pt-2">
-                            <label class="block text-sm font-bold text-gray-700">اختر مستوى تحضير أو التحاق الطالب بعد الاختبار
-                                <span class="text-red-500">*</span></label>
-                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                <label id="card-construction"
-                                    class="flex flex-col p-4 border rounded-2xl cursor-pointer hover:border-[#0a5c36] transition-all border-gray-100 bg-gray-50">
-                                    <div class="flex items-center gap-2 font-bold text-[#0a5c36]">
-                                        <input type="radio" name="center_entry_level" value="construction"
-                                            x-model="selectedLevel"
-                                            data-field="center_entry_level" required
-                                            class="text-[#0a5c36] focus:ring-[#0a5c36]">
-                                        <span>🌱 مستوى البناء</span>
-                                    </div>
-                                    <span class="text-xs text-gray-500 mt-2 mr-5">الحلقات التأسيسية وحفظ الأجزاء المنتظمة</span>
-                                </label>
-
-                                <label id="card-itqan"
-                                    class="flex flex-col p-4 border rounded-2xl cursor-pointer hover:border-[#7a6020] transition-all border-gray-100 bg-gray-50">
-                                    <div class="flex items-center gap-2 font-bold text-[#7a6020]">
-                                        <input type="radio" name="center_entry_level" value="mastery"
-                                            x-model="selectedLevel"
-                                            data-field="center_entry_level"
-                                            class="text-[#b8973a] focus:ring-[#b8973a]">
-                                        <span>⭐ مستوى الإتقان</span>
-                                    </div>
-                                    <span class="text-xs text-gray-500 mt-2 mr-5">حلقات التثبيت، المراجعة المكثفة والخاتمين</span>
-                                </label>
-
-                                <label id="card-ibda"
-                                    class="flex flex-col p-4 border rounded-2xl cursor-pointer hover:border-indigo-600 transition-all border-gray-100 bg-gray-50">
-                                    <div class="flex items-center gap-2 font-bold text-indigo-800">
-                                        <input type="radio" name="center_entry_level" value="creativity"
-                                            x-model="selectedLevel"
-                                            data-field="center_entry_level"
-                                            class="text-indigo-600 focus:ring-indigo-500">
-                                        <span>🏆 مستوى الإبداع</span>
-                                    </div>
-                                    <span class="text-xs text-gray-500 mt-2 mr-5">مجالس الإجازات، القراءات والسند المتصل</span>
-                                </label>
-                            </div>
+                    <div class="space-y-4 pt-2">
+                        <label class="block text-sm font-bold text-gray-700">
+                            اختر مستوى تحضير أو التحاق الطالب بعد الاختبار <span class="text-red-500">*</span>
+                        </label>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <label class="flex flex-col p-4 border rounded-2xl cursor-pointer hover:border-[#0a5c36] transition-all border-gray-100 bg-gray-50">
+                                <div class="flex items-center gap-2 font-bold text-[#0a5c36]">
+                                    <input type="radio" name="center_entry_level" value="construction"
+                                        x-model="selectedLevel" data-field="center_entry_level" required
+                                        class="text-[#0a5c36] focus:ring-[#0a5c36]">
+                                    <span>🌱 مستوى البناء</span>
+                                </div>
+                                <span class="text-xs text-gray-500 mt-2 mr-5">الحلقات التأسيسية وحفظ الأجزاء المنتظمة</span>
+                            </label>
+                            <label class="flex flex-col p-4 border rounded-2xl cursor-pointer hover:border-[#7a6020] transition-all border-gray-100 bg-gray-50">
+                                <div class="flex items-center gap-2 font-bold text-[#7a6020]">
+                                    <input type="radio" name="center_entry_level" value="mastery"
+                                        x-model="selectedLevel" data-field="center_entry_level"
+                                        class="text-[#b8973a] focus:ring-[#b8973a]">
+                                    <span>⭐ مستوى الإتقان</span>
+                                </div>
+                                <span class="text-xs text-gray-500 mt-2 mr-5">حلقات التثبيت، المراجعة المكثفة والخاتمين</span>
+                            </label>
+                            <label class="flex flex-col p-4 border rounded-2xl cursor-pointer hover:border-indigo-600 transition-all border-gray-100 bg-gray-50">
+                                <div class="flex items-center gap-2 font-bold text-indigo-800">
+                                    <input type="radio" name="center_entry_level" value="creativity"
+                                        x-model="selectedLevel" data-field="center_entry_level"
+                                        class="text-indigo-600 focus:ring-indigo-500">
+                                    <span>🏆 مستوى الإبداع</span>
+                                </div>
+                                <span class="text-xs text-gray-500 mt-2 mr-5">مجالس الإجازات، القراءات والسند المتصل</span>
+                            </label>
                         </div>
-
                     </div>
                 </div>
 
-                <!-- --------------------------------------------------- مستوى البناء ------------------------------------- -->
-                <div id="step-6" x-show="selectedLevel === 'construction'" x-transition class="bg-white rounded-3xl shadow-sm border border-gray-100 p-8 space-y-6">
+                <!-- ───────────────── مستوى البناء ───────────────── -->
+                <div id="step-6" x-show="selectedLevel === 'construction'" x-transition
+                    class="bg-white rounded-3xl shadow-sm border border-gray-100 p-8 space-y-6">
                     <div class="flex items-center gap-3 mb-6 border-b border-gray-50 pb-4">
                         <div class="p-3 bg-emerald-50 text-[#0a5c36] rounded-2xl text-xl">🌱</div>
                         <div>
@@ -775,70 +692,44 @@ $isNextYearReg = ($regMonth >= 7 && $regMonth <= 9);
                     </div>
 
                     <div class="space-y-2">
-                        <label class="block text-sm font-bold text-gray-700">سورة الالتحاق الحالية <span
-                                class="text-red-500">*</span></label>
+                        <label class="block text-sm font-bold text-gray-700">سورة الالتحاق الحالية <span class="text-red-500">*</span></label>
                         <select name="current_surah" id="currentSurah" data-field="current_surah"
                             class="w-full p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36] focus:ring-1 focus:ring-[#0a5c36] transition-all">
-
                             <option value="" @selected(old('current_surah', $construction->current_surah ?? '') == '')>-- اختر السورة أو حالة الالتحاق --</option>
-
-                            <option value="بداية" @selected(old('current_surah', $construction->current_surah ?? '') == 'بداية') class="font-bold text-[#0a5c36]">🟢 بداية (مبتدئ تماماً)</option>
-                            <option value="خاتم" @selected(old('current_surah', $construction->current_surah ?? '') == 'خاتم') class="font-bold text-indigo-600">👑 خاتم (حفظ القرآن كاملاً)</option>
-
-                            @foreach([
-                            'الفاتحة', 'البقرة', 'آل عمران', 'النساء', 'المائدة', 'الأنعام', 'الأعراف', 'الأنفال', 'التوبة', 'يونس',
-                            'هود', 'يوسف', 'الرعد', 'إبراهيم', 'الحجر', 'النحل', 'الإسراء', 'الكهف', 'مريم', 'طه', 'الأنبياء',
-                            'الحج', 'المؤمنون', 'النور', 'الفرقان', 'الشعراء', 'النمل', 'القصص', 'العنكبوت', 'الروم', 'لقمان',
-                            'السجدة', 'الأحزاب', 'سبأ', 'فاطر', 'يس', 'الصافات', 'ص', 'الزمر', 'غافر', 'فصلت', 'الشورى',
-                            'الزخرف', 'الدخان', 'الجاثية', 'الأحقاف', 'محمد', 'الفتح', 'الحجرات', 'ق', 'الذاريات', 'الطور',
-                            'النجم', 'القمر', 'الرحمن', 'الواقعة', 'الحديد', 'المعادلة', 'الحشر', 'الممتحنة', 'الصف', 'الجمعة',
-                            'المنافقون', 'التغابن', 'الطلاق', 'التحريم', 'الملك', 'القلم', 'الحاقة', 'المعارج', 'نوح', 'الجن',
-                            'المزمل', 'المدثر', 'القيامة', 'الإنسان', 'المرسلات', 'النبأ', 'النازعات', 'عبس', 'التكوير',
-                            'الانفطار', 'المطففين', 'الانشقاق', 'البروج', 'الطارق', 'الأعلى', 'الغاشية', 'الفجر', 'البلد',
-                            'الشمس', 'الليل', 'الضحى', 'الشرح', 'التين', 'العلق', 'القدر', 'البينة', 'الزلزلة', 'العاديات',
-                            'القارعة', 'التكاثر', 'العصر', 'الهمزة', 'الفيل', 'قريش', 'الماعون', 'الكوثر', 'الكافرون',
-                            'النصر', 'المسد', 'الإخلاص', 'الفلق', 'الناس'
-                            ] as $index => $value)
-                            <option value="{{ $value }}" @selected(old('current_surah', $construction->current_surah ?? '') == $value)>
-                                {{ $index + 1 }}. {{ $value }}
+                            <option value="بداية" @selected(old('current_surah', $construction->current_surah ?? '') == 'بداية')>🟢 بداية (مبتدئ تماماً)</option>
+                            <option value="خاتم" @selected(old('current_surah', $construction->current_surah ?? '') == 'خاتم')>👑 خاتم (حفظ القرآن كاملاً)</option>
+                            @foreach(['الفاتحة','البقرة','آل عمران','النساء','المائدة','الأنعام','الأعراف','الأنفال','التوبة','يونس','هود','يوسف','الرعد','إبراهيم','الحجر','النحل','الإسراء','الكهف','مريم','طه','الأنبياء','الحج','المؤمنون','النور','الفرقان','الشعراء','النمل','القصص','العنكبوت','الروم','لقمان','السجدة','الأحزاب','سبأ','فاطر','يس','الصافات','ص','الزمر','غافر','فصلت','الشورى','الزخرف','الدخان','الجاثية','الأحقاف','محمد','الفتح','الحجرات','ق','الذاريات','الطور','النجم','القمر','الرحمن','الواقعة','الحديد','المعادلة','الحشر','الممتحنة','الصف','الجمعة','المنافقون','التغابن','الطلاق','التحريم','الملك','القلم','الحاقة','المعارج','نوح','الجن','المزمل','المدثر','القيامة','الإنسان','المرسلات','النبأ','النازعات','عبس','التكوير','الانفطار','المطففين','الانشقاق','البروج','الطارق','الأعلى','الغاشية','الفجر','البلد','الشمس','الليل','الضحى','الشرح','التين','العلق','القدر','البينة','الزلزلة','العاديات','القارعة','التكاثر','العصر','الهمزة','الفيل','قريش','الماعون','الكوثر','الكافرون','النصر','المسد','الإخلاص','الفلق','الناس'] as $idx => $surah)
+                            <option value="{{ $surah }}" @selected(old('current_surah', $construction->current_surah ?? '') == $surah)>
+                                {{ $idx + 1 }}. {{ $surah }}
                             </option>
                             @endforeach
                         </select>
                     </div>
 
-                    {{-- ====== تعديل 4: النظام المتبع مبني على الحلقة ====== --}}
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div class="space-y-2">
                             <label class="block text-sm font-bold text-gray-700">اسم الحلقة <span class="text-red-500">*</span></label>
                             <select name="group_name" data-field="group_name" id="circleSelect"
                                 class="w-full p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36] focus:ring-1 focus:ring-[#0a5c36] transition-all appearance-none">
-
                                 <option value="" data-type="" @selected(old('group_name', $construction->group_name ?? '') == '')>-- اختر الحلقة --</option>
-
                                 @foreach($circles as $circle)
-                                <option value="{{ $circle->name }}"
-                                    data-type="{{ $circle->type ?? '' }}"
+                                <option value="{{ $circle->name }}" data-type="{{ $circle->type ?? '' }}"
                                     @selected(old('group_name', $construction->group_name ?? '') == $circle->name)>
                                     {{ $circle->name }}
                                 </option>
                                 @endforeach
-
                             </select>
                         </div>
-
                         <div class="space-y-2">
                             <label class="block text-sm font-bold text-gray-700">النظام المتبع <span class="text-red-500">*</span></label>
                             <div class="flex gap-6 p-3 bg-gray-50 rounded-2xl border border-gray-100" id="studySystemWrapper">
+                                @foreach(['فردي', 'جماعي'] as $system)
                                 <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer">
-                                    <input type="radio" name="study_system" value="فردي" data-field="study_system"
-                                        @checked(old('study_system', $construction->study_system ?? '') == 'فردي')>
-                                    <span>فردي</span>
+                                    <input type="radio" name="study_system" value="{{ $system }}" data-field="study_system"
+                                        @checked(old('study_system', $construction->study_system ?? '') == $system)>
+                                    <span>{{ $system }}</span>
                                 </label>
-                                <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer">
-                                    <input type="radio" name="study_system" value="جماعي" data-field="study_system"
-                                        @checked(old('study_system', $construction->study_system ?? '') == 'جماعي')>
-                                    <span>جماعي</span>
-                                </label>
+                                @endforeach
                             </div>
                             <p id="studySystemHint" class="text-xs text-gray-400 hidden">يُحدَّد تلقائياً من نوع الحلقة المختارة</p>
                         </div>
@@ -846,62 +737,35 @@ $isNextYearReg = ($regMonth >= 7 && $regMonth <= 9);
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div class="space-y-2">
-                            <label class="block text-sm font-bold text-gray-700">خطة الحفظ الجديد <span
-                                    class="text-red-500">*</span></label>
+                            <label class="block text-sm font-bold text-gray-700">خطة الحفظ الجديد <span class="text-red-500">*</span></label>
                             <input type="text" name="new_memorization_plan" data-field="new_memorization_plan"
                                 value="{{ old('new_memorization_plan', $construction->new_memorization_plan ?? '') }}"
                                 placeholder="مثال: حفظ 5 سطور"
                                 class="w-full p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36] focus:ring-1 focus:ring-[#0a5c36] transition-all">
                         </div>
                         <div class="space-y-2">
-                            <label class="block text-sm font-bold text-gray-700">مستوى الحفظ بعد الاختبار <span
-                                    class="text-red-500">*</span></label>
-                            <select name="placement_evaluation" data-field="placement_evaluation" class="w-full h-12 p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36] focus:ring-1 focus:ring-[#0a5c36] transition-all">
+                            <label class="block text-sm font-bold text-gray-700">مستوى الحفظ بعد الاختبار <span class="text-red-500">*</span></label>
+                            <select name="placement_evaluation" data-field="placement_evaluation"
+                                class="w-full h-12 p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36] focus:ring-1 focus:ring-[#0a5c36] transition-all">
                                 <option value="" @selected(old('placement_evaluation', $construction->placement_evaluation ?? '') == '')>-- اختر التقييم --</option>
-                                <option value="ممتاز" @selected(old('placement_evaluation', $construction->placement_evaluation ?? '') == 'ممتاز')>ممتاز</option>
-                                <option value="جيد" @selected(old('placement_evaluation', $construction->placement_evaluation ?? '') == 'جيد')>جيد</option>
-                                <option value="تثبيت" @selected(old('placement_evaluation', $construction->placement_evaluation ?? '') == 'تثبيت')>تثبيت</option>
-                                <option value="تأسيس" @selected(old('placement_evaluation', $construction->placement_evaluation ?? '') == 'تأسيس')>تأسيس</option>
-                                <option value="إعادة حفظ" @selected(old('placement_evaluation', $construction->placement_evaluation ?? '') == 'إعادة حفظ')>إعادة حفظ</option>
+                                @foreach(['ممتاز', 'جيد', 'تثبيت', 'تأسيس', 'إعادة حفظ'] as $eval)
+                                <option value="{{ $eval }}" @selected(old('placement_evaluation', $construction->placement_evaluation ?? '') == $eval)>{{ $eval }}</option>
+                                @endforeach
                             </select>
                         </div>
                     </div>
 
                     <div class="space-y-2">
-                        <label class="block text-sm font-bold text-gray-700">خطة الحفظ القديم (المراجعة) <span
-                                class="text-red-500">*</span></label>
+                        <label class="block text-sm font-bold text-gray-700">خطة الحفظ القديم (المراجعة) <span class="text-red-500">*</span></label>
                         <div class="flex flex-wrap gap-4 p-3 bg-gray-50 rounded-2xl border border-gray-100">
+                            @foreach(['منتهي', 'فئة الماهر', 'فئة المرتل', 'ترديد', 'أخرى'] as $plan)
                             <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer">
-                                <input type="radio" name="old_memorization_plan" value="منتهي" data-field="old_memorization_plan"
-                                    @checked(old('old_memorization_plan', $construction->old_memorization_plan ?? '') == 'منتهي')>
-                                <span>منتهي</span>
+                                <input type="radio" name="old_memorization_plan" value="{{ $plan }}" data-field="old_memorization_plan"
+                                    @checked(old('old_memorization_plan', $construction->old_memorization_plan ?? '') == $plan)>
+                                <span>{{ $plan }}</span>
                             </label>
-
-                            <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer">
-                                <input type="radio" name="old_memorization_plan" value="فئة الماهر" data-field="old_memorization_plan"
-                                    @checked(old('old_memorization_plan', $construction->old_memorization_plan ?? '') == 'فئة الماهر')>
-                                <span>فئة الماهر</span>
-                            </label>
-
-                            <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer">
-                                <input type="radio" name="old_memorization_plan" value="فئة المرتل" data-field="old_memorization_plan"
-                                    @checked(old('old_memorization_plan', $construction->old_memorization_plan ?? '') == 'فئة المرتل')>
-                                <span>فئة المرتل</span>
-                            </label>
-
-                            <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer">
-                                <input type="radio" name="old_memorization_plan" value="ترديد" data-field="old_memorization_plan"
-                                    @checked(old('old_memorization_plan', $construction->old_memorization_plan ?? '') == 'ترديد')>
-                                <span>ترديد</span>
-                            </label>
-
-                            <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer">
-                                <input type="radio" name="old_memorization_plan" value="أخرى" data-field="old_memorization_plan"
-                                    @checked(old('old_memorization_plan', $construction->old_memorization_plan ?? '') == 'أخرى')>
-                                <span>أخرى</span>
-                            </label>
+                            @endforeach
                         </div>
-                        {{-- يظهر عند اختيار أخرى --}}
                         <input type="text" name="old_memorization_plan_other" data-field="old_memorization_plan_other"
                             value="{{ old('old_memorization_plan_other', $construction->old_memorization_plan_other ?? '') }}"
                             data-show-when="old_memorization_plan=أخرى"
@@ -909,11 +773,11 @@ $isNextYearReg = ($regMonth >= 7 && $regMonth <= 9);
                             class="w-full mt-2 p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36] focus:ring-1 focus:ring-[#0a5c36] transition-all"
                             style="display:none;">
                     </div>
-
                 </div>
 
-                <!-- --------------------------------------------------- مستوى الإتقان -------------------------------------- -->
-                <div id="step-7" x-show="selectedLevel === 'mastery'" x-transition class="bg-white rounded-3xl shadow-sm border border-gray-100 p-8 space-y-6">
+                <!-- ───────────────── مستوى الإتقان ───────────────── -->
+                <div id="step-7" x-show="selectedLevel === 'mastery'" x-transition
+                    class="bg-white rounded-3xl shadow-sm border border-gray-100 p-8 space-y-6">
                     <div class="flex items-center gap-3 mb-6 border-b border-gray-50 pb-4">
                         <div class="p-3 bg-amber-50 text-amber-600 rounded-2xl text-xl">⭐</div>
                         <div>
@@ -925,14 +789,14 @@ $isNextYearReg = ($regMonth >= 7 && $regMonth <= 9);
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div class="space-y-2">
                             <label class="block text-sm font-bold text-gray-700">جهة الحفظ السابقة <span class="text-red-500">*</span></label>
-                            <input type="text" name="previous_memorization_side" data-field="previous_memorization_side"
+                            <input type="text" name="previous_memorization_side"
                                 value="{{ old('previous_memorization_side', $itqan->previous_memorization_side ?? '') }}"
                                 placeholder="اسم المسجد، المركز، أو الشيخ السابق"
                                 class="w-full p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all">
                         </div>
                         <div class="space-y-2">
                             <label class="block text-sm font-bold text-gray-700">عدد الختمات السابقة <span class="text-red-500">*</span></label>
-                            <input type="text" name="previous_khatamat_count" data-field="previous_khatamat_count"
+                            <input type="text" name="previous_khatamat_count"
                                 value="{{ old('previous_khatamat_count', $itqan->previous_khatamat_count ?? '') }}"
                                 placeholder="مثال: ختمة واحدة أو أكثر"
                                 class="w-full p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all">
@@ -940,15 +804,15 @@ $isNextYearReg = ($regMonth >= 7 && $regMonth <= 9);
                     </div>
 
                     <div class="space-y-2">
-                        <label class="block text-sm font-bold text-gray-700">مقدار المراجعة الحالي (الورد اليومي) <span class="text-red-500">*</span></label>
-                        <input type="text" name="current_review_amount" data-field="current_review_amount"
+                        <label class="block text-sm font-bold text-gray-700">مقدار المراجعة الحالي <span class="text-red-500">*</span></label>
+                        <input type="text" name="current_review_amount"
                             value="{{ old('current_review_amount', $itqan->current_review_amount ?? '') }}"
                             placeholder="مثال: جزء يوميًّا، حزب، نصف جزء..."
                             class="w-full p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all">
                     </div>
 
                     <div class="space-y-2">
-                        <label class="block text-sm font-bold text-gray-700">تقييم مستوى الحفظ من المتقدم (1-10) <span class="text-red-500">*</span></label>
+                        <label class="block text-sm font-bold text-gray-700">تقييم مستوى الحفظ (1-10) <span class="text-red-500">*</span></label>
                         <select name="self_evaluation"
                             class="w-full p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all appearance-none">
                             <option value="">-- اختر التقييم --</option>
@@ -959,31 +823,17 @@ $isNextYearReg = ($regMonth >= 7 && $regMonth <= 9);
                     </div>
 
                     <div class="space-y-2">
-                        <label class="block text-sm font-bold text-gray-700">متون التجويد المحفوظة بإتقان <span class="text-red-500">*</span></label>
+                        <label class="block text-sm font-bold text-gray-700">متون التجويد المحفوظة <span class="text-red-500">*</span></label>
                         <div class="flex flex-wrap gap-4 p-3 bg-gray-50 rounded-2xl border border-gray-100">
+                            @foreach(['لا يوجد' => 'لا يوجد', 'التحفة' => 'تحفة الأطفال', 'الجزرية' => 'المقدمة الجزرية', 'أخرى' => 'أخرى'] as $val => $lbl)
                             <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer">
-                                <input type="radio" name="tajweed_matn" value="لا يوجد" data-field="tajweed_matn"
-                                    @checked(old('tajweed_matn', $itqan->tajweed_matn ?? '') == 'لا يوجد')>
-                                <span>لا يوجد</span>
+                                <input type="radio" name="tajweed_matn" value="{{ $val }}" data-field="tajweed_matn"
+                                    @checked(old('tajweed_matn', $itqan->tajweed_matn ?? '') == $val)>
+                                <span>{{ $lbl }}</span>
                             </label>
-                            <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer">
-                                <input type="radio" name="tajweed_matn" value="التحفة" data-field="tajweed_matn"
-                                    @checked(old('tajweed_matn', $itqan->tajweed_matn ?? '') == 'التحفة')>
-                                <span>تحفة الأطفال</span>
-                            </label>
-                            <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer">
-                                <input type="radio" name="tajweed_matn" value="الجزرية" data-field="tajweed_matn"
-                                    @checked(old('tajweed_matn', $itqan->tajweed_matn ?? '') == 'الجزرية')>
-                                <span>المقدمة الجزرية</span>
-                            </label>
-                            <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer">
-                                <input type="radio" name="tajweed_matn" value="أخرى" data-field="tajweed_matn"
-                                    @checked(old('tajweed_matn', $itqan->tajweed_matn ?? '') == 'أخرى')>
-                                <span>أخرى</span>
-                            </label>
+                            @endforeach
                         </div>
-                        {{-- يظهر عند اختيار أخرى --}}
-                        <input type="text" name="tajweed_matn_other" data-field="tajweed_matn_other"
+                        <input type="text" name="tajweed_matn_other"
                             value="{{ old('tajweed_matn_other', $itqan->tajweed_matn_other ?? '') }}"
                             data-show-when="tajweed_matn=أخرى"
                             placeholder="يرجى كتابة اسم المتن..."
@@ -995,70 +845,46 @@ $isNextYearReg = ($regMonth >= 7 && $regMonth <= 9);
                         <div class="space-y-2">
                             <label class="block text-sm font-bold text-gray-700">المسار المرغوب فيه <span class="text-red-500">*</span></label>
                             <div class="flex flex-col gap-2 p-3 bg-gray-50 rounded-2xl border border-gray-100">
+                                @foreach(['تثبيت الحفظ' => 'تثبيت الحفظ وتجويده', 'تصحيح التلاوة' => 'تصحيح التلاوة والنطق', 'الإجازة والسند' => 'الإجازة والسند المتصل'] as $val => $lbl)
                                 <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer">
-                                    <input type="radio" name="desired_path" value="تثبيت الحفظ" data-field="desired_path"
-                                        @checked(old('desired_path', $itqan->desired_path ?? '') == 'تثبيت الحفظ')>
-                                    <span>تثبيت الحفظ وتجويده</span>
+                                    <input type="radio" name="desired_path" value="{{ $val }}" data-field="desired_path"
+                                        @checked(old('desired_path', $itqan->desired_path ?? '') == $val)>
+                                    <span>{{ $lbl }}</span>
                                 </label>
-                                <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer">
-                                    <input type="radio" name="desired_path" value="تصحيح التلاوة" data-field="desired_path"
-                                        @checked(old('desired_path', $itqan->desired_path ?? '') == 'تصحيح التلاوة')>
-                                    <span>تصحيح التلاوة والنطق</span>
-                                </label>
-                                <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer">
-                                    <input type="radio" name="desired_path" value="الإجازة والسند" data-field="desired_path"
-                                        @checked(old('desired_path', $itqan->desired_path ?? '') == 'الإجازة والسند')>
-                                    <span>الإجازة والسند المتصل</span>
-                                </label>
+                                @endforeach
                             </div>
                         </div>
                         <div class="space-y-2">
                             <label class="block text-sm font-bold text-gray-700">الوقت المناسب للمجلس <span class="text-red-500">*</span></label>
-                            <div class="grid grid-cols-2 gap-2 p-3 bg-gray-50 rounded-2xl border border-gray-100">
-                                <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer">
-                                    <input type="radio" name="preferred_time" value="صباحًا" data-field="preferred_time"
-                                        @checked(old('preferred_time', $itqan->preferred_time ?? '') == 'صباحًا')>
-                                    <span>صباحًا</span>
+                            <div class="grid grid-cols-2 gap-2 p-3 bg-gray-50 rounded-2xl border border-gray-100"
+                                x-bind:inert="selectedLevel !== 'mastery'">
+                                @foreach(['صباحًا', 'ظهرًا', 'عصرًا', 'ليلًا', 'أون لاين'] as $time)
+                                <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer {{ $time === 'أون لاين' ? 'col-span-2' : '' }}">
+                                    <input type="radio" name="preferred_time" value="{{ $time }}" data-field="preferred_time"
+                                        @checked(old('preferred_time', $itqan->preferred_time ?? '') == $time)>
+                                    <span>{{ $time === 'أون لاين' ? 'أون لاين (عبر الإنترنت)' : $time }}</span>
                                 </label>
-                                <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer">
-                                    <input type="radio" name="preferred_time" value="ظهرًا" data-field="preferred_time"
-                                        @checked(old('preferred_time', $itqan->preferred_time ?? '') == 'ظهرًا')>
-                                    <span>ظهرًا</span>
-                                </label>
-                                <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer">
-                                    <input type="radio" name="preferred_time" value="عصرًا" data-field="preferred_time"
-                                        @checked(old('preferred_time', $itqan->preferred_time ?? '') == 'عصرًا')>
-                                    <span>عصرًا</span>
-                                </label>
-                                <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer">
-                                    <input type="radio" name="preferred_time" value="ليلًا" data-field="preferred_time"
-                                        @checked(old('preferred_time', $itqan->preferred_time ?? '') == 'ليلًا')>
-                                    <span>ليلًا</span>
-                                </label>
-                                <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer col-span-2">
-                                    <input type="radio" name="preferred_time" value="أون لاين" data-field="preferred_time"
-                                        @checked(old('preferred_time', $itqan->preferred_time ?? '') == 'أون لاين')>
-                                    <span>أون لاين (عبر الإنترنت)</span>
-                                </label>
+                                @endforeach
                             </div>
                         </div>
                     </div>
 
-                    <div class="space-y-2">
-                        <label class="block text-sm font-bold text-gray-700">المعلم المفضل للمجلس (مستوى الإتقان) <span class="text-red-500">*</span></label>
-                        <select name="teacher_name" data-field="teacher_name"
-                            class="w-full p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all appearance-none">
-                            <option value="" @selected(old('teacher_name', $itqan->teacher_name ?? '') == '')>-- اختر المعلم --</option>
-                            <option value="بدون تحديد" @selected(old('teacher_name', $itqan->teacher_name ?? '') == 'بدون تحديد')>بدون تحديد (حسب المتاح)</option>
-                            @foreach ($teachers ?? [] as $teacher)
-                            <option value="{{ $teacher->name }}" @selected(old('teacher_name', $itqan->teacher_name ?? '') == $teacher->name)>{{ $teacher->name }}</option>
-                            @endforeach
-                        </select>
-                    </div>
+                    <select name="teacher_name" data-field="teacher_name"
+                        x-bind:disabled="selectedLevel !== 'mastery'"
+                        class="w-full p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all appearance-none">
+                        <option value="" @selected(old('teacher_name', $itqan->teacher_name ?? '') == '')>-- اختر المعلم --</option>
+                        <option value="بدون تحديد" @selected(old('teacher_name', $itqan->teacher_name ?? '') == 'بدون تحديد')>بدون تحديد (حسب المتاح)</option>
+                        @foreach ($teachers ?? [] as $teacherItem)
+                        <option value="{{ $teacherItem->name }}" @selected(old('teacher_name', $itqan->teacher_name ?? '') == $teacherItem->name)>
+                            {{ $teacherItem->name }}
+                        </option>
+                        @endforeach
+                    </select>
                 </div>
 
-                <!-- --------------------------------------------------- مستوى الإبداع -------------------------------------- -->
-                <div id="step-8" x-show="selectedLevel === 'creativity'" x-transition class="bg-white rounded-3xl shadow-sm border border-gray-100 p-8 space-y-6">
+                <!-- ───────────────── مستوى الإبداع ───────────────── -->
+                <div id="step-8" x-show="selectedLevel === 'creativity'" x-transition
+                    class="bg-white rounded-3xl shadow-sm border border-gray-100 p-8 space-y-6">
                     <div class="flex items-center gap-3 mb-6 border-b border-gray-50 pb-4">
                         <div class="p-3 bg-indigo-50 text-indigo-600 rounded-2xl text-xl">🏆</div>
                         <div>
@@ -1068,15 +894,15 @@ $isNextYearReg = ($regMonth >= 7 && $regMonth <= 9);
                     </div>
 
                     <div class="space-y-2">
-                        <label class="block text-sm font-bold text-gray-700">الإجازات والأسانيد التي حصل عليها سابقًا <span class="text-red-500">*</span></label>
-                        <textarea name="previous_licenses_and_chains" data-field="description"
-                            placeholder="يرجى ذكر الإجازات، اسم الشيخ المجيز، والمتن المكتوب بالتفصيل..."
-                            class="w-full p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all min-h-[100px]">{{ old('previous_licenses_and_chains', $ibda->previous_licenses_and_chains ?? '') }}</textarea>
+                        <label class="block text-sm font-bold text-gray-700">الإجازات والأسانيد السابقة <span class="text-red-500">*</span></label>
+                        <textarea name="previous_licenses_and_chains"
+                            placeholder="يرجى ذكر الإجازات، اسم الشيخ المجيز، والمتن..."
+                            class="w-full p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all min-h-25">{{ old('previous_licenses_and_chains', $ibda->previous_licenses_and_chains ?? '') }}</textarea>
                     </div>
 
                     <div class="space-y-2">
-                        <label class="block text-sm font-bold text-gray-700">المسار والرواية المراد دراستها حاليًا <span class="text-red-500">*</span></label>
-                        <input type="text" name="desired_narration_and_path" data-field="desired_narration_and_path"
+                        <label class="block text-sm font-bold text-gray-700">المسار والرواية المراد دراستها <span class="text-red-500">*</span></label>
+                        <input type="text" name="desired_narration_and_path"
                             value="{{ old('desired_narration_and_path', $ibda->desired_narration_and_path ?? '') }}"
                             placeholder="مثال: رواية ورش عن نافع، القراءات العشر..."
                             class="w-full p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all">
@@ -1084,50 +910,32 @@ $isNextYearReg = ($regMonth >= 7 && $regMonth <= 9);
 
                     <div class="space-y-2">
                         <label class="block text-sm font-bold text-gray-700">الوقت المناسب للمجلس <span class="text-red-500">*</span></label>
-                        <div class="grid grid-cols-2 sm:grid-cols-5 gap-2 p-3 bg-gray-50 rounded-2xl border border-gray-100">
+                        <div class="grid grid-cols-2 sm:grid-cols-5 gap-2 p-3 bg-gray-50 rounded-2xl border border-gray-100"
+                            x-bind:inert="selectedLevel !== 'creativity'">
+                            @foreach(['صباحًا', 'ظهرًا', 'عصرًا', 'ليلًا', 'أون لاين'] as $time)
                             <label class="flex items-center gap-1 text-xs font-bold text-gray-600 cursor-pointer">
-                                <input type="radio" name="preferred_time" value="صباحًا" data-field="preferred_time"
-                                    @checked(old('preferred_time', $ibda->preferred_time ?? '') == 'صباحًا')>
-                                <span>صباحًا</span>
+                                <input type="radio" name="preferred_time" value="{{ $time }}" data-field="preferred_time"
+                                    @checked(old('preferred_time', $ibda->preferred_time ?? '') == $time)>
+                                <span>{{ $time === 'أون لاين' ? 'عن بُعد' : $time }}</span>
                             </label>
-                            <label class="flex items-center gap-1 text-xs font-bold text-gray-600 cursor-pointer">
-                                <input type="radio" name="preferred_time" value="ظهرًا" data-field="preferred_time"
-                                    @checked(old('preferred_time', $ibda->preferred_time ?? '') == 'ظهرًا')>
-                                <span>ظهرًا</span>
-                            </label>
-                            <label class="flex items-center gap-1 text-xs font-bold text-gray-600 cursor-pointer">
-                                <input type="radio" name="preferred_time" value="عصرًا" data-field="preferred_time"
-                                    @checked(old('preferred_time', $ibda->preferred_time ?? '') == 'عصرًا')>
-                                <span>عصرًا</span>
-                            </label>
-                            <label class="flex items-center gap-1 text-xs font-bold text-gray-600 cursor-pointer">
-                                <input type="radio" name="preferred_time" value="ليلًا" data-field="preferred_time"
-                                    @checked(old('preferred_time', $ibda->preferred_time ?? '') == 'ليلًا')>
-                                <span>ليلًا</span>
-                            </label>
-                            <label class="flex items-center gap-1 text-xs font-bold text-gray-600 cursor-pointer">
-                                <input type="radio" name="preferred_time" value="أون لاين" data-field="preferred_time"
-                                    @checked(old('preferred_time', $ibda->preferred_time ?? '') == 'أون لاين')>
-                                <span>عن بُعد</span>
-                            </label>
+                            @endforeach
                         </div>
 
-                        <div class="space-y-2 mt-4">
-                            <label class="block text-sm font-bold text-gray-700">المعلم المفضل للمجلس (مستوى الإبداع) <span class="text-red-500">*</span></label>
-                            <select name="supervisor_name" data-field="supervisor_name"
-                                class="w-full p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all appearance-none">
-                                <option value="">-- اختر المعلم --</option>
-                                @foreach ($teachers ?? [] as $teacher)
-                                <option value="{{ $teacher->name }}" @selected(old('supervisor_name', $ibda->supervisor_name ?? '') == $teacher->name)>{{ $teacher->name }}</option>
-                                @endforeach
-                            </select>
-                        </div>
+                        <select name="supervisor_name" data-field="supervisor_name"
+                            x-bind:disabled="selectedLevel !== 'creativity'"
+                            class="w-full p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all appearance-none">
+                            <option value="">-- اختر المعلم --</option>
+                            @foreach ($teachers ?? [] as $teacherItem)
+                            <option value="{{ $teacherItem->name }}" @selected(old('supervisor_name', $ibda->supervisor_name ?? '') == $teacherItem->name)>
+                                {{ $teacherItem->name }}
+                            </option>
+                            @endforeach
+                        </select>
                     </div>
                 </div>
-
             </div>
 
-            <!-- ------------------------------- التوصيات النهائية والملاحظات الإدارية -------------------------------- -->
+            <!-- ───────────────── التوصيات النهائية ───────────────── -->
             <div id="step-9" class="bg-white rounded-3xl shadow-sm border border-gray-100 p-8 space-y-6">
                 <div class="flex items-center gap-3 mb-6 border-b border-gray-50 pb-4">
                     <div class="p-3 bg-[#e8f5ed] text-[#0a5c36] rounded-2xl text-xl">📝</div>
@@ -1145,68 +953,60 @@ $isNextYearReg = ($regMonth >= 7 && $regMonth <= 9);
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
                     <div class="space-y-2">
                         <label class="block text-sm font-bold text-gray-700">رسوم حجز المقعد</label>
-                        <input type="text" name="subscription_fees" data-field="subscription_fees"
+                        <input type="text" name="subscription_fees"
                             value="{{ old('subscription_fees', $student->subscription_fees ?? '') }}"
                             placeholder="مثال: 150"
                             class="w-full p-3 bg-gray-50 border border-gray-200 rounded-2xl text-sm">
                     </div>
                     <div class="space-y-2">
                         <label class="block text-xs font-black text-gray-600">الأدوات والكتب المستلمة</label>
-                        <select name="received_tools" data-field="received_tools"
+                        <select name="received_tools"
                             class="w-full p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium appearance-none">
                             <option value="" @selected(old('received_tools', $student->received_tools ?? '') == '')>-- اختر نوع العهدة --</option>
-                            <option value="لم يأخذ شيء" @selected(old('received_tools', $student->received_tools ?? '') == 'لم يأخذ شيء')>لم يأخذ شيء</option>
-                            <option value="المصحف فقط" @selected(old('received_tools', $student->received_tools ?? '') == 'المصحف فقط')>المصحف فقط</option>
-                            <option value="المتابعة فقط" @selected(old('received_tools', $student->received_tools ?? '') == 'المتابعة فقط')>دفتر المتابعة فقط</option>
-                            <option value="المصحف والمتابعة" @selected(old('received_tools', $student->received_tools ?? '') == 'المصحف والمتابعة')>المصحف ودفتر المتابعة معًا</option>
+                            @foreach(['لم يأخذ شيء' => 'لم يأخذ شيء', 'المصحف فقط' => 'المصحف فقط', 'المتابعة فقط' => 'دفتر المتابعة فقط', 'المصحف والمتابعة' => 'المصحف ودفتر المتابعة معًا'] as $val => $lbl)
+                            <option value="{{ $val }}" @selected(old('received_tools', $student->received_tools ?? '') == $val)>{{ $lbl }}</option>
+                            @endforeach
                         </select>
                     </div>
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-
                     @can('edit students')
                     <div class="space-y-2">
                         <label class="block text-sm font-bold text-gray-700">حالة الطالب</label>
-                        <select name="status" data-field="status"
-                            class="w-full p-3 bg-gray-50 border border-gray-200 rounded-2xl text-sm">
-                            <option value="active" @selected(old('status', $student->status ?? 'active') == 'active')>مقيد</option>
-                            <option value="inactive" @selected(old('status', $student->status ?? '') == 'inactive')>موقوف</option>
-                            <option value="traveler" @selected(old('status', $student->status ?? '') == 'traveler')>مسافر</option>
+                        <select name="status" class="w-full p-3 bg-gray-50 border border-gray-200 rounded-2xl text-sm">
+                            @foreach(['مقيد', 'متوقف', 'مسافر'] as $statusOption)
+                            <option value="{{ $statusOption }}" @selected(old('status', $student->status ?? 'مقيد') == $statusOption)>{{ $statusOption }}</option>
+                            @endforeach
                         </select>
                     </div>
                     @else
-                    <input type="hidden" name="status" value="{{ old('status', $student->status ?? 'active') }}">
+                    <input type="hidden" name="status" value="{{ old('status', $student->status ?? 'مقيد') }}">
                     @endcan
 
                     @can('manage student status')
                     <div class="space-y-2">
                         <label class="block text-sm font-bold text-gray-700">قرار الإدارة</label>
-                        <select name="decision" data-field="decision"
-                            class="w-full p-3 bg-gray-50 border border-gray-200 rounded-2xl text-sm">
-                            <option value="pending" @selected(old('decision', $student->decision ?? 'pending') == 'pending')>تحت الاختبار</option>
-                            <option value="accepted" @selected(old('decision', $student->decision ?? '') == 'accepted')>مقبول</option>
-                            <option value="rejected" @selected(old('decision', $student->decision ?? '') == 'rejected')>مرفوض</option>
+                        <select name="decision" class="w-full p-3 bg-gray-50 border border-gray-200 rounded-2xl text-sm">
+                            @foreach(['تحت الاختبار', 'مقبول', 'مرفوض'] as $decisionOption)
+                            <option value="{{ $decisionOption }}" @selected(old('decision', $student->decision ?? 'تحت الاختبار') == $decisionOption)>{{ $decisionOption }}</option>
+                            @endforeach
                         </select>
                     </div>
                     @else
                     <div class="space-y-2">
                         <label class="block text-sm font-bold text-gray-700">قرار الإدارة</label>
+                        @php $decision = old('decision', $student->decision ?? 'تحت الاختبار'); @endphp
                         <div class="w-full p-3 bg-gray-100 border border-gray-200 rounded-2xl text-sm text-gray-600 flex items-center gap-2">
-                            @php $decision = old('decision', $student->decision ?? 'pending'); @endphp
-                            @if($decision === 'accepted')
-                            <span class="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span> مقبول
-                            @elseif($decision === 'rejected')
-                            <span class="w-2 h-2 rounded-full bg-red-500 inline-block"></span> مرفوض
-                            @else
-                            <span class="w-2 h-2 rounded-full bg-amber-400 inline-block"></span> تحت الاختبار
-                            @endif
+                            <span class="w-2 h-2 rounded-full inline-block
+                            {{ $decision === 'مقبول' ? 'bg-emerald-500' : ($decision === 'مرفوض' ? 'bg-red-500' : 'bg-amber-400') }}">
+                            </span>
+                            {{ $decision }}
                             <span class="text-xs text-gray-400 mr-auto">(صلاحيات الإدارة فقط)</span>
                         </div>
                         <input type="hidden" name="decision" value="{{ $decision }}">
                     </div>
                     @endcan
-
                 </div>
 
                 <div class="space-y-2">
@@ -1217,14 +1017,15 @@ $isNextYearReg = ($regMonth >= 7 && $regMonth <= 9);
                             <span id="dictateBtnLabel">🎤 إملاء صوتي</span>
                         </button>
                     </div>
-                    <textarea name="notes" data-field="notes" placeholder="اكتب التوصيات الخاصة بمخارج الحروف والتجويد..."
-                        class="w-full p-3 bg-gray-50 border border-gray-200 rounded-2xl text-sm min-h-[100px]">{{ old('notes', $student->notes ?? '') }}</textarea>
+                    <textarea name="notes" data-field="notes"
+                        placeholder="اكتب التوصيات الخاصة بمخارج الحروف والتجويد..."
+                        class="w-full p-3 bg-gray-50 border border-gray-200 rounded-2xl text-sm min-h-25">{{ old('notes', $student->notes ?? '') }}</textarea>
                 </div>
-
             </div>
 
             <div class="flex justify-end items-center pt-6 border-t border-gray-100 mt-8">
-                <button type="submit" class="flex items-center gap-2 px-8 py-3 bg-[#0a5c36] hover:bg-[#084d2d] text-white font-black rounded-2xl shadow-md transition-all text-sm">
+                <button type="submit"
+                    class="flex items-center gap-2 px-8 py-3 bg-[#0a5c36] hover:bg-[#084d2d] text-white font-black rounded-2xl shadow-md transition-all text-sm">
                     حفظ البيانات وإرسال النموذج ✓
                 </button>
             </div>
@@ -1232,16 +1033,12 @@ $isNextYearReg = ($regMonth >= 7 && $regMonth <= 9);
         </div>
 
         {{-- ============================================================
-         JavaScript — كل المنطق في مكان واحد
-         ============================================================ --}}
+         JavaScript
+    ============================================================ --}}
         <script>
             document.addEventListener('DOMContentLoaded', function() {
 
-                // ================================================================
-                // 1) data-show-when — يُظهر/يُخفي الحقل بناءً على قيمة حقل آخر
-                //    يدعم: radio buttons + select
-                //    الصيغة: data-show-when="fieldName=expectedValue"
-                // ================================================================
+                // ── 1) data-show-when ──────────────────────────────────────
                 function initShowWhen(input) {
                     const condition = input.getAttribute('data-show-when');
                     if (!condition) return;
@@ -1251,171 +1048,241 @@ $isNextYearReg = ($regMonth >= 7 && $regMonth <= 9);
                     const expected = condition.substring(eqIndex + 1);
 
                     function getVal() {
-                        // radio
                         const checked = document.querySelector(`[name="${fieldName}"]:checked`);
                         if (checked) return checked.value;
-                        // select
                         const sel = document.querySelector(`select[name="${fieldName}"]`);
                         if (sel) return sel.value;
                         return '';
                     }
 
                     function toggle() {
-                        const show = getVal() === expected;
-                        input.style.display = show ? (input.tagName === 'INPUT' || input.tagName === 'TEXTAREA' ? 'block' : 'grid') : 'none';
-                        // لا نمسح القيمة عند الإخفاء حتى لا نفقد البيانات عند التبديل السريع
+                        input.style.display = getVal() === expected ? 'block' : 'none';
                     }
 
-                    // ربط الاستماع على جميع عناصر الحقل المرتبط
                     document.querySelectorAll(`[name="${fieldName}"]`).forEach(el => {
                         el.addEventListener('change', toggle);
                     });
 
-                    // تشغيل فوري عند التحميل
                     toggle();
                 }
 
-                // تطبيق على كل الحقول التي تحمل data-show-when
                 document.querySelectorAll('[data-show-when]').forEach(initShowWhen);
 
-                // ================================================================
-                // 2) الهواية "أخرى" — checkbox خاص
-                // ================================================================
+                // ── 2) الهواية "أخرى" ─────────────────────────────────────
                 const hobbyCheckbox = document.getElementById('hobbyOtherCheckbox');
                 const hobbyOtherInput = document.getElementById('hobbyOtherInput');
 
-                function toggleHobbyOther() {
-                    if (!hobbyCheckbox || !hobbyOtherInput) return;
-                    hobbyOtherInput.style.display = hobbyCheckbox.checked ? 'block' : 'none';
-                }
-
                 if (hobbyCheckbox) {
-                    hobbyCheckbox.addEventListener('change', toggleHobbyOther);
-                    toggleHobbyOther(); // تشغيل فوري
+                    const toggleHobby = () => {
+                        if (hobbyOtherInput)
+                            hobbyOtherInput.style.display = hobbyCheckbox.checked ? 'block' : 'none';
+                    };
+                    hobbyCheckbox.addEventListener('change', toggleHobby);
+                    toggleHobby();
                 }
 
-                // ================================================================
-                // 3) الحلقة → تحديد النظام المتبع تلقائياً
-                // ================================================================
+                // ── 3) الحلقة → النظام المتبع ─────────────────────────────
                 const circleSelect = document.getElementById('circleSelect');
                 const studySystemHint = document.getElementById('studySystemHint');
 
-                function autoSelectSystem() {
-                    if (!circleSelect) return;
-                    const selectedOption = circleSelect.options[circleSelect.selectedIndex];
-                    const systemType = selectedOption ? selectedOption.getAttribute('data-type') : '';
-
-                    if (systemType === 'فردي' || systemType === 'جماعي') {
-                        const radio = document.querySelector(`input[name="study_system"][value="${systemType}"]`);
-                        if (radio) {
-                            radio.checked = true;
-                            if (studySystemHint) studySystemHint.classList.remove('hidden');
-                        }
-                    } else {
-                        if (studySystemHint) studySystemHint.classList.add('hidden');
-                    }
-                }
-
                 if (circleSelect) {
+                    const autoSelectSystem = () => {
+                        const opt = circleSelect.options[circleSelect.selectedIndex];
+                        const systemType = opt ? opt.getAttribute('data-type') : '';
+
+                        if (systemType === 'فردي' || systemType === 'جماعي') {
+                            const radio = document.querySelector(`input[name="study_system"][value="${systemType}"]`);
+                            if (radio) {
+                                radio.checked = true;
+                                studySystemHint?.classList.remove('hidden');
+                            }
+                        } else {
+                            studySystemHint?.classList.add('hidden');
+                        }
+                    };
+
                     circleSelect.addEventListener('change', autoSelectSystem);
                     if (circleSelect.value !== '') autoSelectSystem();
                 }
 
-                // ================================================================
-                // 4) البحث برقم الواتساب → تحديد ولي الأمر تلقائياً
-                // ================================================================
+                // ── 4) guardian_id قبل الإرسال ────────────────────────────
+                const studentForm = document.querySelector('form');
+                if (studentForm) {
+                    studentForm.addEventListener('submit', function() {
+                        const guardianInput = document.getElementById('guardianIdInput');
+                        if (guardianInput && !guardianInput.value) {
+                            guardianInput.value = 'none';
+                        }
+                    });
+                }
+
+                // ── 5) استعادة حالة guardian بعد validation error ─────────
+                const guardianIdVal = document.getElementById('guardianIdInput')?.value;
+                if (guardianIdVal === 'new') {
+                    document.getElementById('newGuardianFields').style.display = 'grid';
+                }
+
+                // ── 6) ربط checkGuardianExists بحقل الواتساب ──────────────
                 const whatsappInput = document.getElementById('whatsappInput');
-                const guardianSelect = document.getElementById('guardianSelect');
-                const emailInput = document.getElementById('parentEmailInput');
-                const passwordInput = document.getElementById('passwordInput');
-                const searchResult = document.getElementById('guardianSearchResult');
-
-                function debounce(fn, ms) {
-                    let timer;
-                    return function(...args) {
-                        clearTimeout(timer);
-                        timer = setTimeout(() => fn.apply(this, args), ms);
-                    };
+                if (whatsappInput) {
+                    let whatsappTimer;
+                    whatsappInput.addEventListener('input', () => {
+                        clearTimeout(whatsappTimer);
+                        whatsappTimer = setTimeout(checkGuardianExists, 600);
+                    });
                 }
+            });
 
-                function showResult(msg, type) {
-                    if (!searchResult) return;
-                    searchResult.textContent = msg;
-                    searchResult.className = 'mt-1 text-xs font-semibold px-2 py-1 rounded-xl ' +
-                        (type === 'found' ?
-                            'bg-emerald-50 text-emerald-700 border border-emerald-100' :
-                            'bg-amber-50 text-amber-700 border border-amber-100');
-                    searchResult.classList.remove('hidden');
-                }
+            // ── Alpine: guardianSearch ─────────────────────────────────────
+            function guardianSearch() {
+                return {
+                    query: '{{ addslashes($guardianQueryName) }}',
+                    results: [],
+                    selected: @json($guardianData ?? null),
+                    searching: false,
+                    noResults: false,
 
-                if (whatsappInput && guardianSelect) {
-                    whatsappInput.addEventListener('input', debounce(async function() {
-                        const phone = this.value.trim();
-
-                        if (phone.length < 10) {
-                            if (searchResult) searchResult.classList.add('hidden');
+                    async search() {
+                        if (this.query.length < 2) {
+                            this.results = [];
+                            this.noResults = false;
                             return;
                         }
 
+                        this.searching = true;
+                        this.noResults = false;
+
                         try {
-                            const res = await fetch(`/api/users/find-by-phone?phone=${encodeURIComponent(phone)}`);
-                            const data = await res.json();
+                            // ✅ URL محدث
+                            const res = await fetch(
+                                `/guardians/search?q=${encodeURIComponent(this.query)}`, {
+                                    headers: {
+                                        'Accept': 'application/json',
+                                        'X-Requested-With': 'XMLHttpRequest'
+                                    }
+                                }
+                            );
 
-                            if (data.found) {
-                                // ولي الأمر موجود في النظام
-                                guardianSelect.value = data.user_id;
-                                // إخفاء حقول الحساب الجديد عبر إطلاق حدث change
-                                guardianSelect.dispatchEvent(new Event('change'));
-                                showResult('✅ تم العثور على ولي الأمر: ' + (data.name ?? ''), 'found');
+                            if (!res.ok) {
+                                console.error('Guardian search failed:', res.status);
+                                return;
+                            }
+
+                            this.results = await res.json();
+                            this.noResults = this.results.length === 0;
+
+                            if (this.noResults) {
+                                document.getElementById('guardianIdInput').value = 'new';
+                                document.getElementById('newGuardianFields').style.display = 'grid';
                             } else {
-                                // غير موجود → حساب جديد
-                                guardianSelect.value = 'new';
-                                guardianSelect.dispatchEvent(new Event('change'));
-
-                                // تعبئة تلقائية بالرقم (فقط إذا لم يُعدِّل المستخدم الحقل يدوياً)
-                                if (emailInput && !emailInput.dataset.userModified) {
-                                    emailInput.value = phone;
-                                }
-                                if (passwordInput && !passwordInput.dataset.userModified) {
-                                    passwordInput.value = phone;
-                                }
-
-                                showResult('⚠️ لم يُوجد ولي أمر بهذا الرقم — سيُنشأ حساب جديد', 'new');
+                                document.getElementById('newGuardianFields').style.display = 'none';
                             }
                         } catch (e) {
-                            // في حالة خطأ في الشبكة نتجاهل بصمت
-                            console.warn('guardian search error', e);
+                            console.error('Guardian search error:', e);
+                        } finally {
+                            this.searching = false;
                         }
-                    }, 700));
-                }
+                    },
 
-                // تتبع التعديل اليدوي على حقلي الحساب
-                if (emailInput) {
-                    emailInput.addEventListener('input', () => {
-                        emailInput.dataset.userModified = '1';
+                    select(guardian) {
+                        this.selected = guardian;
+                        this.query = guardian.name;
+                        this.results = [];
+                        this.noResults = false;
+                        document.getElementById('guardianIdInput').value = guardian.id;
+                        document.getElementById('newGuardianFields').style.display = 'none';
+                        document.getElementById('guardianExistsAlert')?.classList.add('hidden');
+                    },
+
+                    clear() {
+                        this.selected = null;
+                        this.query = '';
+                        this.results = [];
+                        this.noResults = false;
+                        document.getElementById('guardianIdInput').value = '';
+                        document.getElementById('newGuardianFields').style.display = 'none';
+                        document.getElementById('guardianExistsAlert')?.classList.add('hidden');
+                    },
+
+                    createNew() {
+                        this.selected = null;
+                        document.getElementById('guardianIdInput').value = 'new';
+                        document.getElementById('newGuardianFields').style.display = 'grid';
+                    },
+
+                    skipGuardian() {
+                        this.selected = {
+                            id: null,
+                            name: 'بدون ولي أمر',
+                            is_active: null
+                        };
+                        this.query = '';
+                        this.results = [];
+                        this.noResults = false;
+                        document.getElementById('guardianIdInput').value = 'none';
+                        document.getElementById('newGuardianFields').style.display = 'none';
+                    },
+                };
+            }
+
+            // ── checkGuardianExists ────────────────────────────────────────
+            let _existingGuardianFromCheck = null;
+
+            async function checkGuardianExists() {
+                const email = document.getElementById('parentEmailInput')?.value?.trim() ?? '';
+                const mobile = document.getElementById('whatsappInput')?.value?.trim() ?? '';
+
+                if (!email && !mobile) return;
+
+                const params = new URLSearchParams();
+                if (email) params.set('email', email);
+                if (mobile) params.set('mobile', mobile);
+
+                try {
+                    const res = await fetch(`/guardians/check?${params}`, {
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
                     });
-                }
-                if (passwordInput) {
-                    passwordInput.addEventListener('input', () => {
-                        passwordInput.dataset.userModified = '1';
-                    });
-                }
 
-                // ================================================================
-                // 5) زر إظهار/إخفاء كلمة المرور
-                // ================================================================
-                const togglePasswordBtn = document.querySelector('[data-action="togglePassword"]');
-                const showIcon = document.getElementById('passwordShowIcon');
-                const hideIcon = document.getElementById('passwordHideIcon');
+                    if (!res.ok) return;
 
-                if (togglePasswordBtn && passwordInput) {
-                    togglePasswordBtn.addEventListener('click', function() {
-                        const isPassword = passwordInput.type === 'password';
-                        passwordInput.type = isPassword ? 'text' : 'password';
-                        if (showIcon) showIcon.style.display = isPassword ? 'none' : 'inline';
-                        if (hideIcon) hideIcon.style.display = isPassword ? 'inline' : 'none';
-                    });
+                    const data = await res.json();
+                    const alertEl = document.getElementById('guardianExistsAlert');
+                    const emailResult = document.getElementById('emailCheckResult');
+
+                    if (data.exists) {
+                        _existingGuardianFromCheck = data;
+                        alertEl?.classList.remove('hidden');
+                        if (emailResult) {
+                            emailResult.className = 'text-xs font-medium mt-1 text-amber-600';
+                            emailResult.textContent = `⚠️ حساب موجود: ${data.name} (#${data.id})`;
+                            emailResult.classList.remove('hidden');
+                        }
+                    } else {
+                        _existingGuardianFromCheck = null;
+                        alertEl?.classList.add('hidden');
+                        if (emailResult) {
+                            emailResult.className = 'text-xs font-medium mt-1 text-emerald-600';
+                            emailResult.textContent = '✓ متاح — سيُنشأ حساب جديد';
+                            emailResult.classList.remove('hidden');
+                        }
+                    }
+                } catch (e) {
+                    console.error('Guardian check error:', e);
                 }
+            }
 
-            });
+            // ── useExistingGuardian ────────────────────────────────────────
+            function useExistingGuardian() {
+                if (!_existingGuardianFromCheck) return;
+
+                document.getElementById('guardianIdInput').value = _existingGuardianFromCheck.id;
+                document.getElementById('newGuardianFields').style.display = 'none';
+                document.getElementById('guardianExistsAlert')?.classList.add('hidden');
+                document.getElementById('emailCheckResult')?.classList.add('hidden');
+
+                _existingGuardianFromCheck = null;
+            }
         </script>

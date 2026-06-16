@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Spatie\Permission\Traits\HasRoles;
 use App\Models\Scopes\CenterScope;
+use App\Models\Center;
 
 
 /**
@@ -67,16 +68,16 @@ class Circle extends Model
         'center_id', // ← أضف
     ];
 
-    protected static function booted(): void
-    {
-        static::addGlobalScope(new CenterScope());
+    // protected static function booted(): void
+    // {
+    //     static::addGlobalScope(new CenterScope());
 
-        static::creating(function ($model) {
-            if (!$model->center_id && auth()->check()) {
-                $model->center_id = auth()->user()->center_id;
-            }
-        });
-    }
+    //     static::creating(function ($model) {
+    //         if (!$model->center_id && auth()->check()) {
+    //             $model->center_id = auth()->user()->center_id;
+    //         }
+    //     });
+    // }
     public function teachers()
     {
         return $this->belongsToMany(Teacher::class)->withPivot('role')->withTimestamps();
@@ -111,5 +112,10 @@ class Circle extends Model
             ->wherePivot('role', 'assistant')
             ->withPivot('role')
             ->withTimestamps();
+    }
+
+    public function center()
+    {
+        return $this->belongsTo(Center::class);
     }
 }

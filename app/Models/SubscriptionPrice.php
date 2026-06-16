@@ -36,7 +36,7 @@ use Spatie\Permission\Traits\HasRoles;
 class SubscriptionPrice extends Model
 {
     use HasRoles;
-    protected $fillable = ['circle_level', 'education_level', 'school_grade', 'amount'];
+    protected $fillable = ['circle_level', 'education_stage', 'school_grade', 'amount'];
 
     protected static function booted(): void
     {

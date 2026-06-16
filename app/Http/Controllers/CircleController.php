@@ -19,12 +19,17 @@ class CircleController extends Controller
         $this->authorize('viewAny', Circle::class);
 
         $user    = Auth::user();
-        $circles = $this->getAccessibleCircles($user)
-            ->load(['mainTeacher', 'assistantTeacher', 'supervisor']);
-
+        $circles = $this->getAccessibleCirclesQuery($user)
+            ->with([
+                'mainTeacher',
+                'assistantTeacher',
+                'supervisor.user',
+                'center',
+            ])
+            ->withCount('students')
+            ->get();
         return view('circles.index', compact('circles'));
     }
-
     // ─────────────────────────────────────────
     public function create()
     {
@@ -33,12 +38,25 @@ class CircleController extends Controller
         $user    = Auth::user();
         $teacher = $this->getTeacherRecord($user);
 
+        // ✅ المشرف المقيد أو القائمة الكاملة
+        if ($user->can('view all supervisors')) {
+            $supervisors      = $this->getAccessibleSupervisors($teacher);
+            $lockedSupervisor = null;
+        } else {
+            $supervisors      = $this->getAccessibleSupervisors($teacher);
+            $lockedSupervisor = $teacher ? Teacher::with('user.roles')->find($teacher->id) : null;
+        }
+
         return view('circles.create', [
-            'teachers'    => $this->getAccessibleTeachers($teacher),
-            'supervisors' => $this->getAccessibleSupervisors($teacher),
-            'circle'      => new Circle(), // ✅ كائن فارغ بدل null
+            'circle'          => new Circle(),
+            'teachers'        => $this->getAccessibleTeachers($teacher),
+            'supervisors'     => $supervisors,
+            'lockedSupervisor' => $lockedSupervisor,
+            'centers' => $this->getAccessibleCenters($user),
+            'canManageCenters' => $user->can('manage centers'),
         ]);
     }
+
     // ─────────────────────────────────────────
     public function store(CreateCircleRequest $request)
     {
@@ -52,11 +70,18 @@ class CircleController extends Controller
             ? $request->center_id
             : $teacher?->center_id;
 
+        $nameInput = trim($request->name);
+
+        if (!str_starts_with($nameInput, 'حلقة')) {
+            $finalName = 'حلقة ' . $nameInput;
+        } else {
+            $finalName = $nameInput;
+        }
+
         $circle = Circle::create([
-            'name'          => $request->name,
+            'name'          => $finalName,
             'type'          => $request->type,
             'level'         => $request->level,
-            'max_students'  => $request->max_students,
             'notes'         => $request->notes,
             'supervisor_id' => $request->supervisor_id ?? null,
             'center_id'     => $centerId,
@@ -99,10 +124,21 @@ class CircleController extends Controller
         $user    = Auth::user();
         $teacher = $this->getTeacherRecord($user);
 
+        if ($user->can('view all supervisors')) {
+            $supervisors      = $this->getAccessibleSupervisors($teacher);
+            $lockedSupervisor = null;
+        } else {
+            $supervisors      = $this->getAccessibleSupervisors($teacher);
+            $lockedSupervisor = $teacher ? Teacher::with('user.roles')->find($teacher->id) : null;
+        }
+
         return view('circles.edit', [
-            'circle'      => $circle,
-            'teachers'    => $this->getAccessibleTeachers($teacher),
-            'supervisors' => $this->getAccessibleSupervisors($teacher),
+            'circle'          => $circle,
+            'teachers'        => $this->getAccessibleTeachers($teacher),
+            'supervisors'     => $supervisors,
+            'lockedSupervisor' => $lockedSupervisor,
+            'centers'         => $this->getAccessibleCenters($user),   // ✅
+            'canManageCenters' => $user->can('manage centers'),         // ✅
         ]);
     }
 
@@ -112,13 +148,29 @@ class CircleController extends Controller
         $circle = Circle::findOrFail($id);
         $this->authorize('update', $circle);
 
+        $user    = Auth::user();
+        $teacher = $this->getTeacherRecord($user);
+
+        // center_id — admin يغير، الباقي فرعه بس
+        $centerId = $user->hasRole('admin')
+            ? $request->center_id
+            : $teacher?->center_id ?? $circle->center_id;
+
+        $nameInput = trim($request->name);
+
+        if (!str_starts_with($nameInput, 'حلقة')) {
+            $finalName = 'حلقة ' . $nameInput;
+        } else {
+            $finalName = $nameInput;
+        }
+
         $circle->update([
-            'name'          => $request->name,
+            'name'          => $finalName,
             'type'          => $request->type,
             'level'         => $request->level,
-            'max_students'  => $request->max_students,
             'notes'         => $request->notes ?? null,
             'supervisor_id' => $request->supervisor_id ?? null,
+            'center_id'     => $centerId,
             'is_active'     => true,
         ]);
 
