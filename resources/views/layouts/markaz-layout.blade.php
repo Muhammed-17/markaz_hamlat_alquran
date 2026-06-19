@@ -134,6 +134,12 @@
 
                     <div x-show="open" x-cloak class="pr-3 space-y-1 border-r border-white/10 mr-1">
                         @can('edit profile')
+                        <a href="{{ route('guardians.index') }}"
+                            class="block px-4 py-2 rounded-lg text-[13px] {{ request()->routeIs('guardians.*') ? 'bg-[#0d7a48] font-bold' : 'hover:bg-[#0d7a48]' }}">
+                            حسابات أولياء الأمور
+                        </a>
+                        @endcan
+                        @can('edit profile')
                         <a href="{{ route('profile.edit') }}"
                             class="block px-4 py-2 rounded-lg text-[13px] {{ request()->routeIs('profile.*') ? 'bg-[#0d7a48] font-bold' : 'hover:bg-[#0d7a48]' }}">
                             الملف الشخصي

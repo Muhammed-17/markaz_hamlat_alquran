@@ -161,27 +161,14 @@ class StudentController extends Controller
             $query->orderBy($sortField, $sortDir);
         }
 
-        if ($request->wantsJson()) {
-            return response()->json(
-                $query->paginate(20)->through(fn($s) => [
-                    'id'                => $s->id,
-                    'name'              => $s->name,
-                    'status'            => $s->status,
-                    'circle_name'       => $s->circle?->name ?? '',
-                    'educational_stage' => $s->educational_stage ?? '',
-                    'age'               => $s->date_of_birth?->age,
-                    'show_url'          => auth()->user()->can('view', $s) ? route('students.show', $s) : null,
-                    'edit_url'          => auth()->user()->can('update', $s) ? route('students.edit', $s) : null,
-                ])
-            );
-        }
+        // ✅ الفرق الجوهري: paginate() مباشرة + withQueryString() بدل JSON response
+        $students = $query->paginate(30)->withQueryString();
 
         $circles = $this->getAccessibleCircles($user);
         $centers = $this->getAccessibleCenters($user);
 
-        return view('students.index', compact('circles', 'centers'));
+        return view('students.index', compact('students', 'circles', 'centers'));
     }
-
     // ─────────────────────────────────────────
     public function create()
     {
@@ -191,6 +178,7 @@ class StudentController extends Controller
         $teacher = $this->getTeacherRecord($user);
 
         return view('students.create', [
+            'student'            => new Student(), // ← أضف هذا السطر
             'circles'            => $this->getAccessibleCircles($user),
             'centers'            => $this->getAccessibleCenters($user),
             'teachers'           => $this->getAccessibleTeachers($user, $teacher),

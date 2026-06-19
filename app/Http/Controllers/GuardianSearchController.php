@@ -9,11 +9,6 @@ use Illuminate\Http\JsonResponse;
 
 class GuardianSearchController extends Controller
 {
-    public function __construct()
-    {
-        $this->middleware('auth');
-    }
-
     // ================================================================
     // البحث عن ولي أمر موجود
     // ================================================================

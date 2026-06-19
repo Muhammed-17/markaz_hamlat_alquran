@@ -6,11 +6,13 @@ use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\URL; // <-- تأكد من وجود هذا السطر
 use Illuminate\Support\Facades\Vite; // <-- تأكد من وجود هذا السطر
+use Illuminate\Auth\Events\Login; // <-- جديد
+use Illuminate\Support\Facades\Event; // <-- جديد
 
 class AppServiceProvider extends ServiceProvider
 {
 
-    protected $policies = [
+    protected array $policies = [
         \App\Models\Student::class => \App\Policies\StudentPolicy::class,
         \App\Models\Attendance::class => \App\Policies\AttendancePolicy::class,
         \App\Models\Subscription::class => \App\Policies\SubscriptionPolicy::class,
@@ -51,5 +53,10 @@ class AppServiceProvider extends ServiceProvider
             // تعيين مسار الـ Assets ليتطابق مع رابط ngrok المباشر للزائر
             config(['app.asset_url' => 'https://' . request()->headers->get('host')]);
         }
+
+        // 3. تسجيل آخر وقت دخول للمستخدم (last_login_at)
+        Event::listen(Login::class, function ($event) {
+            $event->user->forceFill(['last_login_at' => now()])->save();
+        });
     }
 }

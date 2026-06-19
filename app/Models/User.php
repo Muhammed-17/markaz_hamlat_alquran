@@ -92,13 +92,15 @@ class User extends Authenticatable
      *
      * @return array<string, string>
      */
-    protected function casts(): array
-    {
-        return [
-            'email_verified_at' => 'datetime',
-            'password' => 'hashed',
-        ];
-    }
+protected function casts(): array
+{
+    return [
+        'email_verified_at' => 'datetime',
+        'password' => 'hashed',
+        'last_login_at' => 'datetime',
+        'last_seen_at' => 'datetime', 
+    ];
+}
 
     public function students()
     {
@@ -110,6 +112,11 @@ class User extends Authenticatable
         return $this->hasOne(Teacher::class);
     }
 
+    public function center()
+    {
+        return $this->belongsTo(Center::class, 'center_id');
+    }
+
     public function collectedSubscriptions()
     {
         return $this->hasMany(Subscription::class, 'collected_by');
@@ -118,5 +125,9 @@ class User extends Authenticatable
     public function attendances()
     {
         return $this->hasMany(Attendance::class, 'user_id');
+    }
+    public function getIsOnlineAttribute(): bool
+    {
+        return $this->last_seen_at && $this->last_seen_at->gt(now()->subMinutes(5));
     }
 }

@@ -317,27 +317,44 @@ $isNextYearReg = ($regMonth >= 7 && $regMonth <= 9);
                         </div>
 
                         {{-- نتائج البحث --}}
+                        {{-- نتائج البحث --}}
                         <div x-show="results.length > 0"
                             class="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-2xl shadow-lg overflow-hidden">
                             <template x-for="guardian in results" :key="guardian.id">
-                                <div @click="select(guardian)"
-                                    class="px-4 py-3 hover:bg-emerald-50 cursor-pointer flex justify-between items-center border-b border-gray-50 last:border-0">
-                                    <div class="flex items-center gap-2">
-                                        <span class="text-xs font-mono bg-gray-100 text-gray-500 px-2 py-0.5 rounded-lg"
+                                <div class="px-4 py-3 flex justify-between items-center border-b border-gray-50 last:border-0 hover:bg-emerald-50 transition-colors">
+
+                                    {{-- معلومات ولي الأمر --}}
+                                    <div class="flex items-center gap-2 flex-1 min-w-0">
+                                        <span class="text-xs font-mono bg-gray-100 text-gray-500 px-2 py-0.5 rounded-lg shrink-0"
                                             x-text="'#' + guardian.id"></span>
-                                        <span class="font-bold text-gray-800 text-sm" x-text="guardian.name"></span>
-                                        {{-- ✅ مؤشر حالة الحساب --}}
-                                        <span x-show="guardian.is_active"
-                                            class="text-xs bg-emerald-100 text-emerald-600 px-1.5 py-0.5 rounded-md font-medium">نشط</span>
-                                        <span x-show="!guardian.is_active"
-                                            class="text-xs bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded-md font-medium">غير نشط</span>
+                                        <div class="flex flex-col min-w-0">
+                                            <div class="flex items-center gap-1.5">
+                                                <span class="font-bold text-gray-800 text-sm truncate" x-text="guardian.name"></span>
+                                                <span x-show="guardian.is_active"
+                                                    class="text-xs bg-emerald-100 text-emerald-600 px-1.5 py-0.5 rounded-md font-medium shrink-0">نشط</span>
+                                                <span x-show="!guardian.is_active"
+                                                    class="text-xs bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded-md font-medium shrink-0">غير نشط</span>
+                                            </div>
+                                            <div class="flex items-center gap-3 mt-0.5">
+                                                <span class="text-gray-500 text-xs" x-show="guardian.mobile"
+                                                    x-text="'📱 ' + guardian.mobile"></span>
+                                                <span class="text-gray-400 text-xs" x-show="guardian.email"
+                                                    x-text="'✉️ ' + guardian.email"></span>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div class="flex flex-col items-end gap-0.5">
-                                        <span class="text-gray-500 text-xs font-medium"
-                                            x-text="guardian.mobile ? '📱 ' + guardian.mobile : ''"></span>
-                                        <span class="text-gray-400 text-xs"
-                                            x-text="guardian.email ? '🔑 ' + guardian.email : ''"></span>
-                                    </div>
+
+                                    {{-- زر الاختيار --}}
+                                    <button type="button"
+                                        @click.stop="select(guardian)"
+                                        class="shrink-0 mr-3 inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#0a5c36] hover:bg-[#084a2b] text-white text-xs font-semibold rounded-xl transition-colors shadow-sm">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none"
+                                            viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                                        </svg>
+                                        اختيار
+                                    </button>
+
                                 </div>
                             </template>
                         </div>

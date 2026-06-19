@@ -8,44 +8,103 @@ use Spatie\Permission\Models\Role;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\PermissionRegistrar;
 use Illuminate\Http\Request;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\Rule;
 
 class RolePermissionController extends Controller
 {
-    private const PROTECTED_ROLES = ['admin', 'manager', 'supervisor', 'teacher', 'guardian'];
+    /**
+     * الأدوار الأساسية المحمية — لا يمكن حذفها أو تعديل اسمها
+     */
+    private const PROTECTED_ROLES = [
+        'admin',
+        'general_manager',
+        'manager',
+        'supervisor',
+        'teacher',
+        'guardian',
+    ];
+
+    /**
+     * الحد الأقصى لعدد الأدوار في النظام
+     */
+    private const MAX_ROLES = 25;
 
     // ─────────────────────────────────────────────
     public function index(): View
     {
-        $roles       = Role::with('permissions')->get();
-        $permissions = Permission::orderBy('group')->orderBy('display_name')->get()
+        Gate::authorize('manage roles');
+
+        $roles = Role::with('permissions')->get();
+
+        $permissions = Permission::orderBy('group')
+            ->orderBy('display_name')
+            ->get()
             ->groupBy('group');
 
         return view('admin.roles.index', compact('roles', 'permissions'));
     }
 
     // ─────────────────────────────────────────────
-    public function storeRole(Request $request)
+    public function storeRole(Request $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'name'          => 'required|string|max:255|unique:roles,name',
-            'display_name'  => 'nullable|string|max:255',
-            'permissions'   => 'nullable|array',
-            'permissions.*' => 'exists:permissions,id',
-        ]);
+        Gate::authorize('manage roles');
 
-        $role = Role::create([
-            'name'         => $validated['name'],
-            'display_name' => $validated['display_name'] ?? null,
-            'guard_name'   => 'web',
-        ]);
-
-        if (!empty($validated['permissions'])) {
-            $role->syncPermissions(
-                Permission::whereIn('id', $validated['permissions'])->get()
-            );
+        // ① التحقق من الحد الأقصى للأدوار
+        if (Role::count() >= self::MAX_ROLES) {
+            return back()->with('error', 'تم الوصول للحد الأقصى من الأدوار (' . self::MAX_ROLES . ')');
         }
+
+        // ② Validation قوي
+        $validated = $request->validate([
+            'name' => [
+                'required',
+                'string',
+                'max:50',
+                'regex:/^[a-z][a-z_]*[a-z]$/',   // حروف صغيرة وunderscore فقط
+                'unique:roles,name',
+                Rule::notIn(self::PROTECTED_ROLES), // لا يُنشئ role باسم محمي
+            ],
+            'display_name'  => 'nullable|string|max:100',
+            'permissions'   => 'nullable|array|max:50',
+            'permissions.*' => ['integer', 'exists:permissions,id'],
+        ], [
+            'name.regex'    => 'اسم الدور يجب أن يحتوي على حروف إنجليزية صغيرة وشرطة سفلية فقط',
+            'name.not_in'   => 'هذا الاسم محجوز ولا يمكن استخدامه',
+            'name.unique'   => 'اسم الدور موجود مسبقاً',
+        ]);
+
+        $permissionIds = $validated['permissions'] ?? [];
+
+        // ③ منع Privilege Escalation — لا يمنح صلاحيات لا يملكها
+        $this->ensureCanGrantPermissions($permissionIds);
+
+        DB::transaction(function () use ($validated, $permissionIds) {
+            $role = Role::create([
+                'name'         => $validated['name'],
+                'display_name' => $validated['display_name'] ?? null,
+                'guard_name'   => 'web',
+            ]);
+
+            if (!empty($permissionIds)) {
+                $role->syncPermissions(
+                    Permission::whereIn('id', $permissionIds)->get()
+                );
+            }
+
+            // ④ Audit Log
+            Log::channel('audit')->info('role_created', [
+                'by_user_id'   => auth()->id(),
+                'by_user_name' => auth()->user()->name,
+                'role_name'    => $validated['name'],
+                'permissions'  => $permissionIds,
+                'ip'           => request()->ip(),
+            ]);
+        });
 
         $this->clearPermissionCache();
 
@@ -54,30 +113,51 @@ class RolePermissionController extends Controller
     }
 
     // ─────────────────────────────────────────────
-    public function updateRolePermissions(Request $request, Role $role)
+    public function updateRolePermissions(Request $request, Role $role): RedirectResponse
     {
+        Gate::authorize('manage roles');
+
+        // ① Validation
         $request->validate([
-            'permissions'   => 'nullable|array',
-            'permissions.*' => 'exists:permissions,id',
+            'permissions'   => 'nullable|array|max:50',
+            'permissions.*' => ['integer', 'exists:permissions,id'],
         ]);
 
         $permissionIds = $request->input('permissions', []);
 
-        // 🛡️ حماية manage roles للـ admin دايماً
+        // ② الصلاحيات المقفلة للـ admin — تُضاف دائماً بغض النظر عن الـ request
         if ($role->name === 'admin') {
-            $manageRolesId = Permission::where('name', 'manage roles')->value('id');
-            if ($manageRolesId && !in_array($manageRolesId, $permissionIds)) {
-                $permissionIds[] = $manageRolesId;
-            }
+            $lockedIds = Permission::whereIn('name', ['manage roles'])
+                ->pluck('id')
+                ->toArray();
+
+            $permissionIds = array_unique(array_merge($permissionIds, $lockedIds));
         }
 
-        $role->syncPermissions(
-            Permission::whereIn('id', $permissionIds)->get()
-        );
+        // ③ منع Privilege Escalation
+        $this->ensureCanGrantPermissions($permissionIds);
 
-        // logout المستخدمين عشان ياخدوا الصلاحيات الجديدة
-        $userIds = User::role($role->name)->pluck('id');
-        DB::table('sessions')->whereIn('user_id', $userIds)->delete();
+        $oldPermissions = $role->permissions->pluck('id')->toArray();
+
+        DB::transaction(function () use ($role, $permissionIds, $oldPermissions) {
+            $role->syncPermissions(
+                Permission::whereIn('id', $permissionIds)->get()
+            );
+
+            // ④ Audit Log
+            Log::channel('audit')->info('role_permissions_updated', [
+                'by_user_id'      => auth()->id(),
+                'by_user_name'    => auth()->user()->name,
+                'role_id'         => $role->id,
+                'role_name'       => $role->name,
+                'old_permissions' => $oldPermissions,
+                'new_permissions' => $permissionIds,
+                'ip'              => request()->ip(),
+            ]);
+        });
+
+        // ⑤ إلغاء sessions المستخدمين المتأثرين بشكل موثوق
+        $this->invalidateRoleUserSessions($role);
 
         $this->clearPermissionCache();
 
@@ -86,15 +166,42 @@ class RolePermissionController extends Controller
     }
 
     // ─────────────────────────────────────────────
-    public function destroyRole(Role $role)
+    public function destroyRole(Role $role): RedirectResponse
     {
+        Gate::authorize('manage roles');
+
+        // ① حماية الأدوار الأساسية
         if (in_array($role->name, self::PROTECTED_ROLES)) {
+            Log::channel('audit')->warning('role_delete_attempt_on_protected', [
+                'by_user_id' => auth()->id(),
+                'role_name'  => $role->name,
+                'ip'         => request()->ip(),
+            ]);
+
             return redirect()->route('admin.roles.index')
                 ->with('error', 'لا يمكن حذف الأدوار الأساسية للنظام');
         }
 
-        $role->syncPermissions([]);
-        $role->delete();
+        // ② التحقق من عدم وجود مستخدمين على هذا الدور
+        $usersCount = User::role($role->name)->count();
+        if ($usersCount > 0) {
+            return redirect()->route('admin.roles.index')
+                ->with('error', "لا يمكن حذف الدور، يوجد {$usersCount} مستخدم مرتبط به");
+        }
+
+        $roleName = $role->name;
+
+        DB::transaction(function () use ($role, $roleName) {
+            $role->syncPermissions([]);
+            $role->delete();
+
+            Log::channel('audit')->info('role_deleted', [
+                'by_user_id'   => auth()->id(),
+                'by_user_name' => auth()->user()->name,
+                'role_name'    => $roleName,
+                'ip'           => request()->ip(),
+            ]);
+        });
 
         $this->clearPermissionCache();
 
@@ -103,6 +210,56 @@ class RolePermissionController extends Controller
     }
 
     // ─────────────────────────────────────────────
+    // Private Helpers
+    // ─────────────────────────────────────────────
+
+    /**
+     * يمنع Privilege Escalation — المستخدم لا يمنح صلاحيات لا يملكها هو نفسه
+     */
+    private function ensureCanGrantPermissions(array $permissionIds): void
+    {
+        // الـ admin يملك كل الصلاحيات — استثناء
+        if (auth()->user()->hasRole('admin')) {
+            return;
+        }
+
+        $requestedPermissions = Permission::whereIn('id', $permissionIds)->pluck('name');
+
+        foreach ($requestedPermissions as $permName) {
+            if (!auth()->user()->can($permName)) {
+                Log::channel('audit')->warning('privilege_escalation_attempt', [
+                    'by_user_id'  => auth()->id(),
+                    'permission'  => $permName,
+                    'ip'          => request()->ip(),
+                ]);
+
+                abort(403, "غير مسموح: لا يمكنك منح صلاحية ({$permName}) لأنك لا تملكها");
+            }
+        }
+    }
+
+    /**
+     * إلغاء sessions المستخدمين المرتبطين بالدور
+     * يعمل مع database session driver — للـ drivers الأخرى يستخدم permissions_updated_at
+     */
+    private function invalidateRoleUserSessions(Role $role): void
+    {
+        $userIds = User::role($role->name)->pluck('id');
+
+        if ($userIds->isEmpty()) {
+            return;
+        }
+
+        // يحذف الـ sessions من قاعدة البيانات مباشرة
+        // لو session driver = file أو redis، الـ clearPermissionCache() كافي مع Spatie
+        if (config('session.driver') === 'database') {
+            DB::table('sessions')->whereIn('user_id', $userIds)->delete();
+        }
+    }
+
+    /**
+     * مسح cache الصلاحيات
+     */
     private function clearPermissionCache(): void
     {
         app(PermissionRegistrar::class)->forgetCachedPermissions();

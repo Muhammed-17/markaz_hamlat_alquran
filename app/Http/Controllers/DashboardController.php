@@ -11,10 +11,11 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
+use Illuminate\Http\RedirectResponse;
 
 class DashboardController extends Controller
 {
-    public function index(): View
+    public function index(): View|RedirectResponse
     {
         /** @var User $user */
         if (Auth::user()->hasRole('guardian')) {
@@ -243,7 +244,7 @@ class DashboardController extends Controller
             }
         }
 
-        return view('guardian.dashboard', compact(
+        return view('guardian.guardian_dashboard', compact(
             'activeChildrenCount',
             'totalChildrenCount',
             'latestAbsences',

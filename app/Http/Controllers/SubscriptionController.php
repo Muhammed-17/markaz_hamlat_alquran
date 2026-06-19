@@ -17,10 +17,13 @@ class SubscriptionController extends Controller
     // ─────────────────────────────────────────
     public function index(Request $request)
     {
-        $this->authorize('viewAny', Subscription::class);
+        // view subscriptions = admin/general_manager/manager/supervisor/teacher
+        // view own subscriptions = guardian
+        if (!Auth::user()->canAny(['view subscriptions', 'view own subscriptions'])) {
+            abort(403);
+        }
 
         $user             = Auth::user();
-        $selectedCircleId = $request->get('circle_id');
         $selectedMonth    = $request->get('month', now()->format('Y-m'));
         $monthStart       = Carbon::createFromFormat('Y-m', $selectedMonth)->startOfMonth()->format('Y-m-d');
         $selectedStatus   = $request->get('status');
@@ -29,14 +32,26 @@ class SubscriptionController extends Controller
         $circles   = $this->getAccessibleCircles($user);
         $circleIds = $circles->pluck('id');
 
+        // ─── التحقق من circle_id: لازم يكون ضمن حلقات المستخدم ──
+        $selectedCircleId = $request->get('circle_id');
+        if ($selectedCircleId && !$circleIds->contains($selectedCircleId)) {
+            abort(403, 'ليس لديك صلاحية لعرض هذه الحلقة.');
+        }
+
         if (!$selectedCircleId && $circles->count() === 1) {
             $selectedCircleId = $circles->first()->id;
+        }
+
+        // ─── guardian لا يملك search ─────────────────────────────
+        if ($user->can('view own children')) {
+            $search = null;
         }
 
         // ─── Base query ───────────────────────────────────────────
         $statsBaseQuery = Subscription::query();
 
-        if ($user->hasRole('guardian')) {
+        if ($user->can('view own subscriptions') && !$user->can('view subscriptions')) {
+            // guardian: يرى اشتراكات أبنائه فقط
             $statsBaseQuery->whereIn('student_id', $user->students()->pluck('id'));
         } else {
             $this->applyCircleFilter($statsBaseQuery, $user, $circleIds);
@@ -46,45 +61,99 @@ class SubscriptionController extends Controller
             $statsBaseQuery->where('circle_id', $selectedCircleId);
         }
 
-        // ─── إيرادات آخر 6 أشهر (حسب تاريخ الدفع الفعلي paid_at) ──
-        $monthlyRevenue = (clone $statsBaseQuery)
-            ->selectRaw("DATE_FORMAT(paid_at, '%Y-%m') as month_label, SUM(amount) as total")
-            ->where('status', 'مدفوع')
-            ->whereNotNull('paid_at')
-            ->groupBy('month_label')
-            ->orderBy('month_label')
-            ->take(6)
-            ->get();
+        // ─── إيرادات آخر 6 أشهر (حسب paid_at) — فقط لمن يملك view subscriptions chart ──
+        $monthlyRevenue = collect();
+        $monthlyCollected = 0;
+        $statusStats = collect();
+        $paymentStats = collect();
+        $paymentRate = 0;
+        $unpaidAmount = 0;
 
-        // ─── إجمالي التحصيل الفعلي للشهر المختار (paid_at) ──────
-        $monthlyCollected = (clone $statsBaseQuery)
-            ->where('status', 'مدفوع')
-            ->whereNotNull('paid_at')
-            ->whereRaw("DATE_FORMAT(paid_at, '%Y-%m') = ?", [$selectedMonth])
-            ->sum('amount');
+        if ($user->can('view subscriptions chart')) {
+            $monthlyRevenue = (clone $statsBaseQuery)
+                ->selectRaw("DATE_FORMAT(paid_at, '%Y-%m') as month_label, SUM(amount) as total")
+                ->where('status', 'مدفوع')
+                ->whereNotNull('paid_at')
+                ->groupBy('month_label')
+                ->orderBy('month_label')
+                ->take(6)
+                ->get();
 
-        // ─── إحصائيات الحالة (حسب شهر الاستحقاق month) ──────────
-        $statusStats = (clone $statsBaseQuery)
-            ->selectRaw('status, count(*) as count, SUM(amount) as total_amount')
-            ->where('month', $monthStart)
-            ->groupBy('status')
-            ->get();
+            // إجمالي التحصيل الفعلي للشهر المختار (paid_at)
+            $monthlyCollected = (clone $statsBaseQuery)
+                ->where('status', 'مدفوع')
+                ->whereNotNull('paid_at')
+                ->whereRaw("DATE_FORMAT(paid_at, '%Y-%m') = ?", [$selectedMonth])
+                ->sum('amount');
 
-        // ─── طرق الدفع (حسب شهر الاستحقاق) ──────────────────────
-        $paymentStats = (clone $statsBaseQuery)
-            ->selectRaw('payment_method, count(*) as count')
-            ->where('status', 'مدفوع')
-            ->where('month', $monthStart)
-            ->groupBy('payment_method')
-            ->get();
+            // إحصائيات الحالة (حسب شهر الاستحقاق)
+            $statusStats = (clone $statsBaseQuery)
+                ->selectRaw('status, count(*) as count, SUM(amount) as total_amount')
+                ->where('month', $monthStart)
+                ->groupBy('status')
+                ->get();
 
-        // ─── سجل الاشتراكات (كل ما دُفع في الشهر المختار بـ paid_at) ──
+            // طرق الدفع
+            $paymentStats = (clone $statsBaseQuery)
+                ->selectRaw('payment_method, count(*) as count')
+                ->where('status', 'مدفوع')
+                ->where('month', $monthStart)
+                ->groupBy('payment_method')
+                ->get();
+
+            // ─── نسبة السداد والمبالغ غير المحصلة ────────────────
+            $studentsQuery = Student::where('status', 'مقيد');
+
+            if ($user->can('view own subscriptions') && !$user->can('view subscriptions')) {
+                $studentsQuery->where('guardian_id', $user->id);
+            } else {
+                $this->applyCircleFilter($studentsQuery, $user, $circleIds);
+            }
+
+            if ($selectedCircleId) {
+                $studentsQuery->where('circle_id', $selectedCircleId);
+            }
+
+            $totalActiveStudents = (clone $studentsQuery)->count();
+
+            $paidSubsCount = (clone $statsBaseQuery)
+                ->where('month', $monthStart)
+                ->where('status', 'مدفوع')
+                ->count();
+
+            $paymentRate = $totalActiveStudents > 0
+                ? round(($paidSubsCount / $totalActiveStudents) * 100, 1)
+                : 0;
+
+            $prices   = \App\Models\SubscriptionPrice::all();
+            $priceMap = [];
+            foreach ($prices as $p) {
+                $priceMap[$p->circle_level . '|' . $p->education_stage] = (float) $p->amount;
+            }
+
+            $paidSubscriptionsMap = (clone $statsBaseQuery)
+                ->where('month', $monthStart)
+                ->where('status', 'مدفوع')
+                ->pluck('amount', 'student_id');
+
+            (clone $studentsQuery)
+                ->with('circle:id,level')
+                ->select('id', 'circle_id', 'educational_stage')
+                ->chunk(500, function ($chunk) use (&$unpaidAmount, $priceMap, $paidSubscriptionsMap) {
+                    foreach ($chunk as $student) {
+                        $key      = ($student->circle?->level) . '|' . $student->educational_stage;
+                        $expected = $priceMap[$key] ?? 60.00;
+                        $paid     = $paidSubscriptionsMap[$student->id] ?? 0;
+                        $unpaidAmount += max(0, $expected - $paid);
+                    }
+                });
+        }
+
+        // ─── سجل الاشتراكات (Paginated) ───────────────────────────
         $recentSubscriptionsQuery = (clone $statsBaseQuery)
             ->with(['student', 'collectedBy'])
             ->where(function ($q) use ($monthStart, $selectedMonth) {
-                // اشتراكات الشهر المختار (حسب الاستحقاق)
                 $q->where('month', $monthStart)
-                    // أو اشتراكات دُفعت فعلياً في الشهر المختار (شهور سابقة دُفعت متأخرة)
                     ->orWhere(function ($q2) use ($selectedMonth) {
                         $q2->where('status', 'مدفوع')
                             ->whereNotNull('paid_at')
@@ -92,7 +161,8 @@ class SubscriptionController extends Controller
                     });
             });
 
-        if ($search) {
+        // البحث: متاح فقط لمن يملك view subscriptions (وليس guardian)
+        if ($search && $user->can('view subscriptions')) {
             $recentSubscriptionsQuery->whereHas('student', function ($q) use ($search) {
                 $q->where('name', 'like', '%' . $search . '%');
             });
@@ -102,61 +172,10 @@ class SubscriptionController extends Controller
             $recentSubscriptionsQuery->where('status', $selectedStatus);
         }
 
-        // ─── الترتيب: آخر عملية دفع أولاً ───────────────────────
         $recentSubscriptions = $recentSubscriptionsQuery
             ->orderByRaw('COALESCE(paid_at, created_at) DESC')
             ->paginate(15)
             ->withQueryString();
-
-        // ─── حساب نسبة الدفع والمبلغ غير المدفوع ─────────────────
-        $studentsQuery = Student::where('status', 'مقيد');
-
-        if ($user->hasRole('guardian')) {
-            $studentsQuery->where('guardian_id', $user->id);
-        } else {
-            $this->applyCircleFilter($studentsQuery, $user, $circleIds);
-        }
-
-        if ($selectedCircleId) {
-            $studentsQuery->where('circle_id', $selectedCircleId);
-        }
-
-        $totalActiveStudents = (clone $studentsQuery)->count();
-
-        $paidSubsCount = (clone $statsBaseQuery)
-            ->where('month', $monthStart)
-            ->where('status', 'مدفوع')
-            ->count();
-
-        $paymentRate = $totalActiveStudents > 0
-            ? round(($paidSubsCount / $totalActiveStudents) * 100, 1)
-            : 0;
-
-        $prices = \App\Models\SubscriptionPrice::all();
-
-        $priceMap = [];
-        foreach ($prices as $p) {
-            $priceMap[$p->circle_level . '|' . $p->education_stage] = (float) $p->amount;
-        }
-
-        $paidSubscriptionsMap = (clone $statsBaseQuery)
-            ->where('month', $monthStart)
-            ->where('status', 'مدفوع')
-            ->pluck('amount', 'student_id');
-
-        $unpaidAmount = 0;
-
-        (clone $studentsQuery)
-            ->with('circle:id,level')
-            ->select('id', 'circle_id', 'educational_stage')
-            ->chunk(500, function ($chunk) use (&$unpaidAmount, $priceMap, $paidSubscriptionsMap) {
-                foreach ($chunk as $student) {
-                    $key      = ($student->circle?->level) . '|' . $student->educational_stage;
-                    $expected = $priceMap[$key] ?? 60.00;
-                    $paid     = $paidSubscriptionsMap[$student->id] ?? 0;
-                    $unpaidAmount += max(0, $expected - $paid);
-                }
-            });
 
         return view('subscription.index', compact(
             'monthlyRevenue',
@@ -177,7 +196,8 @@ class SubscriptionController extends Controller
     // ─────────────────────────────────────────
     public function create()
     {
-        $this->authorize('create', Subscription::class);
+        // create subscriptions فقط
+        $this->authorize('create subscriptions');
 
         $user      = Auth::user();
         $circles   = $this->getAccessibleCircles($user);
@@ -196,11 +216,18 @@ class SubscriptionController extends Controller
     // ─────────────────────────────────────────
     public function store(StoreSubscriptionRequest $request)
     {
-        $this->authorize('create', Subscription::class);
+        $this->authorize('create subscriptions');
 
         $validated = $request->validated();
         $month     = Carbon::createFromFormat('Y-m', $validated['month'])->startOfMonth()->format('Y-m-d');
         $isExempt  = $validated['status'] === 'معفي';
+
+        // التحقق إن الـ circle_id ضمن حلقات المستخدم
+        $user      = Auth::user();
+        $circleIds = $this->getAccessibleCircleIds($user);
+        if (!$circleIds->contains($validated['circle_id'])) {
+            abort(403, 'ليس لديك صلاحية لإضافة اشتراك لهذه الحلقة.');
+        }
 
         $data = [
             'student_id'     => $validated['student_id'],
@@ -210,6 +237,7 @@ class SubscriptionController extends Controller
             'amount'         => $isExempt ? 0 : $validated['amount'],
             'payment_method' => $isExempt ? null : ($validated['payment_method'] ?? null),
             'paid_at'        => $validated['status'] === 'مدفوع' ? now() : null,
+            'collected_by'   => $validated['status'] === 'مدفوع' ? Auth::id() : null,
             'notes'          => $validated['notes'] ?? null,
         ];
 
@@ -222,12 +250,19 @@ class SubscriptionController extends Controller
     // ─────────────────────────────────────────
     public function lateAndUnpaid(Request $request)
     {
-        $this->authorize('viewAny', Subscription::class);
+        if (!Auth::user()->can('view subscriptions')) {
+            abort(403);
+        }
 
         $user             = Auth::user();
         $selectedCircleId = $request->get('circle_id');
         $circles          = $this->getAccessibleCircles($user);
         $circleIds        = $circles->pluck('id');
+
+        // التحقق من circle_id
+        if ($selectedCircleId && !$circleIds->contains($selectedCircleId)) {
+            abort(403, 'ليس لديك صلاحية لعرض هذه الحلقة.');
+        }
 
         $query = Student::where('status', 'مقيد')
             ->with([
@@ -235,11 +270,7 @@ class SubscriptionController extends Controller
                 'circle'
             ]);
 
-        if ($user->hasRole('guardian')) {
-            $query->where('guardian_id', $user->id);
-        } else {
-            $this->applyCircleFilter($query, $user, $circleIds);
-        }
+        $this->applyCircleFilter($query, $user, $circleIds);
 
         if ($selectedCircleId && $selectedCircleId !== 'all') {
             $query->where('circle_id', $selectedCircleId);
@@ -283,11 +314,16 @@ class SubscriptionController extends Controller
     // ─────────────────────────────────────────
     public function edit(Subscription $subscription)
     {
-        $this->authorize('update', $subscription);
+        $this->authorize('edit subscriptions');
 
-        $user    = Auth::user();
-        $circles = $this->getAccessibleCircles($user);
+        // التحقق إن الاشتراك ضمن نطاق المستخدم
+        $user      = Auth::user();
+        $circleIds = $this->getAccessibleCircleIds($user);
+        if (!$circleIds->contains($subscription->circle_id)) {
+            abort(403, 'ليس لديك صلاحية لتعديل هذا الاشتراك.');
+        }
 
+        $circles  = $this->getAccessibleCircles($user);
         $students = Student::with(['circle', 'subscriptions'])
             ->where('status', 'مقيد')
             ->whereIn('circle_id', $circles->pluck('id'))
@@ -301,7 +337,14 @@ class SubscriptionController extends Controller
     // ─────────────────────────────────────────
     public function update(Request $request, Subscription $subscription)
     {
-        $this->authorize('update', $subscription);
+        $this->authorize('edit subscriptions');
+
+        // التحقق إن الاشتراك ضمن نطاق المستخدم
+        $user      = Auth::user();
+        $circleIds = $this->getAccessibleCircleIds($user);
+        if (!$circleIds->contains($subscription->circle_id)) {
+            abort(403, 'ليس لديك صلاحية لتعديل هذا الاشتراك.');
+        }
 
         $validated = $request->validate([
             'circle_id'      => 'required|exists:circles,id',
@@ -312,6 +355,11 @@ class SubscriptionController extends Controller
             'payment_method' => 'nullable|in:نقدي,تحويل بنكي,أخرى',
             'notes'          => 'nullable|string|max:500',
         ]);
+
+        // التحقق إن الـ circle_id الجديد ضمن نطاق المستخدم أيضاً
+        if (!$circleIds->contains($validated['circle_id'])) {
+            abort(403, 'ليس لديك صلاحية لنقل الاشتراك لهذه الحلقة.');
+        }
 
         $month    = Carbon::createFromFormat('Y-m', $validated['month'])
             ->startOfMonth()->format('Y-m-d');
@@ -324,7 +372,8 @@ class SubscriptionController extends Controller
             'status'         => $validated['status'],
             'amount'         => $isExempt ? 0 : $validated['amount'],
             'payment_method' => $isExempt ? null : ($validated['payment_method'] ?? null),
-            'paid_at'        => $validated['status'] === 'مدفوع' ? now() : null,
+            'paid_at'        => $validated['status'] === 'مدفوع' ? ($subscription->paid_at ?? now()) : null,
+            'collected_by'   => $validated['status'] === 'مدفوع' ? ($subscription->collected_by ?? Auth::id()) : null,
             'notes'          => $validated['notes'] ?? null,
         ];
 
@@ -337,7 +386,14 @@ class SubscriptionController extends Controller
     // ─────────────────────────────────────────
     public function destroy(Subscription $subscription)
     {
-        $this->authorize('delete', $subscription);
+        $this->authorize('delete subscriptions');
+
+        // التحقق إن الاشتراك ضمن نطاق المستخدم
+        $user      = Auth::user();
+        $circleIds = $this->getAccessibleCircleIds($user);
+        if (!$circleIds->contains($subscription->circle_id)) {
+            abort(403, 'ليس لديك صلاحية لحذف هذا الاشتراك.');
+        }
 
         $subscription->delete();
 

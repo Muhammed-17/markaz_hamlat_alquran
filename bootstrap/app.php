@@ -9,6 +9,8 @@ use Spatie\Permission\Middleware\RoleOrPermissionMiddleware;
 use App\Http\Middleware\RefreshUserPermissions;
 use App\Http\Middleware\CheckUserStatus;
 use App\Http\Middleware\EnsureNotGuardian;
+use \App\Http\Middleware\UpdateLastSeen;
+
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -24,7 +26,10 @@ return Application::configure(basePath: dirname(__DIR__))
             'not.guardian'       => EnsureNotGuardian::class,
         ]);
         $middleware->append(RefreshUserPermissions::class);
-        $middleware->web(append: [CheckUserStatus::class]);
+        $middleware->web(append: [
+            CheckUserStatus::class,
+            UpdateLastSeen::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
 

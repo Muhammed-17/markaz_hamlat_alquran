@@ -8,27 +8,58 @@ use App\Models\Circle;
 use App\Models\Teacher;
 use App\Traits\ResolvesUserScope;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Http\Request;
 
 class CircleController extends Controller
 {
     use ResolvesUserScope;
 
     // ─────────────────────────────────────────
-    public function index()
+    public function index(Request $request)
     {
         $this->authorize('viewAny', Circle::class);
 
-        $user    = Auth::user();
-        $circles = $this->getAccessibleCirclesQuery($user)
+        $user = Auth::user();
+
+        $query = $this->getAccessibleCirclesQuery($user)
             ->with([
                 'mainTeacher',
                 'assistantTeacher',
                 'supervisor.user',
                 'center',
             ])
-            ->withCount('students')
-            ->get();
-        return view('circles.index', compact('circles'));
+            ->withCount('students');
+
+        // ✅ البحث بالاسم
+        $query->when($request->q, fn($q, $v) => $q->where('name', 'like', "%{$v}%"));
+
+        // ✅ فلتر الفرع
+        $query->when($request->center_id, fn($q, $v) => $q->where('center_id', $v));
+
+        // ✅ فلتر النوع (جماعية / فردية)
+        $query->when($request->type, fn($q, $v) => $q->where('type', $v));
+
+        // ✅ فلتر المستوى (بناء / إتقان / إبداع)
+        $query->when($request->level, fn($q, $v) => $q->where('level', $v));
+
+        // ✅ الترتيب (مع قائمة أعمدة مسموحة فقط لتجنب SQL Injection)
+        $allowedSorts = ['name', 'type', 'level', 'students_count'];
+        $sortField    = in_array($request->sort, $allowedSorts) ? $request->sort : 'name';
+        $sortDir      = $request->dir === 'desc' ? 'desc' : 'asc';
+
+        if ($sortField === 'students_count') {
+            // withCount يولّد عمود اسمه students_count تلقائيًا
+            $query->reorder()->orderBy('students_count', $sortDir);
+        } else {
+            $query->reorder()->orderBy($sortField, $sortDir);
+        }
+
+        $circles = $query->paginate(20)->withQueryString();
+
+        // ✅ استخدام نفس الدالة الموجودة في الـ Trait لجلب الفروع المسموحة فقط
+        $centers = $this->getAccessibleCenters($user);
+
+        return view('circles.index', compact('circles', 'centers'));
     }
     // ─────────────────────────────────────────
     public function create()
