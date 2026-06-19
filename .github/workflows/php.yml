@@ -11,26 +11,22 @@ permissions:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v4
 
+    # 1. تهيئة إصدار الـ PHP المناسب لـ Laravel وتثبيت الإضافات الضرورية
     - name: Setup PHP
       uses: shivammathur/setup-php@v2
       with:
-        php-version: '8.2'
+        php-version: '8.2' # 👈 غيرها إلى 8.3 إذا كان مشروعك يعمل على إصدار أحدث
+        extensions: mbstring, dom, fileinfo, gd, zip, pdo_mysql
+        coverage: none
 
-    - name: Create .env file
-      run: |
-        cp .env.example .env
-        echo "DB_CONNECTION=sqlite" >> .env
-        echo "DB_DATABASE=$(pwd)/database/database.sqlite" >> .env
-        touch database/database.sqlite
-
-    - name: Generate app key
-      run: php artisan key:generate
+    # 2. إنشاء ملف البيئة الافتراضي لتجنب مشاكل تشغيل Laravel
+    - name: Copy .env file
+      run: php -r "file_exists('.env') || copy('.env.example', '.env');"
 
     - name: Validate composer.json and composer.lock
       run: composer validate --strict
@@ -45,5 +41,14 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-php-
 
+    # 4. تثبيت حزم المشروع المعتمدة
     - name: Install dependencies
-      run: composer install --prefer-dist --no-progress
+      run: composer install --prefer-dist --no-progress --no-interaction
+
+    # 5. توليد مفتاح تشفير التطبيق (App Key) المفقود في السيرفر
+    - name: Generate Application Key
+      run: php artisan key:generate
+
+    # 6. فحص الكود للتأكد من خلوه من أي أخطاء صياغة (Syntax Errors)
+    - name: Check PHP Syntax
+      run: find . -name "*.php" ! -path "./vendor/*" | xargs -n 1 -P 4 php -l
