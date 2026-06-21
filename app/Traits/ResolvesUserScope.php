@@ -18,12 +18,17 @@ trait ResolvesUserScope
     // ─── جلب teacher record مع static cache ──────────────────────
     protected function getTeacherRecord(User $user): ?Teacher
     {
-        if (array_key_exists($user->id, self::$teacherRecordCache)) {
+        if (isset(self::$teacherRecordCache[$user->id])) {
             return self::$teacherRecordCache[$user->id];
         }
 
-        return self::$teacherRecordCache[$user->id] =
-            Teacher::where('user_id', $user->id)->first();
+        $teacher = Teacher::where('user_id', $user->id)->first();
+
+        if ($teacher) {
+            self::$teacherRecordCache[$user->id] = $teacher;
+        }
+
+        return $teacher;
     }
 
     // ─── الحلقات المتاحة ──────────────────────────────────────────
@@ -32,25 +37,20 @@ trait ResolvesUserScope
         return $this->getAccessibleCirclesQuery($user)->get();
     }
 
+
     protected function getAccessibleCirclesQuery(User $user): \Illuminate\Database\Eloquent\Builder
     {
-        // ✅ admin و general_manager يريان الكل
-        if ($user->hasRole(['admin', 'general_manager'])) {
+        if ($user->hasRole(['admin', 'general_manager']) || $user->can('view all circles')) {
             return Circle::orderBy('name');
         }
 
-        // ✅ permission-based check بدل role-based
-        if ($user->can('view all circles')) {
-            return Circle::orderBy('name');
-        }
-
-        // ✅ guardian — حلقات أبنائه النشطين فقط
-        if ($user->can('view own children')) {
+        // ✅ guardian فقط — وليس أي دور آخر يملك نفس الصلاحية
+        if ($user->hasRole('guardian') && $user->can('view own children')) {
             return Circle::whereIn(
                 'id',
                 Student::where('guardian_id', $user->id)
                     ->whereNotNull('circle_id')
-                    ->where('status', 'مقيد') // ✅ الطلاب النشطون فقط
+                    ->where('status', 'مقيد')
                     ->pluck('circle_id')
             )->orderBy('name');
         }
@@ -60,93 +60,69 @@ trait ResolvesUserScope
             return Circle::whereRaw('1=0');
         }
 
-        // manager — كل حلقات فرعه
         if ($user->hasRole('manager')) {
-            return Circle::where('center_id', $teacher->center_id)
-                ->orderBy('name');
+            $circleIds = $this->getTeacherCircleIds($teacher);
+            $query = Circle::where('center_id', $teacher->center_id);
+
+            if ($circleIds->isNotEmpty()) {
+                $query->orWhereIn('id', $circleIds);
+            }
+        } else {
+            $circleIds = $this->getTeacherCircleIds($teacher);
+            $query = $circleIds->isEmpty()
+                ? Circle::whereRaw('1=0')
+                : Circle::whereIn('id', $circleIds);
         }
 
-        // supervisor — حلقاته فقط
-        if ($user->hasRole('supervisor')) {
-            return Circle::where('supervisor_id', $teacher->id)
-                ->where('center_id', $teacher->center_id)
-                ->orderBy('name');
-        }
-
-        // teacher — حلقاته المسجل فيها
-        $circleIds = $this->getTeacherCircleIds($teacher);
-        if ($circleIds->isEmpty()) {
-            return Circle::whereRaw('1=0');
-        }
-
-        return Circle::whereIn('id', $circleIds)
-            ->where('center_id', $teacher->center_id)
+        return $query
+            ->orWhereHas('supervisors', fn($q) => $q->where('teachers.id', $teacher->id))
             ->orderBy('name');
     }
 
-    // ─── IDs الحلقات للفلترة ──────────────────────────────────────
-    protected function getAccessibleCircleIds(User $user): Collection
-    {
-        // ✅ pluck مباشرة بدون query إضافية
-        return $this->getAccessibleCirclesQuery($user)->pluck('id');
-    }
-
     // ─── الفروع المتاحة ───────────────────────────────────────────
-    protected function getAccessibleCenters(User $user): Collection
+    protected function getAccessibleCenters(User $user): \Illuminate\Database\Eloquent\Collection
     {
-        // ✅ admin و general_manager يريان كل الفروع
         if ($user->hasRole(['admin', 'general_manager'])) {
-            return Center::withoutGlobalScopes()
-                ->select('id', 'name')
-                ->orderBy('name')
-                ->get();
-        }
-
-        // ✅ استخدام permission بدل role للـ manager
-        if ($user->can('view all centers')) {
-            return Center::withoutGlobalScopes()
-                ->select('id', 'name')
-                ->orderBy('name')
-                ->get();
-        }
-
-        // guardian — فروع أبنائه فقط
-        if ($user->hasRole('guardian')) {
-            return Center::withoutGlobalScopes()
-                ->select('id', 'name')
-                ->whereIn(
-                    'id',
-                    Student::where('guardian_id', $user->id)
-                        ->whereNotNull('center_id')
-                        ->where('status', 'مقيد') // ✅ أبناء نشطون فقط
-                        ->pluck('center_id')
-                )
-                ->orderBy('name')
-                ->get();
+            return Center::orderBy('name')->get();
         }
 
         $teacher = $this->getTeacherRecord($user);
-        if (!$teacher || !$teacher->center_id) return collect();
 
-        return Center::withoutGlobalScopes()
-            ->select('id', 'name')
-            ->where('id', $teacher->center_id)
-            ->get();
+        if ($teacher && $teacher->center_id) {
+            return Center::where('id', $teacher->center_id)->get();
+        }
+
+        return Center::whereRaw('1=0')->get();
     }
 
     // ─── المعلمون المتاحون ────────────────────────────────────────
     protected function getAccessibleTeachers(User $user, ?Teacher $teacher): \Illuminate\Database\Eloquent\Collection
     {
+        // 1. الإدارة العليا ترى جميع المعلمين النشطين في السيستم
         if ($user->hasRole(['admin', 'general_manager'])) {
-            return Teacher::with('user.roles')
+            return Teacher::withoutGlobalScope(\App\Models\Scopes\CenterScope::class)
+                ->with('user.roles')
                 ->whereHas('user', fn($u) => $u->where('status', 'active'))
                 ->get();
         }
 
+        // 2. كادر الفرع (مدير الفرع / الموظف الإداري)
         if ($teacher && $teacher->center_id) {
-            return Teacher::where('center_id', $teacher->center_id)
-                ->whereHas('user', fn($u) => $u->where('status', 'active'))
+            return Teacher::withoutGlobalScope(\App\Models\Scopes\CenterScope::class) // 🔓 فك الحجب العالمي مؤقتاً للاستثناء
                 ->with('user.roles')
+                ->whereHas('user', fn($u) => $u->where('status', 'active'))
+                ->where(
+                    fn($query) =>
+                    // أ. يجلب معلمين فرعه الأساسيين
+                    $query->where('center_id', $teacher->center_id)
+
+                        // ب. الاستثناء السحري: أو أي معلم خارجي مسجل في حلقة تابعة لفرع هذا المدير
+                        ->orWhereHas(
+                            'circles',
+                            fn($q) =>
+                            $q->where('circles.center_id', $teacher->center_id)
+                        )
+                )
                 ->get();
         }
 
@@ -181,11 +157,12 @@ trait ResolvesUserScope
         return Teacher::whereRaw('1 = 0')->get();
     }
 
-    // ─── helper: circle IDs للـ teacher ──────────────────────────
+    // ─── helper: circle IDs للـ teacher (رئيسي/مساعد فقط) ────────
     private function getTeacherCircleIds(Teacher $teacher): Collection
     {
         return DB::table('circle_teacher')
             ->where('teacher_id', $teacher->id)
+            ->whereIn('role', ['main', 'assistant'])
             ->pluck('circle_id');
     }
 
@@ -203,5 +180,10 @@ trait ResolvesUserScope
     public static function clearScopeCache(): void
     {
         self::$teacherRecordCache = [];
+    }
+    // ─── IDs الحلقات المتاحة ──────────────────────────────────────
+    protected function getAccessibleCircleIds(User $user): Collection
+    {
+        return $this->getAccessibleCirclesQuery($user)->pluck('id');
     }
 }

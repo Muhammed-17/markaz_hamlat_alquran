@@ -16,15 +16,20 @@ $canManageAll = auth()->user()->can('view all circles');
 
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
 
+        @if($canManageAll)
         {{-- ═══════════════════════════════════════════════
-             حقل الفرع — admin يتحكم، الباقي مقيد بفرعه
-        ════════════════════════════════════════════════ --}}
-        @if($canManageCenters ?? false)
-        <div class="md:col-span-2 space-y-2">
-            <label class="block text-sm font-bold text-gray-700">
-                الفرع <span class="text-red-500">*</span>
-            </label>
-            <select name="center_id"
+                 admin / من يملك صلاحية إدارة كل الفروع — كل الحقول قابلة للتعديل
+            ════════════════════════════════════════════════ --}}
+        <div class="space-y-2">
+            <label for="circle_name" class="block text-sm font-bold text-gray-700">اسم الحلقة <span class="text-red-500">*</span></label>
+            <input id="circle_name" type="text" name="name" autocomplete="off" value="{{ old('name', $circle->name ?? '') }}"
+                class="w-full px-4 py-3 bg-gray-50 border border-gray-200 focus:bg-white focus:ring-2 focus:ring-emerald-100 focus:border-[#0a5c36] rounded-2xl outline-none transition-all">
+            @error('name') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
+        </div>
+
+        <div class="space-y-2">
+            <label for="center_id" class="block text-sm font-bold text-gray-700">الفرع <span class="text-red-500">*</span></label>
+            <select id="center_id" name="center_id" autocomplete="off"
                 class="w-full px-4 py-3 bg-gray-50 border border-gray-200 focus:bg-white focus:ring-2 focus:ring-emerald-100 focus:border-[#0a5c36] rounded-2xl outline-none transition-all appearance-none">
                 <option value="">-- اختر الفرع --</option>
                 @foreach($centers ?? [] as $center)
@@ -36,106 +41,93 @@ $canManageAll = auth()->user()->can('view all circles');
             </select>
             @error('center_id') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
         </div>
-        @else
-        {{-- مدير الفرع — فرعه محدد تلقائياً --}}
-        <input type="hidden" name="center_id"
-            value="{{ $circle->center_id ?? ($centers->first()?->id ?? '') }}">
-        @if(!$isEdit)
-        <div class="md:col-span-2 bg-blue-50 border border-blue-100 rounded-2xl px-4 py-3 text-sm text-blue-700 font-medium">
-            الفرع: {{ $centers->first()?->name ?? '—' }}
-        </div>
-        @endif
-        @endif
-
-        {{-- ═══════════════════════════════════════════
-             حقل اسم الحلقة — admin: حر | مدير فرع: حر عند الإنشاء، مقيد عند التعديل    
-        ════════════════════════════════════════════ --}}
-        @if($canManageAll)
-        <div class="space-y-2">
-            <label class="block text-sm font-bold text-gray-700">اسم الحلقة <span class="text-red-500">*</span></label>
-            <input type="text" name="name"
-                value="{{ old('name', $circle->name ?? '') }}"
-                class="w-full px-4 py-3 bg-gray-50 border border-gray-200 focus:bg-white focus:ring-2 focus:ring-emerald-100 focus:border-[#0a5c36] rounded-2xl outline-none transition-all">
-            @error('name') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
-        </div>
 
         <div class="space-y-2">
-            <label class="block text-sm font-bold text-gray-700">أقصى عدد للطلاب</label>
-            <input type="number" name="max_students"
-                value="{{ old('max_students', $circle->max_students ?? 20) }}"
-                class="w-full px-4 py-3 bg-gray-50 border border-gray-200 focus:bg-white focus:ring-2 focus:ring-emerald-100 focus:border-[#0a5c36] rounded-2xl outline-none transition-all">
-            @error('max_students') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
-        </div>
-
-        <div class="space-y-2">
-            <label class="block text-sm font-bold text-gray-700">نوع الحلقة <span class="text-red-500">*</span></label>
-            <select name="type"
+            <label for="circle_type" class="block text-sm font-bold text-gray-700">نوع الحلقة <span class="text-red-500">*</span></label>
+            <select id="circle_type" name="type" autocomplete="off"
                 class="w-full px-4 py-3 bg-gray-50 border border-gray-200 focus:bg-white focus:ring-2 focus:ring-emerald-100 focus:border-[#0a5c36] rounded-2xl outline-none transition-all appearance-none">
-                <option value="group" {{ old('type', $circle->type ?? '') == 'group'      ? 'selected' : '' }}>جماعية</option>
+                <option value="group" {{ old('type', $circle->type ?? '') == 'group' ? 'selected' : '' }}>جماعية</option>
                 <option value="individual" {{ old('type', $circle->type ?? '') == 'individual' ? 'selected' : '' }}>فردية</option>
             </select>
             @error('type') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
         </div>
 
         <div class="space-y-2">
-            <label class="block text-sm font-bold text-gray-700">مستوى الحلقة <span class="text-red-500">*</span></label>
-            <select name="level"
+            <label for="circle_level" class="block text-sm font-bold text-gray-700">مستوى الحلقة <span class="text-red-500">*</span></label>
+            <select id="circle_level" name="level" autocomplete="off"
                 class="w-full px-4 py-3 bg-gray-50 border border-gray-200 focus:bg-white focus:ring-2 focus:ring-emerald-100 focus:border-[#0a5c36] rounded-2xl outline-none transition-all appearance-none">
-                <option value="build" {{ old('level', $circle->level ?? '') == 'build'      ? 'selected' : '' }}>بناء</option>
-                <option value="mastery" {{ old('level', $circle->level ?? '') == 'mastery'    ? 'selected' : '' }}>إتقان</option>
+                <option value="build" {{ old('level', $circle->level ?? '') == 'build' ? 'selected' : '' }}>بناء</option>
+                <option value="mastery" {{ old('level', $circle->level ?? '') == 'mastery' ? 'selected' : '' }}>إتقان</option>
                 <option value="creativity" {{ old('level', $circle->level ?? '') == 'creativity' ? 'selected' : '' }}>إبداع</option>
             </select>
             @error('level') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
         </div>
+
         @else
-        {{-- مدير الفرع --}}
+        {{-- ═══════════════════════════════════════════════
+                مدير فرع / مستخدم بدون صلاحية إدارة كل الفروع
+                — الفرع مقيد تلقائياً بفرعه
+            ════════════════════════════════════════════════ --}}
+
+        <input type="hidden" name="center_id" value="{{ $circle->center_id ?? ($centers->first()?->id ?? '') }}">
+
         @if($isEdit)
+        {{-- تعديل: الاسم/النوع/المستوى/العدد الأقصى مقفولة --}}
         <input type="hidden" name="name" value="{{ $circle->name }}">
         <input type="hidden" name="type" value="{{ $circle->type }}">
         <input type="hidden" name="level" value="{{ $circle->level }}">
         <input type="hidden" name="max_students" value="{{ $circle->max_students }}">
+
         <div class="md:col-span-2 bg-emerald-50 p-4 rounded-2xl text-emerald-800 font-bold border border-emerald-100">
             تعديل الحلقة: {{ $circle->name }}
         </div>
         @else
+        {{-- إنشاء: اسم/نوع/مستوى قابلة للتعبئة، الفرع تلقائي --}}
+        <div class="md:col-span-2 bg-blue-50 border border-blue-100 rounded-2xl px-4 py-3 text-sm text-blue-700 font-medium">
+            الفرع: {{ $centers->first()?->name ?? '—' }}
+        </div>
+
         <div class="space-y-2">
-            <label class="block text-sm font-bold text-gray-700">اسم الحلقة <span class="text-red-500">*</span></label>
-            <input type="text" name="name" value="{{ old('name') }}"
+            <label for="circle_name_mgr" class="block text-sm font-bold text-gray-700">اسم الحلقة <span class="text-red-500">*</span></label>
+            <input id="circle_name_mgr" type="text" name="name" autocomplete="off" value="{{ old('name') }}"
                 class="w-full px-4 py-3 bg-gray-50 border border-gray-200 focus:bg-white focus:ring-2 focus:ring-emerald-100 focus:border-[#0a5c36] rounded-2xl outline-none transition-all">
             @error('name') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
         </div>
 
         <div class="space-y-2">
-            <label class="block text-sm font-bold text-gray-700">نوع الحلقة <span class="text-red-500">*</span></label>
-            <select name="type"
+            <label for="circle_type_mgr" class="block text-sm font-bold text-gray-700">نوع الحلقة <span class="text-red-500">*</span></label>
+            <select id="circle_type_mgr" name="type" autocomplete="off"
                 class="w-full px-4 py-3 bg-gray-50 border border-gray-200 focus:bg-white focus:ring-2 focus:ring-emerald-100 focus:border-[#0a5c36] rounded-2xl outline-none transition-all appearance-none">
                 <option value="group">جماعية</option>
                 <option value="individual">فردية</option>
             </select>
+            @error('type') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
         </div>
 
         <div class="space-y-2">
-            <label class="block text-sm font-bold text-gray-700">مستوى الحلقة <span class="text-red-500">*</span></label>
-            <select name="level"
+            <label for="circle_level_mgr" class="block text-sm font-bold text-gray-700">مستوى الحلقة <span class="text-red-500">*</span></label>
+            <select id="circle_level_mgr" name="level" autocomplete="off"
                 class="w-full px-4 py-3 bg-gray-50 border border-gray-200 focus:bg-white focus:ring-2 focus:ring-emerald-100 focus:border-[#0a5c36] rounded-2xl outline-none transition-all appearance-none">
                 <option value="build">بناء</option>
                 <option value="mastery">إتقان</option>
                 <option value="creativity">إبداع</option>
             </select>
+            @error('level') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
         </div>
 
         <div class="space-y-2">
-            <label class="block text-sm font-bold text-gray-700">أقصى عدد للطلاب</label>
-            <input type="number" name="max_students" value="{{ old('max_students', 20) }}"
+            <label for="max_students_mgr" class="block text-sm font-bold text-gray-700">أقصى عدد للطلاب</label>
+            <input id="max_students_mgr" type="number" name="max_students" autocomplete="off" value="{{ old('max_students', 20) }}"
                 class="w-full px-4 py-3 bg-gray-50 border border-gray-200 focus:bg-white focus:ring-2 focus:ring-emerald-100 focus:border-[#0a5c36] rounded-2xl outline-none transition-all">
+            @error('max_students') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
         </div>
         @endif
         @endif
 
         {{-- المعلم الأساسي --}}
         <div class="space-y-2">
-            <label class="block text-sm font-bold text-gray-700">المعلم الأساسي</label>
-            <select name="teacher_id"
+            <label for="teacher_id" class="block text-sm font-bold text-gray-700">المعلم الأساسي</label>
+            <select id="teacher_id" name="teacher_id" autocomplete="off"
                 class="w-full px-4 py-3 bg-gray-50 border border-gray-200 focus:bg-white focus:ring-2 focus:ring-emerald-100 focus:border-[#0a5c36] rounded-2xl outline-none transition-all appearance-none">
                 <option value="">-- اختر المعلم --</option>
                 @foreach($teachers as $teacher)
@@ -150,8 +142,8 @@ $canManageAll = auth()->user()->can('view all circles');
 
         {{-- المعلم المساعد --}}
         <div class="space-y-2">
-            <label class="block text-sm font-bold text-gray-700">المعلم المساعد</label>
-            <select name="assistant_teacher_id"
+            <label for="assistant_teacher_id" class="block text-sm font-bold text-gray-700">المعلم المساعد</label>
+            <select id="assistant_teacher_id" name="assistant_teacher_id" autocomplete="off"
                 class="w-full px-4 py-3 bg-gray-50 border border-gray-200 focus:bg-white focus:ring-2 focus:ring-emerald-100 focus:border-[#0a5c36] rounded-2xl outline-none transition-all appearance-none">
                 <option value="">-- اختر المعلم المساعد --</option>
                 @foreach($teachers as $teacher)
@@ -165,10 +157,10 @@ $canManageAll = auth()->user()->can('view all circles');
         </div>
 
         {{-- ═══════════════════════════════════════════════
-             حقل المشرف — admin: قائمة كاملة | مدير فرع: فرعه فقط
+             حقل المشرفين — admin: قائمة كاملة | مدير فرع: فرعه فقط
         ════════════════════════════════════════════════ --}}
         <div class="md:col-span-2 space-y-2">
-            <label class="block text-sm font-bold text-gray-700">المشرف</label>
+            <span class="block text-sm font-bold text-gray-700">المشرفون</span>
 
             @if($lockedSupervisor ?? false)
             {{-- مدير فرع / مشرف — اسمه فقط غير قابل للتغيير --}}
@@ -176,13 +168,15 @@ $canManageAll = auth()->user()->can('view all circles');
                 <span class="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span>
                 {{ $lockedSupervisor->user?->name ?? $lockedSupervisor->name }}
             </div>
-            <input type="hidden" name="supervisor_id" value="{{ $lockedSupervisor->id }}">
+            <input type="hidden" name="supervisor_ids[]" value="{{ $lockedSupervisor->id }}">
             @else
             {{-- admin أو مدير فرع يختار من فرعه --}}
-            <select name="supervisor_id"
-                class="w-full px-4 py-3 bg-gray-50 border border-gray-200 focus:bg-white focus:ring-2 focus:ring-emerald-100 focus:border-[#0a5c36] rounded-2xl outline-none transition-all appearance-none">
-                <option value="">-- اختر المشرف --</option>
-                @foreach($supervisors as $supervisor)
+            @php
+            $selectedSupervisorIds = old('supervisor_ids', ($circle->supervisors ?? collect())->pluck('id')->all());
+            $selectedSupervisorIds = array_map('strval', $selectedSupervisorIds);
+            @endphp
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 bg-gray-50 border border-gray-200 rounded-2xl p-4">
+                @forelse($supervisors as $supervisor)
                 @php
                 $roleName = $supervisor->user?->roles?->first()?->name ?? '';
                 $roleLabel = match($roleName) {
@@ -192,27 +186,19 @@ $canManageAll = auth()->user()->can('view all circles');
                 default => 'مشرف',
                 };
                 @endphp
-                <option value="{{ $supervisor->id }}"
-                    {{ old('supervisor_id', $circle->supervisor?->id ?? '') == $supervisor->id ? 'selected' : '' }}>
-                    {{ $supervisor->user?->name ?? $supervisor->name }} ({{ $roleLabel }})
-                </option>
-                @endforeach
-            </select>
+                <label class="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-xl cursor-pointer hover:border-emerald-300 transition-all">
+                    <input type="checkbox" name="supervisor_ids[]" value="{{ $supervisor->id }}"
+                        class="w-4 h-4 text-[#0a5c36] border-gray-300 rounded focus:ring-emerald-200"
+                        {{ in_array((string) $supervisor->id, $selectedSupervisorIds, true) ? 'checked' : '' }}>
+                    <span class="text-sm text-gray-700">{{ $supervisor->user?->name ?? $supervisor->name }} ({{ $roleLabel }})</span>
+                </label>
+                @empty
+                <p class="text-sm text-gray-400 col-span-2">لا يوجد مشرفون متاحون.</p>
+                @endforelse
+            </div>
             @endif
-            @error('supervisor_id') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
+            @error('supervisor_ids') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
         </div>
-
-        {{-- ملاحظات --}}
-        @if($canManageAll)
-        <div class="md:col-span-2 space-y-2">
-            <label class="block text-sm font-bold text-gray-700">ملاحظات</label>
-            <textarea name="notes" rows="4"
-                class="w-full px-4 py-3 bg-gray-50 border border-gray-200 focus:bg-white focus:ring-2 focus:ring-emerald-100 focus:border-[#0a5c36] rounded-2xl outline-none transition-all">{{ old('notes', $circle->notes ?? '') }}</textarea>
-            @error('notes') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
-        </div>
-        @else
-        <input type="hidden" name="notes" value="{{ $circle->notes ?? '' }}">
-        @endif
 
     </div>
 </div>

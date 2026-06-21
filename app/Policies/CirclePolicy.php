@@ -52,23 +52,23 @@ class CirclePolicy
         $teacher = $this->getTeacherRecord($user);
         if (!$teacher) return false;
 
+        // ✅ بغض النظر عن الدور: لو هو مشرف فعلي على هذه الحلقة (أي فرع) → مسموح
+        if ($circle->supervisors->contains('id', $teacher->id)) {
+            return true;
+        }
+
         // manager → كل حلقات فرعه
         if ($user->hasRole('manager')) {
             return $circle->center_id === $teacher->center_id;
         }
 
-        // supervisor → الحلقات اللي هو مشرف عليها في فرعه
-        if ($user->hasRole('supervisor')) {
-            return $circle->supervisor_id === $teacher->id
-                && $circle->center_id === $teacher->center_id;
-        }
-
-        // teacher → حلقاته في فرعه
+        // teacher → حلقاته (رئيسي/مساعد) في فرعه
         if ($user->hasRole('teacher')) {
             $circleIds = $this->getAccessibleCircleIds($user);
             return $circleIds->contains($circle->id);
         }
 
+        // supervisor بدون أي حلقة إشراف فعلية على هذه الحلقة بالذات → غير مسموح
         return false;
     }
 }

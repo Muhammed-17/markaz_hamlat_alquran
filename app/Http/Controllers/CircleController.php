@@ -8,6 +8,7 @@ use App\Models\Circle;
 use App\Models\Teacher;
 use App\Traits\ResolvesUserScope;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 
 class CircleController extends Controller
@@ -15,6 +16,7 @@ class CircleController extends Controller
     use ResolvesUserScope;
 
     // ─────────────────────────────────────────
+    // دالة index بعد التعديل 🚀
     public function index(Request $request)
     {
         $this->authorize('viewAny', Circle::class);
@@ -23,44 +25,38 @@ class CircleController extends Controller
 
         $query = $this->getAccessibleCirclesQuery($user)
             ->with([
-                'mainTeacher',
-                'assistantTeacher',
-                'supervisor.user',
+                // تصفية علاقة المعلم الرئيسي لتتخطى الـ Global Scope لكي يظهر الاسم لمدير الفرع
+                'mainTeacher' => fn($q) => $q->withoutGlobalScope(\App\Models\Scopes\CenterScope::class),
+
+                // تصفية علاقة المعلم المساعد لتتخطى الـ Global Scope
+                'assistantTeacher' => fn($q) => $q->withoutGlobalScope(\App\Models\Scopes\CenterScope::class),
+
+                'supervisors.user',
                 'center',
             ])
             ->withCount('students');
 
-        // ✅ البحث بالاسم
         $query->when($request->q, fn($q, $v) => $q->where('name', 'like', "%{$v}%"));
-
-        // ✅ فلتر الفرع
         $query->when($request->center_id, fn($q, $v) => $q->where('center_id', $v));
-
-        // ✅ فلتر النوع (جماعية / فردية)
         $query->when($request->type, fn($q, $v) => $q->where('type', $v));
-
-        // ✅ فلتر المستوى (بناء / إتقان / إبداع)
         $query->when($request->level, fn($q, $v) => $q->where('level', $v));
 
-        // ✅ الترتيب (مع قائمة أعمدة مسموحة فقط لتجنب SQL Injection)
         $allowedSorts = ['name', 'type', 'level', 'students_count'];
         $sortField    = in_array($request->sort, $allowedSorts) ? $request->sort : 'name';
         $sortDir      = $request->dir === 'desc' ? 'desc' : 'asc';
 
         if ($sortField === 'students_count') {
-            // withCount يولّد عمود اسمه students_count تلقائيًا
             $query->reorder()->orderBy('students_count', $sortDir);
         } else {
             $query->reorder()->orderBy($sortField, $sortDir);
         }
 
         $circles = $query->paginate(20)->withQueryString();
-
-        // ✅ استخدام نفس الدالة الموجودة في الـ Trait لجلب الفروع المسموحة فقط
         $centers = $this->getAccessibleCenters($user);
 
         return view('circles.index', compact('circles', 'centers'));
     }
+
     // ─────────────────────────────────────────
     public function create()
     {
@@ -69,22 +65,22 @@ class CircleController extends Controller
         $user    = Auth::user();
         $teacher = $this->getTeacherRecord($user);
 
-        // ✅ المشرف المقيد أو القائمة الكاملة
         if ($user->can('view all supervisors')) {
-            $supervisors      = $this->getAccessibleSupervisors($teacher);
+            $supervisors      = $this->getAccessibleSupervisors($user, $teacher);
             $lockedSupervisor = null;
         } else {
-            $supervisors      = $this->getAccessibleSupervisors($teacher);
+            $supervisors      = $this->getAccessibleSupervisors($user, $teacher);
             $lockedSupervisor = $teacher ? Teacher::with('user.roles')->find($teacher->id) : null;
         }
 
         return view('circles.create', [
-            'circle'          => new Circle(),
-            'teachers'        => $this->getAccessibleTeachers($teacher),
-            'supervisors'     => $supervisors,
-            'lockedSupervisor' => $lockedSupervisor,
-            'centers' => $this->getAccessibleCenters($user),
-            'canManageCenters' => $user->can('manage centers'),
+            'circle'                => new Circle(),
+            'teachers'              => $this->getAccessibleTeachers($user, $teacher),
+            'supervisors'           => $supervisors,
+            'lockedSupervisor'      => $lockedSupervisor,
+            'centers'               => $this->getAccessibleCenters($user),
+            'canManageCenters'      => $user->can('manage centers'),
+            'selectedSupervisorIds' => [],
         ]);
     }
 
@@ -96,46 +92,31 @@ class CircleController extends Controller
         $user    = Auth::user();
         $teacher = $this->getTeacherRecord($user);
 
-        // center_id — admin يختار، الباقي فرعه تلقائياً
         $centerId = $user->hasRole('admin')
             ? $request->center_id
             : $teacher?->center_id;
 
-        $nameInput = trim($request->name);
-
-        if (!str_starts_with($nameInput, 'حلقة')) {
-            $finalName = 'حلقة ' . $nameInput;
-        } else {
-            $finalName = $nameInput;
-        }
-
         $circle = Circle::create([
-            'name'          => $finalName,
-            'type'          => $request->type,
-            'level'         => $request->level,
-            'notes'         => $request->notes,
-            'supervisor_id' => $request->supervisor_id ?? null,
-            'center_id'     => $centerId,
-            'is_active'     => true,
+            'name'      => $request->name,
+            'type'      => $request->type,
+            'level'     => $request->level,
+            'center_id' => $centerId,
+            'is_active' => true,
         ]);
 
-        if ($request->teacher_id) {
-            $circle->teachers()->attach($request->teacher_id, ['role' => 'main']);
-        }
-        if ($request->assistant_teacher_id) {
-            $circle->teachers()->attach($request->assistant_teacher_id, ['role' => 'assistant']);
-        }
+        $this->syncCircleStaff($circle, $request);
 
         return redirect()->route('circles.index')->with('success', 'تم إنشاء الحلقة بنجاح');
     }
 
     // ─────────────────────────────────────────
+    // دالة show بعد التعديل 🚀
     public function show(string $id)
     {
         $circle = Circle::with([
-            'mainTeacher',
-            'assistantTeacher',
-            'supervisor',
+            'mainTeacher' => fn($q) => $q->withoutGlobalScope(\App\Models\Scopes\CenterScope::class),
+            'assistantTeacher' => fn($q) => $q->withoutGlobalScope(\App\Models\Scopes\CenterScope::class),
+            'supervisors' => fn($q) => $q->withoutGlobalScope(\App\Models\Scopes\CenterScope::class),
             'students',
         ])->findOrFail($id);
 
@@ -147,7 +128,7 @@ class CircleController extends Controller
     // ─────────────────────────────────────────
     public function edit(string $id)
     {
-        $circle = Circle::with(['mainTeacher', 'assistantTeacher', 'supervisor'])
+        $circle = Circle::with(['mainTeacher', 'assistantTeacher', 'supervisors'])
             ->findOrFail($id);
 
         $this->authorize('update', $circle);
@@ -156,20 +137,26 @@ class CircleController extends Controller
         $teacher = $this->getTeacherRecord($user);
 
         if ($user->can('view all supervisors')) {
-            $supervisors      = $this->getAccessibleSupervisors($teacher);
+            $supervisors      = $this->getAccessibleSupervisors($user, $teacher);
             $lockedSupervisor = null;
         } else {
-            $supervisors      = $this->getAccessibleSupervisors($teacher);
+            $supervisors      = $this->getAccessibleSupervisors($user, $teacher);
             $lockedSupervisor = $teacher ? Teacher::with('user.roles')->find($teacher->id) : null;
         }
 
+        $selectedSupervisorIds = $circle->supervisors
+            ->pluck('id')
+            ->map(fn($id) => (string) $id)
+            ->all();
+
         return view('circles.edit', [
-            'circle'          => $circle,
-            'teachers'        => $this->getAccessibleTeachers($teacher),
-            'supervisors'     => $supervisors,
-            'lockedSupervisor' => $lockedSupervisor,
-            'centers'         => $this->getAccessibleCenters($user),   // ✅
-            'canManageCenters' => $user->can('manage centers'),         // ✅
+            'circle'                => $circle,
+            'teachers'              => $this->getAccessibleTeachers($user, $teacher),
+            'supervisors'           => $supervisors,
+            'lockedSupervisor'      => $lockedSupervisor,
+            'centers'               => $this->getAccessibleCenters($user),
+            'canManageCenters'      => $user->can('manage centers'),
+            'selectedSupervisorIds' => $selectedSupervisorIds,
         ]);
     }
 
@@ -182,37 +169,19 @@ class CircleController extends Controller
         $user    = Auth::user();
         $teacher = $this->getTeacherRecord($user);
 
-        // center_id — admin يغير، الباقي فرعه بس
         $centerId = $user->hasRole('admin')
             ? $request->center_id
             : $teacher?->center_id ?? $circle->center_id;
 
-        $nameInput = trim($request->name);
-
-        if (!str_starts_with($nameInput, 'حلقة')) {
-            $finalName = 'حلقة ' . $nameInput;
-        } else {
-            $finalName = $nameInput;
-        }
-
         $circle->update([
-            'name'          => $finalName,
-            'type'          => $request->type,
-            'level'         => $request->level,
-            'notes'         => $request->notes ?? null,
-            'supervisor_id' => $request->supervisor_id ?? null,
-            'center_id'     => $centerId,
-            'is_active'     => true,
+            'name'      => $request->name,
+            'type'      => $request->type,
+            'level'     => $request->level,
+            'center_id' => $centerId,
+            'is_active' => true,
         ]);
 
-        $teachers = [];
-        if ($request->teacher_id) {
-            $teachers[$request->teacher_id] = ['role' => 'main'];
-        }
-        if ($request->assistant_teacher_id) {
-            $teachers[$request->assistant_teacher_id] = ['role' => 'assistant'];
-        }
-        $circle->teachers()->sync($teachers);
+        $this->syncCircleStaff($circle, $request);
 
         return redirect()->route('circles.index')->with('success', 'تم تحديث الحلقة بنجاح');
     }
@@ -227,5 +196,66 @@ class CircleController extends Controller
         $circle->delete();
 
         return redirect()->route('circles.index')->with('success', 'تم حذف الحلقة بنجاح');
+    }
+
+    // ─────────────────────────────────────────
+    // ✅ delete + insert يدوي بدل sync() لأن sync() لا يفهم role كجزء من
+    //    المفتاح المركب (circle_id+teacher_id+role)، فيحاول تحديث صف موجود
+    //    بدور مختلف ويتصادم مع صف آخر له نفس الدور الجديد.
+    private function syncCircleStaff(Circle $circle, Request $request): void
+    {
+        // 1) المعلم الرئيسي/المساعد — حذف القديم ثم إدراج الجديد
+        DB::table('circle_teacher')
+            ->where('circle_id', $circle->id)
+            ->whereIn('role', ['main', 'assistant'])
+            ->delete();
+
+        $rows = [];
+        if ($request->teacher_id) {
+            $rows[] = [
+                'circle_id'  => $circle->id,
+                'teacher_id' => (int) $request->teacher_id,
+                'role'       => 'main',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ];
+        }
+        if ($request->assistant_teacher_id) {
+            $rows[] = [
+                'circle_id'  => $circle->id,
+                'teacher_id' => (int) $request->assistant_teacher_id,
+                'role'       => 'assistant',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ];
+        }
+        if ($rows) {
+            DB::table('circle_teacher')->insert($rows);
+        }
+
+        // 2) المشرفون (متعددون) — حذف القديم ثم إدراج الجديد
+        DB::table('circle_teacher')
+            ->where('circle_id', $circle->id)
+            ->where('role', 'supervisor')
+            ->delete();
+
+        $supervisorIds = array_unique(array_filter(
+            (array) ($request->supervisor_ids ?? []),
+            fn($id) => $id !== null && $id !== ''
+        ));
+
+        $supervisorRows = [];
+        foreach ($supervisorIds as $supervisorId) {
+            $supervisorRows[] = [
+                'circle_id'  => $circle->id,
+                'teacher_id' => (int) $supervisorId,
+                'role'       => 'supervisor',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ];
+        }
+        if ($supervisorRows) {
+            DB::table('circle_teacher')->insert($supervisorRows);
+        }
     }
 }

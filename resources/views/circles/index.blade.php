@@ -1,30 +1,27 @@
 @php
-    $sortLink = fn($field) => request()->fullUrlWithQuery([
-        'sort' => $field,
-        'dir' => request('sort') === $field && request('dir', 'asc') === 'asc' ? 'desc' : 'asc',
-    ]);
-    $sortIcon = fn($field) => request('sort') === $field
-        ? (request('dir', 'asc') === 'asc' ? '↑' : '↓')
-        : '';
+$sortLink = fn($field) => request()->fullUrlWithQuery([
+'sort' => $field,
+'dir' => request('sort') === $field && request('dir', 'asc') === 'asc' ? 'desc' : 'asc',
+]);
+$sortIcon = fn($field) => request('sort') === $field
+? (request('dir', 'asc') === 'asc' ? '↑' : '↓')
+: '';
 @endphp
 
 <x-layouts.markaz-layout>
-    <!-- Header Card -->
     <div dir="rtl"
         class="bg-[#0b3d2c] rounded-3xl p-6 lg:p-8 text-white relative overflow-hidden flex flex-col md:flex-row justify-between items-center shadow-xl gap-6 mb-8">
-        <!-- العنوان أولًا في HTML -->
         <div class="text-right w-full md:w-auto z-10">
             <h1 class="text-3xl font-black mb-2">إدارة الحلقات</h1>
             <p class="text-emerald-100/80 text-sm font-medium">
                 @if(request()->anyFilled(['q', 'center_id', 'type', 'level']))
-                    {{ $circles->total() }} نتيجة
+                {{ $circles->total() }} نتيجة
                 @else
-                    {{ $circles->total() }} حلقة مسجلة في النظام
+                {{ $circles->total() }} حلقة مسجلة في النظام
                 @endif
             </p>
         </div>
 
-        <!-- الزر ثانيًا في HTML -->
         <div class="flex flex-wrap items-center gap-4 w-full md:w-auto">
             @can('create circles')
             <a href="{{ route('circles.create') }}"
@@ -37,30 +34,29 @@
             @endcan
         </div>
 
-        <!-- Decorative Element -->
         <div class="absolute -right-10 -bottom-10 w-40 h-40 bg-white/10 rounded-full blur-3xl"></div>
     </div>
 
     {{-- ─── فلاتر التصفية ─── --}}
     <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-6">
         <form method="GET" action="{{ route('circles.index') }}" class="flex flex-col lg:flex-row gap-4 items-end" dir="rtl">
-
             {{-- البحث --}}
             <div class="w-full lg:flex-1">
-                <label class="block text-xs font-bold text-gray-400 mb-1.5">البحث بالاسم</label>
-                <input type="search" name="q" value="{{ request('q') }}"
+                <label for="filter_q" class="block text-xs font-bold text-gray-400 mb-1.5">البحث بالاسم</label>
+                <input id="filter_q" type="search" name="q" value="{{ request('q') }}"
                     placeholder="ابحث باسم الحلقة..."
                     class="w-full p-2.5 px-4 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-[#0a5c36] focus:border-[#0a5c36] transition-all bg-white text-right">
             </div>
 
             {{-- فلتر الفرع --}}
+            
             <div class="w-full lg:w-48">
-                <label class="block text-xs font-bold text-gray-400 mb-1.5">الفرع</label>
-                <select name="center_id"
+                <label for="filter_center_id" class="block text-xs font-bold text-gray-400 mb-1.5">الفرع</label>
+                <select id="filter_center_id" name="center_id"
                     class="w-full p-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-[#0a5c36] focus:border-[#0a5c36] transition-all bg-white appearance-none">
                     <option value="">كل الفروع</option>
                     @foreach($centers as $center)
-                    <option value="{{ $center->id }}" @selected((string) request('center_id') === (string) $center->id)>
+                    <option value="{{ $center->id }}" @selected((string) request('center_id')===(string) $center->id)>
                         {{ $center->name }}
                     </option>
                     @endforeach
@@ -69,24 +65,24 @@
 
             {{-- فلتر النوع --}}
             <div class="w-full lg:w-48">
-                <label class="block text-xs font-bold text-gray-400 mb-1.5">النوع</label>
-                <select name="type"
+                <label for="filter_type" class="block text-xs font-bold text-gray-400 mb-1.5">النوع</label>
+                <select id="filter_type" name="type"
                     class="w-full p-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-[#0a5c36] focus:border-[#0a5c36] transition-all bg-white appearance-none">
                     <option value="">كل الأنواع</option>
-                    <option value="group" @selected(request('type') === 'group')>جماعية</option>
-                    <option value="individual" @selected(request('type') === 'individual')>فردية</option>
+                    <option value="group" @selected(request('type')==='group' )>جماعية</option>
+                    <option value="individual" @selected(request('type')==='individual' )>فردية</option>
                 </select>
             </div>
 
             {{-- فلتر المستوى --}}
             <div class="w-full lg:w-48">
-                <label class="block text-xs font-bold text-gray-400 mb-1.5">المستوى</label>
-                <select name="level"
+                <label for="filter_level" class="block text-xs font-bold text-gray-400 mb-1.5">المستوى</label>
+                <select id="filter_level" name="level"
                     class="w-full p-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-[#0a5c36] focus:border-[#0a5c36] transition-all bg-white appearance-none">
                     <option value="">كل المستويات</option>
-                    <option value="build" @selected(request('level') === 'build')>بناء</option>
-                    <option value="mastery" @selected(request('level') === 'mastery')>إتقان</option>
-                    <option value="creativity" @selected(request('level') === 'creativity')>إبداع</option>
+                    <option value="build" @selected(request('level')==='build' )>بناء</option>
+                    <option value="mastery" @selected(request('level')==='mastery' )>إتقان</option>
+                    <option value="creativity" @selected(request('level')==='creativity' )>إبداع</option>
                 </select>
             </div>
 
@@ -199,12 +195,11 @@
                         </td>
 
                         <td class="px-6 py-4 text-gray-600">
-                            {{ $circle->supervisor?->name ?? '—' }}
+                            {{ $circle->supervisors->pluck('name')->join('، ') ?: '—' }}
                         </td>
 
                         <td class="px-6 py-4 text-left">
                             <div class="flex items-center justify-end gap-3">
-                                <!-- Edit -->
                                 @can('edit circles')
                                 <a href="{{ route('circles.edit', $circle) }}"
                                     class="text-blue-500 hover:text-blue-700 transition">
@@ -216,9 +211,9 @@
                                 </a>
                                 @endcan
 
-                                <!-- Delete -->
                                 @can('delete circles')
                                 <form method="POST" action="{{ route('circles.destroy', $circle->id) }}"
+                                    onsubmit="confirmDelete(event, { name: '{{ e($circle->name) }}', type: 'الحلقة' })"
                                     class="text-red-400 hover:text-red-600 transition">
                                     @csrf
                                     @method('DELETE')
@@ -231,7 +226,6 @@
                                     </button>
                                 </form>
                                 @endcan
-
                             </div>
                         </td>
                     </tr>
@@ -239,9 +233,9 @@
                     <tr>
                         <td colspan="9" class="px-6 py-12 text-center text-gray-500">
                             @if(request()->anyFilled(['q', 'center_id', 'type', 'level']))
-                                لا توجد حلقات تطابق الفلاتر المحددة.
+                            لا توجد حلقات تطابق الفلاتر المحددة.
                             @else
-                                لا توجد حلقات مسجلة حالياً.
+                            لا توجد حلقات مسجلة حالياً.
                             @endif
                         </td>
                     </tr>

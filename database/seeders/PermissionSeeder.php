@@ -7,7 +7,7 @@ use Spatie\Permission\Models\Role;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\PermissionRegistrar;
 
-class RolePermissionSeeder extends Seeder
+class PermissionSeeder extends Seeder
 {
     public function run(): void
     {
@@ -237,6 +237,15 @@ class RolePermissionSeeder extends Seeder
                 'view own subscriptions',
             ],
         ];
+
+        // ✅ إنشاء سجلات Permission فعلياً قبل المزامنة.
+        // بدون هذا، syncPermissions() يفشل بالكامل عند أول تشغيل من قاعدة بيانات فارغة
+        // (migrate:fresh --seed) لأن Spatie\Permission يرفض ربط صلاحية غير موجودة أصلاً
+        // في جدول permissions — وهذا كان السبب في فشل تثبيت النظام من الصفر.
+        $allPermNames = collect($permissions)->flatten()->unique();
+        foreach ($allPermNames as $permName) {
+            Permission::firstOrCreate(['name' => $permName, 'guard_name' => 'web']);
+        }
 
         foreach ($permissions as $roleName => $rolePermissions) {
             $role = Role::firstOrCreate(

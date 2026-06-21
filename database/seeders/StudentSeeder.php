@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\Center;
 use App\Models\Circle;
 use App\Models\Student;
 use App\Models\User;
@@ -12,14 +13,22 @@ class StudentSeeder extends Seeder
 {
     public function run(): void
     {
+        // 0. التأكد من وجود مركز افتراضي بدل افتراض center_id=1 ثابتاً
+        //    (كان هذا يفشل بصمت أو يربط بيانات بمركز غير موجود في بيئة فارغة)
+        $center = Center::firstOrCreate(
+            ['name' => 'المركز الرئيسي'],
+        );
+
         // 1. التأكد من وجود الحلقة وتوافق حقولها
+        //    ملاحظة: max_students و center_id أعمدة إلزامية (NOT NULL) في الجدول
+        //    ولم تكن موجودة هنا، ما يسبب خطأ SQL عند الإدراج.
         $circle = Circle::updateOrCreate(
             ['name' => 'حلقة أبو بكر الصديق'],
             [
                 'type' => 'group',
                 'level' => 'build',
                 'is_active' => true,
-                'notes' => 'حلقة تعليمية للمبتدئين',
+                'center_id' => $center->id,
             ]
         );
 
@@ -70,8 +79,8 @@ class StudentSeeder extends Seeder
                     'join_date' => now()->toDateString(),
                     'student_code' => $studentCode,
                     'decision' => 'تحت الاختبار',
-                    'center_id' => 1,
-                    'supervisor_id' => 1,
+                    'center_id' => $center->id,
+                    'supervisor_id' => null,
                     'applicant' => 'الطالب',
                     'health_status' => 'طبيعية',
                     'learning_difficulties' => 'لا يوجد',

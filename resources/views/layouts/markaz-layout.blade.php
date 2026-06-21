@@ -167,6 +167,13 @@
                         </a>
                         @endcan
 
+                        @if(auth()->user()->hasRole('admin') || auth()->user()->is_administrative)
+                        <a href="{{ route('admin.roles.index') }}"
+                            class="block px-4 py-2 rounded-lg text-[13px] {{ request()->routeIs('admin.financials.*') ? 'bg-[#0d7a48] font-bold' : 'hover:bg-[#0d7a48]' }}">
+                            الماليات
+                        </a>
+                        @endif
+                        
                         @can('manage roles')
                         <a href="{{ route('admin.roles.index') }}"
                             class="block px-4 py-2 rounded-lg text-[13px] {{ request()->routeIs('admin.roles.*') ? 'bg-[#0d7a48] font-bold' : 'hover:bg-[#0d7a48]' }}">

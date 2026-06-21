@@ -35,9 +35,9 @@ class DashboardController extends Controller
 
         if ($user->hasRole('supervisor') && $user->teacher) {
             $supervisorId = $user->teacher->id;
-            $studentQuery->whereHas('circle', fn($q) => $q->where('supervisor_id', $supervisorId));
-            $circleQuery->where('supervisor_id', $supervisorId);
-            $subscriptionQuery->whereHas('circle', fn($q) => $q->where('supervisor_id', $supervisorId));
+            $studentQuery->whereHas('circle.supervisors', fn($q) => $q->where('teachers.id', $supervisorId));
+            $circleQuery->whereHas('supervisors', fn($q) => $q->where('teachers.id', $supervisorId));
+            $subscriptionQuery->whereHas('circle.supervisors', fn($q) => $q->where('teachers.id', $supervisorId));
         } elseif ($user->hasRole('teacher') && $user->teacher) {
             $teacherId = $user->teacher->id;
             $studentQuery->whereHas('circle', fn($q) => $q->whereHas('teachers', fn($t) => $t->where('teachers.id', $teacherId)));
@@ -80,9 +80,11 @@ class DashboardController extends Controller
                 // Status Distribution
                 if ($user->hasRole('admin')) {
                     $rawStatusStats = Student::selectRaw('status, count(*) as count')->groupBy('status')->pluck('count', 'status')->toArray();
-                } else {
-                    $rawStatusStats = Student::whereHas('circle', fn($q) => $q->where('supervisor_id', $user->teacher->id))
+                } elseif ($user->teacher) {
+                    $rawStatusStats = Student::whereHas('circle.supervisors', fn($q) => $q->where('teachers.id', $user->teacher->id))
                         ->selectRaw('status, count(*) as count')->groupBy('status')->pluck('count', 'status')->toArray();
+                } else {
+                    $rawStatusStats = [];
                 }
 
                 $statusChartData = [
@@ -95,7 +97,7 @@ class DashboardController extends Controller
             // Determine students to check for alerts
             $alertStudentsQuery = Student::where('status', '!=', 'متوقف');
             if ($user->hasRole('supervisor') && $user->teacher) {
-                $alertStudentsQuery->whereHas('circle', fn($q) => $q->where('supervisor_id', $user->teacher->id));
+                $alertStudentsQuery->whereHas('circle.supervisors', fn($q) => $q->where('teachers.id', $user->teacher->id));
             } elseif ($user->hasRole('guardian')) {
                 $alertStudentsQuery->where('guardian_id', $user->id);
             } elseif ($user->hasRole('teacher') && $user->teacher) {

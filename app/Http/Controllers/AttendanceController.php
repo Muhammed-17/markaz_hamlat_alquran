@@ -142,7 +142,7 @@ class AttendanceController extends Controller
 
         $studentQuery = Student::with([
             'attendances' => fn($q) => $q->orderBy('date', 'desc')->take(30),
-            'circle.supervisor',
+            'circle.supervisors',
         ])->where('status', '!=', 'متوقف');
 
         if ($user->hasRole('guardian')) {

@@ -489,6 +489,11 @@ class StudentController extends Controller
                 'mobile'   => $mobileExists ? null : ($whatsapp ?: null),
                 'password' => Hash::make($password ?? Str::random(16)),
                 'status'   => 'active',
+                // ⚠️ ضروري بالأخص هنا: emailToUse قد يكون عنواناً مؤقتاً
+                // وهمياً (@temp.local) لا يمكن إرسال بريد تفعيل حقيقي إليه
+                // أصلاً، فبدون هذا السطر سيبقى الحساب محجوباً عن
+                // guardian.dashboard بشكل دائم لا حل له.
+                'email_verified_at' => now(),
             ]);
             $guardian->assignRole('guardian');
 

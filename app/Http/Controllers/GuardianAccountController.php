@@ -73,6 +73,9 @@ class GuardianAccountController extends Controller
 
         $data['password'] = Hash::make($data['password']);
         $data['status']   = 'active';
+        // ⚠️ بدون هذا، guardian.dashboard (محمية بـ 'verified' middleware)
+        // ستكون مغلقة تماماً أمام ولي الأمر فور إنشاء حسابه.
+        $data['email_verified_at'] = now();
 
         $guardian = User::create($data);
         $guardian->assignRole('guardian');

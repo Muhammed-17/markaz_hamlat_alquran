@@ -18,7 +18,6 @@ use App\Models\Center;
  * @property int $is_active
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
- * @property int|null $supervisor_id
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Teacher> $assistantTeacher
  * @property-read int|null $assistant_teacher_count
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Teacher> $mainTeacher
@@ -64,7 +63,6 @@ class Circle extends Model
         'max_students',
         'notes',
         'is_active',
-        'supervisor_id',
         'center_id', // ← أضف
     ];
 
@@ -93,9 +91,12 @@ class Circle extends Model
         return $this->hasMany(Subscription::class);
     }
 
-    public function supervisor()
+    public function supervisors()
     {
-        return $this->belongsTo(Teacher::class, 'supervisor_id');
+        return $this->belongsToMany(Teacher::class, 'circle_teacher')
+            ->wherePivot('role', 'supervisor')
+            ->withPivot('role')
+            ->withTimestamps();
     }
 
     public function mainTeacher()
@@ -117,5 +118,23 @@ class Circle extends Model
     public function center()
     {
         return $this->belongsTo(Center::class);
+    }
+    public function getLevelArabicAttribute()
+    {
+        return match ($this->level) {
+            'build' => 'بناء',
+            'mastery' => 'إتقان',
+            'creativity' => 'إبداع',
+            default => $this->level,
+        };
+    }
+
+    public function getTypeArabicAttribute()
+    {
+        return match ($this->type) {
+            'group' => 'جماعية',
+            'individual' => 'فردية',
+            default => $this->type,
+        };
     }
 }

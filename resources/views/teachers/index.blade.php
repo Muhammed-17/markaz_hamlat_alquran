@@ -1,3 +1,4 @@
+{{-- 1. نضع كود الـ PHP والـ Mapping في أعلى الملف تماماً --}}
 @php
 $teachersList = $teachers->map(fn($t) => [
 'id' => $t->id,
@@ -5,22 +6,25 @@ $teachersList = $teachers->map(fn($t) => [
 'email' => $t->user->email ?? '',
 'center' => $t->center?->name ?? '',
 'status' => $t->user->status ?? 'inactive',
+'is_online' => $t->user->is_online ?? false,
 'roles' => $t->user->roles->map(fn($r) => [
 'name' => $r->name,
 'display_name' => $r->display_name ?? $r->name,
 ])->toArray(),
-'edit_url' => auth()->user()->can('edit teachers')
-? route('teachers.edit', $t)
-: null,
-'delete_url' => auth()->user()->can('delete teachers')
-? route('teachers.destroy', $t)
-: null,
-'toggle_url' => auth()->user()->can('toggle teacher status')
-? route('teachers.toggle', $t)
-: null,
-]);
-@endphp
 
+'show_url' => auth()->user()->can('view', $t) ? route('teachers.show', $t) : null,
+'edit_url' => auth()->user()->can('edit teachers') ? route('teachers.edit', $t) : null,
+'delete_url' => auth()->user()->can('delete teachers') ? route('teachers.destroy', $t) : null,
+'toggle_url' => auth()->user()->can('toggle teacher status') ? route('teachers.toggle', $t) : null,
+]);
+
+$roleColors = [
+'teacher' => 'bg-red-50 text-red-700 border border-red-200',
+'supervisor' => 'bg-blue-50 text-blue-700 border border-blue-200',
+'manager' => 'bg-emerald-50 text-emerald-700 border border-emerald-200',
+'general_manager' => 'bg-purple-50 text-purple-700 border border-purple-200',
+];
+@endphp
 
 <x-layouts.markaz-layout>
 
@@ -31,6 +35,7 @@ $teachersList = $teachers->map(fn($t) => [
                 q: '',
                 centerId: '',
                 role: '',
+                status: '', // 🔥 إضافة متغير الحالة في Alpine.js
                 currentPage: 1,
                 perPage: 20,
                 sortField: 'name',
@@ -55,24 +60,43 @@ $teachersList = $teachers->map(fn($t) => [
                     if (page >= 1 && page <= this.totalPages) this.currentPage = page;
                 },
 
+                // 🔥 تحديث التحقق من وجود فلاتر نشطة تشمل الفرع والحالة
                 get hasFilters() {
-                    return this.q.trim() !== '' || this.centerId !== '' || this.role !== '';
+                    return this.q.trim() !== '' || this.centerId !== '' || this.role !== '' || this.status !== '';
                 },
 
                 get filteredTeachers() {
                     const term = this.q.trim().toLowerCase();
 
                     let result = this.teachers.filter(t => {
+                        // 🔥 1. فلترة بناءً على الفرع (مقارنة دقيقة بالاسم المستخرج من المابينج)
                         if (this.centerId && t.center !== this.centerId) return false;
+
+                        // 🔥 2. فلترة بناءً على الحالة (active / inactive)
+                        if (this.status && t.status !== this.status) return false;
+
+                        // 3. فلترة بناءً على الدور
                         if (this.role && !t.roles.some(r => r.name === this.role)) return false;
+
+                        // 4. فلترة بالبحث النصي
                         if (!term) return true;
                         return [t.name, t.email, t.center].join(' ').toLowerCase().includes(term);
                     });
 
+                    // خوارزمية الترتيب
                     result.sort((a, b) => {
-                        let vA = a[this.sortField] ?? '';
-                        let vB = b[this.sortField] ?? '';
-                        if (typeof vA === 'string')
+                        let vA = a[this.sortField];
+                        let vB = b[this.sortField];
+
+                        if (this.sortField === 'role') {
+                            vA = a.roles[0]?.display_name ?? '';
+                            vB = b.roles[0]?.display_name ?? '';
+                        }
+
+                        vA = vA ?? '';
+                        vB = vB ?? '';
+
+                        if (typeof vA === 'string') {
                             return this.sortAsc ?
                                 vA.localeCompare(vB, 'ar', {
                                     sensitivity: 'base'
@@ -80,6 +104,12 @@ $teachersList = $teachers->map(fn($t) => [
                                 vB.localeCompare(vA, 'ar', {
                                     sensitivity: 'base'
                                 });
+                        }
+
+                        if (typeof vA === 'boolean') {
+                            return this.sortAsc ? (vA === vB ? 0 : vA ? -1 : 1) : (vA === vB ? 0 : vA ? 1 : -1);
+                        }
+
                         return this.sortAsc ? (vA < vB ? -1 : 1) : (vA > vB ? -1 : 1);
                     });
 
@@ -116,12 +146,15 @@ $teachersList = $teachers->map(fn($t) => [
                     return list;
                 },
 
+                // 🔥 تفريغ كل الفلاتر بما فيها الحالة والفرع
                 resetFilters() {
                     this.q = '';
                     this.centerId = '';
                     this.role = '';
+                    this.status = '';
                     this.currentPage = 1;
                 },
+
                 confirmDelete(url, name) {
                     Swal.fire({
                         title: 'حذف معلم: ' + name,
@@ -144,16 +177,15 @@ $teachersList = $teachers->map(fn($t) => [
                             form.method = 'POST';
                             form.action = url;
                             form.innerHTML = `
-                        <input type="hidden" name="_token" value="{{ csrf_token() }}">
-                        <input type="hidden" name="_method" value="DELETE">
-                    `;
+                                <input type="hidden" name="_token" value="{{ csrf_token() }}">
+                                <input type="hidden" name="_method" value="DELETE">
+                            `;
                             document.body.appendChild(form);
                             form.submit();
                         }
                     });
                 },
                 async toggleStatus(url) {
-                    // ✅ نستخدم setTimeout عشان Console Ninja ميتدخلش
                     setTimeout(async () => {
                         const result = await Swal.fire({
                             title: 'تغيير حالة الحساب؟',
@@ -240,13 +272,13 @@ $teachersList = $teachers->map(fn($t) => [
                     </div>
                 </div>
 
-                {{-- فلتر الفرع --}}
+                {{-- فلتر الفرع المحدث --}}
                 @can('filter teachers by center')
                 @can('view all teachers')
-                <div class="min-w-[180px]">
+                <div class="min-w-[180px] flex-1 sm:flex-none">
                     <label class="block text-xs font-bold text-gray-500 mb-1">الفرع</label>
                     <select x-model="centerId"
-                        class="w-full p-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-[#0a5c36] transition-all appearance-none">
+                        class="w-full p-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-[#0a5c36] transition-all appearance-none bg-no-repeat bg-[left_10px_center]">
                         <option value="">-- كل الفروع --</option>
                         @foreach($centers as $center)
                         <option value="{{ $center->name }}">{{ $center->name }}</option>
@@ -258,7 +290,7 @@ $teachersList = $teachers->map(fn($t) => [
 
                 {{-- فلتر الدور --}}
                 @can('filter teachers by role')
-                <div class="min-w-[180px]">
+                <div class="min-w-[180px] flex-1 sm:flex-none">
                     <label class="block text-xs font-bold text-gray-500 mb-1">الدور</label>
                     <select x-model="role"
                         class="w-full p-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-[#0a5c36] transition-all appearance-none">
@@ -269,6 +301,17 @@ $teachersList = $teachers->map(fn($t) => [
                     </select>
                 </div>
                 @endcan
+
+                {{-- 🔥 إضافة فلتر الحالة الجديد واجهياً --}}
+                <div class="min-w-[150px] flex-1 sm:flex-none">
+                    <label class="block text-xs font-bold text-gray-500 mb-1">الحالة الحسابية</label>
+                    <select x-model="status"
+                        class="w-full p-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-[#0a5c36] transition-all appearance-none">
+                        <option value="">-- كل الحالات --</option>
+                        <option value="active">نشط</option>
+                        <option value="inactive">موقوف</option>
+                    </select>
+                </div>
 
                 {{-- إعادة تعيين --}}
                 <button type="button" x-show="hasFilters" @click="resetFilters()"
@@ -281,33 +324,40 @@ $teachersList = $teachers->map(fn($t) => [
 
         {{-- Table --}}
         <div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-x-auto">
-            <table class="w-full text-right min-w-[900px]">
+            <table class="w-full text-right min-w-[950px]">
                 <thead class="bg-gray-50 text-gray-500 text-sm">
                     <tr>
-                        <th @click="sortBy('name')"
-                            class="py-4 px-6 font-medium rounded-tr-xl cursor-pointer hover:bg-gray-100 transition-colors select-none">
+                        <th @click="sortBy('name')" class="py-4 px-6 font-medium rounded-tr-xl cursor-pointer hover:bg-gray-100 transition-colors select-none">
                             <div class="flex items-center gap-1">
                                 <span>اسم المعلم</span>
                                 <span x-show="sortField === 'name'" x-text="sortAsc ? '↑' : '↓'"></span>
                             </div>
                         </th>
-                        <th @click="sortBy('email')"
-                            class="py-4 px-6 font-medium cursor-pointer hover:bg-gray-100 transition-colors select-none">
+                        <th @click="sortBy('email')" class="py-4 px-6 font-medium cursor-pointer hover:bg-gray-100 transition-colors select-none">
                             <div class="flex items-center gap-1">
                                 <span>البريد الإلكتروني</span>
                                 <span x-show="sortField === 'email'" x-text="sortAsc ? '↑' : '↓'"></span>
                             </div>
                         </th>
-                        <th @click="sortBy('center')"
-                            class="py-4 px-6 font-medium cursor-pointer hover:bg-gray-100 transition-colors select-none">
+                        <th @click="sortBy('center')" class="py-4 px-6 font-medium cursor-pointer hover:bg-gray-100 transition-colors select-none">
                             <div class="flex items-center gap-1">
                                 <span>الفرع</span>
                                 <span x-show="sortField === 'center'" x-text="sortAsc ? '↑' : '↓'"></span>
                             </div>
                         </th>
-                        <th class="py-4 px-6 font-medium">الأدوار</th>
-                        <th @click="sortBy('status')"
-                            class="py-4 px-6 font-medium cursor-pointer hover:bg-gray-100 transition-colors select-none">
+                        <th @click="sortBy('role')" class="py-4 px-6 font-medium cursor-pointer hover:bg-gray-100 transition-colors select-none">
+                            <div class="flex items-center gap-1">
+                                <span>الأدوار</span>
+                                <span x-show="sortField === 'role'" x-text="sortAsc ? '↑' : '↓'"></span>
+                            </div>
+                        </th>
+                        <th @click="sortBy('is_online')" class="py-4 px-6 font-medium cursor-pointer hover:bg-gray-100 transition-colors select-none">
+                            <div class="flex items-center gap-1">
+                                <span>الاتصال</span>
+                                <span x-show="sortField === 'is_online'" x-text="sortAsc ? '↑' : '↓'"></span>
+                            </div>
+                        </th>
+                        <th @click="sortBy('status')" class="py-4 px-6 font-medium cursor-pointer hover:bg-gray-100 transition-colors select-none">
                             <div class="flex items-center gap-1">
                                 <span>الحالة</span>
                                 <span x-show="sortField === 'status'" x-text="sortAsc ? '↑' : '↓'"></span>
@@ -320,91 +370,81 @@ $teachersList = $teachers->map(fn($t) => [
                 <tbody class="divide-y divide-gray-100">
                     <template x-for="teacher in paginatedTeachers" :key="teacher.id">
                         <tr class="hover:bg-gray-50/50">
-
-                            {{-- الاسم --}}
                             <td class="py-4 px-6 font-medium text-gray-800" x-text="teacher.name"></td>
-
-                            {{-- البريد --}}
                             <td class="py-4 px-6 text-gray-600 text-sm" x-text="teacher.email || '—'"></td>
-
-                            {{-- الفرع --}}
                             <td class="py-4 px-6 text-sm">
                                 <template x-if="teacher.center">
-                                    <span class="px-3 py-1 bg-emerald-50 text-emerald-700 rounded-full text-xs font-semibold"
-                                        x-text="teacher.center"></span>
+                                    <span class="px-3 py-1 bg-emerald-50 text-emerald-700 rounded-full text-xs font-semibold" x-text="teacher.center"></span>
                                 </template>
                                 <template x-if="!teacher.center">
                                     <span class="text-gray-400">—</span>
                                 </template>
                             </td>
-
-                            {{-- الأدوار --}}
                             <td class="py-4 px-6">
-                                <div class="flex flex-wrap gap-1">
+                                <div class="flex flex-wrap gap-1.5" x-data="{ colors: {{ json_encode($roleColors) }} }">
                                     <template x-if="teacher.roles.length === 0">
                                         <span class="text-gray-400 text-xs">—</span>
                                     </template>
                                     <template x-for="role in teacher.roles" :key="role.name">
-                                        <span class="px-3 py-1 rounded-full text-xs font-semibold"
-                                            :class="roleColors[role.name] ?? 'bg-gray-50 text-gray-700'"
-                                            x-text="role.display_name"></span>
+                                        <div class="px-2.5 py-1 rounded-md text-xs font-bold inline-flex items-center gap-1.5 transition-all shadow-sm"
+                                            :class="colors[role.name] ?? 'bg-gray-50 text-gray-600 border border-gray-200'">
+                                            <span x-text="role.display_name"></span>
+                                        </div>
                                     </template>
                                 </div>
                             </td>
-
-                            {{-- الحالة --}}
-                            {{-- ✅ عمود الحالة --}}
+                            <td class="py-4 px-6 text-sm">
+                                <div class="flex items-center gap-2">
+                                    <span class="w-2.5 h-2.5 rounded-full animate-pulse" :class="teacher.is_online ? 'bg-emerald-500' : 'bg-gray-300'"></span>
+                                    <span class="font-bold text-xs" :class="teacher.is_online ? 'text-emerald-600' : 'text-gray-400'" x-text="teacher.is_online ? 'متصل الآن' : 'غير متصل'"></span>
+                                </div>
+                            </td>
                             <td class="py-4 px-6">
                                 <template x-if="teacher.toggle_url">
-                                    <button type="button"
-                                        @click="toggleStatus(teacher.toggle_url)"
+                                    <button type="button" @click="toggleStatus(teacher.toggle_url)"
                                         class="px-3 py-1 rounded-full text-xs font-bold transition-all"
-                                        :class="teacher.status === 'active'
-                ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
-                : 'bg-gray-100 text-gray-500 hover:bg-gray-200'"
+                                        :class="teacher.status === 'active' ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'"
                                         x-text="teacher.status === 'active' ? 'نشط' : 'موقوف'">
                                     </button>
                                 </template>
                                 <template x-if="!teacher.toggle_url">
                                     <span class="px-3 py-1 rounded-full text-xs font-bold"
-                                        :class="teacher.status === 'active'
-                ? 'bg-emerald-100 text-emerald-700'
-                : 'bg-gray-100 text-gray-500'"
+                                        :class="teacher.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'"
                                         x-text="teacher.status === 'active' ? 'نشط' : 'موقوف'">
                                     </span>
                                 </template>
                             </td>
-
-                            {{-- الإجراءات --}}
                             <td class="py-4 px-6">
                                 <div class="flex items-center justify-end gap-3">
-                                    <template x-if="teacher.edit_url">
-                                        <a :href="teacher.edit_url" class="text-blue-500 hover:text-blue-700 transition">
+                                    <template x-if="teacher.show_url">
+                                        <a :href="teacher.show_url" class="text-emerald-500 hover:text-emerald-700 hover:bg-emerald-50 p-1.5 rounded-lg transition" title="عرض التفاصيل">
                                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                            </svg>
+                                        </a>
+                                    </template>
+                                    <template x-if="teacher.edit_url">
+                                        <a :href="teacher.edit_url" class="text-blue-500 hover:text-blue-700 hover:bg-blue-50 p-1.5 rounded-lg transition" title="تعديل">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                             </svg>
                                         </a>
                                     </template>
                                     <template x-if="teacher.delete_url">
-                                        <button type="button"
-                                            @click="confirmDelete(teacher.delete_url, teacher.name)"
-                                            class="text-red-400 hover:text-red-600 transition">
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                        <button type="button" @click="confirmDelete(teacher.delete_url, teacher.name)" class="text-red-400 hover:text-red-600 hover:bg-red-50 p-1.5 rounded-lg transition" title="حذف">
+                                            <svg xmlns="http://www.w3.org/2000/xl" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                             </svg>
                                         </button>
                                     </template>
                                 </div>
                             </td>
-
                         </tr>
                     </template>
-
                     <tr x-show="filteredTeachers.length === 0">
-                        <td colspan="6" class="py-12 text-center text-gray-400 font-medium">
-                            <span x-show="hasFilters">لا توجد نتائج مطابقة.</span>
+                        <td colspan="7" class="py-12 text-center text-gray-400 font-medium">
+                            <span x-show="hasFilters">لا توجد نتائج مطابقة للفلاتر المحددة.</span>
                             <span x-show="!hasFilters">لا يوجد معلمون مسجلون حالياً.</span>
                         </td>
                     </tr>
@@ -412,46 +452,26 @@ $teachersList = $teachers->map(fn($t) => [
             </table>
 
             {{-- Pagination --}}
-            <div class="flex flex-col sm:flex-row items-center justify-between gap-4 px-6 py-4 border-t border-gray-100"
-                x-show="filteredTeachers.length > perPage">
+            <div class="flex flex-col sm:flex-row items-center justify-between gap-4 px-6 py-4 border-t border-gray-100" x-show="filteredTeachers.length > perPage">
                 <div class="text-sm text-gray-500">
-                    الصفحة <span class="font-medium text-gray-700" x-text="currentPage"></span>
-                    من <span class="font-medium text-gray-700" x-text="totalPages"></span>
-                    — عرض
-                    <span class="font-medium text-gray-700"
-                        x-text="Math.min((currentPage-1)*perPage+1, filteredTeachers.length)"></span>–
-                    <span class="font-medium text-gray-700"
-                        x-text="Math.min(currentPage*perPage, filteredTeachers.length)"></span>
-                    من <span class="font-medium text-gray-700" x-text="filteredTeachers.length"></span>
+                    الصفحة <span class="font-medium text-gray-700" x-text="currentPage"></span> من <span class="font-medium text-gray-700" x-text="totalPages"></span> — عرض
+                    <span class="font-medium text-gray-700" x-text="Math.min((currentPage-1)*perPage+1, filteredTeachers.length)"></span>–<span class="font-medium text-gray-700" x-text="Math.min(currentPage*perPage, filteredTeachers.length)"></span> من <span class="font-medium text-gray-700" x-text="filteredTeachers.length"></span>
                 </div>
                 <div class="flex items-center gap-1.5" dir="ltr">
-                    <button @click="goToPage(currentPage-1)" :disabled="currentPage===1"
-                        :class="currentPage===1?'text-gray-300 border-gray-100 cursor-not-allowed':'text-gray-600 border-gray-200 hover:bg-gray-50'"
-                        class="px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors">
-                        ‹ السابق
-                    </button>
+                    <button @click="goToPage(currentPage-1)" :disabled="currentPage===1" :class="currentPage===1?'text-gray-300 border-gray-100 cursor-not-allowed':'text-gray-600 border-gray-200 hover:bg-gray-50'" class="px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors">‹ السابق</button>
                     <template x-for="(page,i) in pages" :key="i">
                         <span class="inline-flex items-center">
                             <span x-show="page==='...'" class="px-1.5 text-gray-400 select-none">...</span>
-                            <button x-show="page!=='...'" @click="goToPage(page)"
-                                class="px-3 py-1.5 rounded-lg text-sm font-medium transition-all min-w-[36px] text-center"
-                                :class="currentPage===page?'bg-[#0a5c36] text-white shadow-sm':'text-gray-600 border border-gray-200 hover:bg-gray-50'"
-                                x-text="page">
-                            </button>
+                            <button x-show="page!=='...'" @click="goToPage(page)" class="px-3 py-1.5 rounded-lg text-sm font-medium transition-all min-w-[36px] text-center" :class="currentPage===page?'bg-[#0a5c36] text-white shadow-sm':'text-gray-600 border border-gray-200 hover:bg-gray-50'" x-text="page"></button>
                         </span>
                     </template>
-                    <button @click="goToPage(currentPage+1)" :disabled="currentPage===totalPages"
-                        :class="currentPage===totalPages?'text-gray-300 border-gray-100 cursor-not-allowed':'text-gray-600 border-gray-200 hover:bg-gray-50'"
-                        class="px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors">
-                        التالي ›
-                    </button>
+                    <button @click="goToPage(currentPage+1)" :disabled="currentPage===totalPages" :class="currentPage===totalPages?'text-gray-300 border-gray-100 cursor-not-allowed':'text-gray-600 border-gray-200 hover:bg-gray-50'" class="px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors">التالي ›</button>
                 </div>
             </div>
-
         </div>
-
     </div>
 
+    {{-- SweetAlert Scripts --}}
     @push('scripts')
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
@@ -490,5 +510,4 @@ $teachersList = $teachers->map(fn($t) => [
         @endif
     </script>
     @endpush
-
 </x-layouts.markaz-layout>

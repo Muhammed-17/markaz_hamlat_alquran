@@ -35,12 +35,17 @@ use Spatie\Permission\Traits\HasRoles;
 class Teacher extends Model
 {
     use HasRoles;
-    protected $fillable = ['user_id', 'name', 'center_id'];
+    protected $fillable = [
+        'name',
+        'user_id',
+        'center_id',
+        'is_administrative'
+    ];
 
     protected static function booted(): void
-{
-    static::addGlobalScope(new \App\Models\Scopes\CenterScope());
-}
+    {
+        static::addGlobalScope(new \App\Models\Scopes\CenterScope());
+    }
     public function center()
     {
         return $this->belongsTo(Center::class);

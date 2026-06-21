@@ -16,7 +16,8 @@ return new class extends Migration
             $table->string('learning_difficulties_other')->nullable()->after('learning_difficulties');
             $table->string('personal_traits_other')->nullable()->after('personal_traits');
             $table->string('hobby_other')->nullable()->after('hobbies');
-            $table->decimal('subscription_fees', 8, 2)->nullable()->after('decision');
+            $table->string('decision')->nullable();
+            $table->decimal('subscription_fees', 8, 2)->nullable();
             $table->string('received_tools')->nullable()->after('subscription_fees');
         });
     }
@@ -29,6 +30,7 @@ return new class extends Migration
                 'learning_difficulties_other',
                 'personal_traits_other',
                 'hobby_other',
+                'decision',
                 'subscription_fees',
                 'received_tools',
             ]);

@@ -12,44 +12,97 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Spatie\Permission\Models\Role;
 use App\Models\Center;
+use Illuminate\Support\Facades\DB;
 
 class TeacherController extends Controller
 {
     use ResolvesUserScope;
 
     // ─────────────────────────────────────────
-    public function index(Request $request){
+    public function index(Request $request)
+    {
         $this->authorize('viewAny', Teacher::class);
 
         $user    = Auth::user();
         $teacher = $this->getTeacherRecord($user);
 
-        $query = Teacher::with(['user.roles', 'center']);
+        // ربط جدول المعلمين بجدول المستخدمين لتمكين الترتيب عبر حقول الـ User
+        $query = Teacher::query()
+            ->join('users', 'teachers.user_id', '=', 'users.id')
+            ->select('teachers.*') // نختار حقول المعلم فقط لتجنب تداخل الـ IDs
+            ->with(['user.roles', 'center']);
 
-        // فلترة بالفرع — admin يرى الكل
+        // 1. فلترة المعلمين النشطين للمتصفح العادي
+        if (!$user->hasRole(['admin', 'general_manager'])) {
+            $query->where('users.status', 'active');
+        }
+
+        // 2. صلاحيات رؤية الفروع والفلترة
         if (!$user->can('view all teachers')) {
-            $teacher
-                ? $query->where('center_id', $teacher->center_id)
-                : $query->whereRaw('1=0');
+            if ($teacher) {
+                $query->where('teachers.center_id', $teacher->center_id);
+            } else {
+                $query->whereRaw('1 = 0');
+            }
+        } else {
+            if ($request->filled('center_id') && $user->can('filter teachers by center')) {
+                $query->where('teachers.center_id', $request->center_id);
+            }
         }
 
-        // بحث بالاسم
+        // 3. بحث بالاسم
         if ($request->filled('search')) {
-            $query->where('name', 'like', '%' . $request->search . '%');
+            $query->where('teachers.name', 'like', '%' . $request->search . '%');
         }
 
-        // فلتر الفرع
-        if ($request->filled('center_id') && $user->can('filter teachers by center')) {
-            $query->where('center_id', $request->center_id);
-        }
-
-        // فلتر الدور
+        // 4. فلتر الدور (Roles)
         if ($request->filled('role') && $user->can('filter teachers by role')) {
-            $query->whereHas('user.roles', fn($q) =>
-                $q->where('name', $request->role)
-            );
+            $query->whereHas('user.roles', fn($q) => $q->where('name', $request->role));
         }
 
+        // هنا يتم استقبال قيم الترتيب من الـ Request
+        $sortBy    = $request->get('sort_by', 'id');
+        $sortOrder = $request->get('sort_order', 'asc') === 'desc' ? 'desc' : 'asc';
+
+        // ==========================================
+        // تفضل بوضع جملة الـ switch المحدثة هنا بالأسفل:
+        // ==========================================
+        switch ($sortBy) {
+            case 'status':
+                // الترتيب حسب الحالة (active / inactive)
+                $query->orderBy('users.status', $sortOrder);
+                break;
+
+            case 'online':
+                // الترتيب حسب الاتصال (الأحدث ظهوراً أولاً) مع دفع الـ NULL للأسفل
+                $query->orderByRaw('users.last_seen_at IS NULL, users.last_seen_at ' . $sortOrder);
+                break;
+
+            case 'role':
+                // الترتيب حسب اسم الدور (مع حماية groupBy لمنع تكرار الصفوف)
+                $query->leftJoin('model_has_roles', function ($join) {
+                    $join->on('users.id', '=', 'model_has_roles.model_id')
+                        ->where('model_has_roles.model_type', '=', \App\Models\User::class);
+                })
+                    ->leftJoin('roles', 'model_has_roles.role_id', '=', 'roles.id')
+                    ->groupBy('teachers.id')
+                    ->orderBy('roles.name', $sortOrder);
+                break;
+
+            case 'center':
+                // الترتيب حسب اسم الفرع (Center Name)
+                $query->leftJoin('centers', 'teachers.center_id', '=', 'centers.id')
+                    ->orderBy('centers.name', $sortOrder);
+                break;
+
+            default:
+                // الترتيب الافتراضي (حسب معرف المعلم)
+                $query->orderBy('teachers.id', $sortOrder);
+                break;
+        }
+        // ==========================================
+
+        // جلب البيانات النهائية وإرسالها للـ View
         $teachers = $query->get();
         $centers  = $this->getAccessibleCenters($user);
         $roles    = Role::orderBy('name')->get();
@@ -77,24 +130,52 @@ class TeacherController extends Controller
     {
         $this->authorize('create', Teacher::class);
 
-        $user = User::create([
-            'name'      => $request->name,
-            'email'     => $request->email,
-            'password'  => Hash::make($request->password),
-            'center_id' => $request->center_id,
-        ]);
+        DB::transaction(function () use ($request) {
+            $isAdministrative = $request->input('is_administrative', 0);
 
-        $user->syncRoles($request->roles ?? []);
+            // إضافة الحقول الأمنية لضمان عدم حجب الحساب فور إنشائه
+            $user = User::create([
+                'name'              => $request->name,
+                'email'             => $request->email,
+                'password'          => Hash::make($request->password),
+                'center_id'         => $request->center_id,
+                'is_administrative' => $isAdministrative,
+                'status'            => 'active',          // تفعيل الحساب تلقائياً
+                'email_verified_at' => now(),             // تخطي خطوة تأكيد الإيميل برمجياً
+            ]);
 
-        Teacher::create([
-            'user_id'   => $user->id,
-            'name'      => $request->name,
-            'center_id' => $request->center_id,
-        ]);
+            $user->syncRoles($request->roles ?? []);
 
-        return redirect()->route('teachers.index')->with('success', 'تم إضافة المستخدم بنجاح');
+            Teacher::create([
+                'user_id'           => $user->id,
+                'name'              => $request->name,
+                'center_id'         => $request->center_id,
+                'is_administrative' => $isAdministrative,
+            ]);
+        });
+
+        return redirect()->route('teachers.index')->with('success', 'تم إضافة المستخدم بنجاح وتفعيله فوراً');
     }
 
+    // ─────────────────────────────────────────
+    public function show(string $id)
+    {
+        // ✅ فك الحجب عن الموديل الأساسي والعلاقات معاً لضمان جلب المعلم الخارجي بنجاح
+        $teacher = Teacher::withoutGlobalScope(\App\Models\Scopes\CenterScope::class)
+            ->with([
+                'user.roles',
+                'center',
+                'circles' => function ($query) {
+                    // فك الحجب عن الحلقات أيضاً إذا كانت تخضع لنفس الـ Scope
+                    $query->withoutGlobalScope(\App\Models\Scopes\CenterScope::class);
+                }
+            ])->findOrFail($id);
+
+        // 🛡️ هنا يتم الفحص الأمني الذكي (الـ Policy ستسمح له إذا كان بينهما حلقات مشتركة)
+        $this->authorize('view', $teacher);
+
+        return view('teachers.show', compact('teacher'));
+    }
     // ─────────────────────────────────────────
     public function edit(Teacher $teacher)
     {
@@ -119,25 +200,36 @@ class TeacherController extends Controller
     {
         $this->authorize('update', $teacher);
 
-        $teacher->update([
-            'name'      => $request->name,
-            'center_id' => $request->center_id,
-        ]);
+        DB::transaction(function () use ($request, $teacher) {
+            $isAdministrative = $request->input('is_administrative', 0);
 
-        $data = [
-            'name'      => $request->name,
-            'email'     => $request->email,
-            'center_id' => $request->center_id,
-        ];
+            // 1. تحديث بيانات المعلم
+            $teacher->update([
+                'name'              => $request->name,
+                'center_id'         => $request->center_id,
+                'is_administrative' => $isAdministrative,
+            ]);
 
-        if ($request->filled('password')) {
-            $data['password'] = Hash::make($request->password);
-        }
+            // 2. تجهيز بيانات المستخدم المرتبط
+            $data = [
+                'name'              => $request->name,
+                'email'             => $request->email,
+                'center_id'         => $request->center_id,
+                'is_administrative' => $isAdministrative,
+                'status'            => 'active', // نضمن بقاء الحساب نشطاً أثناء التعديل
+                'email_verified_at' => now(),    // إعادة تأكيد البريد تلقائياً حتى لو تم تغييره
+            ];
 
-        $teacher->user->update($data);
-        $teacher->user->syncRoles($request->roles ?? []);
+            // تحديث كلمة المرور فقط إذا تم إدخالها في النموذج
+            if ($request->filled('password')) {
+                $data['password'] = Hash::make($request->password);
+            }
 
-        return redirect()->route('teachers.index')->with('success', 'تم تحديث البيانات بنجاح');
+            $teacher->user->update($data);
+            $teacher->user->syncRoles($request->roles ?? []);
+        });
+
+        return redirect()->route('teachers.index')->with('success', 'تم تحديث البيانات وتأكيد الحساب بنجاح');
     }
 
     // ─────────────────────────────────────────
@@ -145,8 +237,10 @@ class TeacherController extends Controller
     {
         $this->authorize('delete', $teacher);
 
-        $teacher->user->delete();
-        $teacher->delete();
+        DB::transaction(function () use ($teacher) {
+            $teacher->user->delete();
+            $teacher->delete();
+        });
 
         return redirect()->route('teachers.index')->with('success', 'تم الحذف بنجاح');
     }

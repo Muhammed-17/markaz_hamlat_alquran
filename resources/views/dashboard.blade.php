@@ -314,8 +314,8 @@
                             datasets: [{
                                 data: @json($statusChartData['data'] ?? []),
                                 backgroundColor: [
-                                    'rgba(16, 185, 129, 0.8)', // Active - Green
-                                    'rgba(239, 68, 68, 0.8)', // Inactive - Red
+                                    'rgba(239, 68, 68, 0.8)', // Active - Green
+                                    'rgba(16, 185, 129, 0.8)', // Inactive - Red
                                     'rgba(245, 158, 11, 0.8)', // Traveler - Orange
                                     'rgba(107, 114, 128, 0.8)' // Other - Gray
                                 ],

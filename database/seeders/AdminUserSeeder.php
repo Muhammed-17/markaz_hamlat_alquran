@@ -10,13 +10,21 @@ class AdminUserSeeder extends Seeder
 {
     public function run(): void
     {
-        $user = User::create([
-            'name' => 'مركز حملة القرآن',
-            'email' => 'markaz@gmail.com',
-            'password' => bcrypt('172021m'),
-            'status' => 'active',
-        ]);
-        $user->assignRole('admin');
+        // ✅ firstOrCreate بدل create: كان create() يفشل بخطأ unique constraint
+        // عند تشغيل db:seed مرة ثانية بدون --fresh (سيناريو شائع في
+        // staging/production لإعادة ضبط الأدوار دون حذف البيانات).
+        $user = User::firstOrCreate(
+            ['email' => 'markaz@gmail.com'],
+            [
+                'name' => 'مركز حملة القرآن',
+                'password' => bcrypt('172021m'),
+                'status' => 'active',
+            ]
+        );
+
+        if (!$user->hasRole('admin')) {
+            $user->assignRole('admin');
+        }
 
         $this->command->info('✅ تم إنشاء حساب المدير بنجاح.');
     }

@@ -5,12 +5,20 @@ namespace Database\Seeders;
 use Illuminate\Database\Seeder;
 use App\Models\User;
 use App\Models\Teacher;
+use App\Models\Center;
 use Illuminate\Support\Facades\Hash;
 
 class StaffSeeder extends Seeder
 {
     public function run(): void
     {
+        // ✅ مركز افتراضي حقيقي بدل ترك center_id فارغاً.
+        // CenterScope (راجع app/Models/Scopes/CenterScope.php) يحجب تماماً
+        // أي teacher/supervisor بـ center_id IS NULL عبر whereRaw('1 = 0')،
+        // فكان أي حساب يُنشأ بهذا الـ Seeder بدون center_id يدخل النظام بنجاح
+        // لكن لا يرى أي بيانات إطلاقاً — حساب معطّل وظيفياً بالكامل.
+        $center = Center::firstOrCreate(['name' => 'المركز الرئيسي']);
+
         $staffMembers = [
             [
                 'name' => 'سعد أحمد سعد الشعراوي',
@@ -39,7 +47,10 @@ class StaffSeeder extends Seeder
                 [
                     'name' => $member['name'],
                     'password' => Hash::make($member['password']),
-                    'status' => 'active' // assuming status exists
+                    'status' => 'active', // assuming status exists
+                    // ✅ users.center_id (راجع CenterScope وUser model) يُستخدم
+                    // أيضاً في أماكن أخرى من النظام لتحديد فرع المستخدم.
+                    'center_id' => $center->id,
                 ]
             );
 
@@ -49,10 +60,17 @@ class StaffSeeder extends Seeder
             }
 
             // Create teacher record
+            // ✅ center_id إلزامي هنا — بدونه يصبح هذا المستخدم غير قادر على
+            // رؤية أي حلقة/طالب/معلم رغم تسجيل دخوله بنجاح.
             Teacher::firstOrCreate(
                 ['user_id' => $user->id],
-                ['name' => $user->name]
+                [
+                    'name' => $user->name,
+                    'center_id' => $center->id,
+                ]
             );
         }
+
+        $this->command->info('✅ تم إنشاء أعضاء فريق العمل بنجاح.');
     }
 }

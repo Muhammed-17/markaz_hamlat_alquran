@@ -20,9 +20,15 @@ class TeacherPolicy
         if (!$user->can('view teachers')) return false;
         if ($user->can('view all teachers')) return true;
 
-        // manager/supervisor/teacher → فرعه بس
         $record = $this->getTeacherRecord($user);
-        return $record && $teacher->center_id === $record->center_id;
+
+        if (!$record) return false;
+
+        // مدير الفرع يرى المعلم إذا كان:
+        // 1. المعلم ينتمي لنفس الفرع أساساً.
+        // 2. 🔥 أو إذا كان المعلم الخارجي يدرس في حلقة تابعة لفرع هذا المدير.
+        return $teacher->center_id === $record->center_id
+            || $teacher->circles()->where('circles.center_id', $record->center_id)->exists();
     }
 
     public function create(User $user): bool
@@ -36,7 +42,12 @@ class TeacherPolicy
         if ($user->can('view all teachers')) return true;
 
         $record = $this->getTeacherRecord($user);
-        return $record && $teacher->center_id === $record->center_id;
+
+        if (!$record) return false;
+
+        // السماح لمدير الفرع بتعديل بيانات المعلم الخارجي المسند لحلقاته (لضمان عمل شاشة edit وتحديث البيانات بنجاح)
+        return $teacher->center_id === $record->center_id
+            || $teacher->circles()->where('circles.center_id', $record->center_id)->exists();
     }
 
     public function delete(User $user, Teacher $teacher): bool
@@ -45,7 +56,11 @@ class TeacherPolicy
         if ($user->can('view all teachers')) return true;
 
         $record = $this->getTeacherRecord($user);
-        return $record && $teacher->center_id === $record->center_id;
+
+        if (!$record) return false;
+
+        // ⚠️ الحذف الحقيقي نتركه فقط لمعلمي الفرع الأساسيين لمنع التداخل بين الفروع
+        return $teacher->center_id === $record->center_id;
     }
 
     public function toggle(User $user, Teacher $teacher): bool
@@ -54,6 +69,10 @@ class TeacherPolicy
         if ($user->can('view all teachers')) return true;
 
         $record = $this->getTeacherRecord($user);
-        return $record && $teacher->center_id === $record->center_id;
+
+        if (!$record) return false;
+
+        // ⚠️ تعطيل/تفعيل الحساب يفضل حصره بمدير الفرع الأساسي التابع له المعلم
+        return $teacher->center_id === $record->center_id;
     }
 }

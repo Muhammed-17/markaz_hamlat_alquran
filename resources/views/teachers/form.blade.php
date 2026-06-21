@@ -63,7 +63,6 @@ $currentRoles = old('roles', $isEdit ? $teacher->user->roles->pluck('name')->toA
     </div>
 
     {{-- الفرع / المركز --}}
-    {{-- الفرع / المركز --}}
     <div class="space-y-2">
         <label class="block text-sm font-bold text-gray-700">الفرع / المركز <span class="text-red-500">*</span></label>
 
@@ -74,17 +73,24 @@ $currentRoles = old('roles', $isEdit ? $teacher->user->roles->pluck('name')->toA
             {{ $centers->first()->name }}
         </div>
         @else
-        {{-- أكثر من فرع → أظهر القائمة --}}
-        <select name="center_id"
-            class="w-full px-4 py-3 bg-gray-50 border border-gray-200 focus:bg-white focus:ring-2 focus:ring-emerald-100 focus:border-[#0a5c36] rounded-2xl outline-none transition-all appearance-none">
-            <option value="">-- اختر الفرع --</option>
-            @foreach($centers as $center)
-            <option value="{{ $center->id }}"
-                {{ old('center_id', $teacher->center_id ?? '') == $center->id ? 'selected' : '' }}>
-                {{ $center->name }}
-            </option>
-            @endforeach
-        </select>
+        {{-- أكثر من فرع → إرجاع القائمة المنسدلة التي سقطت في الكود السابق لتفادي الخطأ البرميجي --}}
+        <div class="relative">
+            <select name="center_id"
+                class="w-full px-4 py-3 bg-gray-50 border border-gray-200 focus:bg-white focus:ring-2 focus:ring-emerald-100 focus:border-[#0a5c36] rounded-2xl outline-none transition-all appearance-none font-bold text-gray-700">
+                <option value="">-- اختر الفرع --</option>
+                @foreach($centers as $center)
+                <option value="{{ $center->id }}"
+                    {{ old('center_id', $teacher->center_id ?? '') == $center->id ? 'selected' : '' }}>
+                    {{ $center->name }}
+                </option>
+                @endforeach
+            </select>
+            <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center px-4 text-gray-500">
+                <svg class="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                    <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
+                </svg>
+            </div>
+        </div>
         @endif
 
         @error('center_id')
@@ -92,6 +98,7 @@ $currentRoles = old('roles', $isEdit ? $teacher->user->roles->pluck('name')->toA
         @enderror
     </div>
 
+    {{-- نوع المستخدم (الأدوار) --}}
     <div class="space-y-2">
         <label class="block text-sm font-bold text-gray-700">
             نوع المستخدم <span class="text-red-500">*</span>
@@ -109,6 +116,46 @@ $currentRoles = old('roles', $isEdit ? $teacher->user->roles->pluck('name')->toA
             @endforeach
         </div>
         @error('roles')
+        <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
+        @enderror
+    </div>
+
+    <hr class="border-gray-100 my-6">
+
+    {{-- المسؤولية الإدارية --}}
+    <div class="space-y-2">
+        <label class="block text-sm font-bold text-gray-700">
+            المسؤولية الإدارية
+        </label>
+
+        <div x-data="{ isAdministrative: {{ old('is_administrative', $teacher->is_administrative ?? false) ? 'true' : 'false' }} }"
+            class="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-gray-100 transition-all"
+            :class="isAdministrative ? 'border-amber-200 bg-amber-50/20' : 'bg-gray-50 border-gray-100'">
+
+            <div class="flex items-center gap-3">
+                <div class="p-2 rounded-xl transition-colors" :class="isAdministrative ? 'bg-amber-100 text-amber-700' : 'bg-gray-200 text-gray-500'">
+                    💼
+                </div>
+                <div>
+                    <h4 class="text-sm font-bold text-gray-800">تعيين كعضو كادر إداري</h4>
+                    <p class="text-xs text-gray-400 mt-0.5">تفعيل هذا الخيار يمنح المعلم صلاحية رؤية أقسام وحسابات الإدارة كـ (الماليات).</p>
+                </div>
+            </div>
+
+            {{-- التعديل هنا: استخدام translate-x بدلاً من سالب القيمة لتتماشى مع الـ RTL والـ LTR بشكل مرن --}}
+            <button type="button"
+                @click="isAdministrative = !isAdministrative"
+                class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full p-0.5 transition-colors duration-200 ease-in-out focus:outline-none"
+                :class="isAdministrative ? 'bg-amber-500' : 'bg-gray-300'">
+
+                <input type="hidden" name="is_administrative" :value="isAdministrative ? 1 : 0">
+
+                <span class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow transition-all duration-200 ease-in-out"
+                    :class="isAdministrative ? 'mr-5' : 'mr-0'"></span>
+            </button>
+        </div>
+
+        @error('is_administrative')
         <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
         @enderror
     </div>

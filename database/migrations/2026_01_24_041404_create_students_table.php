@@ -20,7 +20,6 @@ return new class extends Migration
             $table->date('date_of_birth')->nullable();
             $table->integer('age')->unsigned()->nullable();
             $table->enum('gender', ['Male', 'Female']);
-            $table->enum('education_level', ['Primary', 'Secondary', 'High School','University','Other']);
             $table->string('phone')->nullable();
             $table->string('second_phone')->nullable();
             $table->string('address')->nullable();

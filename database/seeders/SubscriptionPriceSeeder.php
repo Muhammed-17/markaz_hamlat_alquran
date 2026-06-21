@@ -9,10 +9,14 @@ class SubscriptionPriceSeeder extends Seeder
 {
     public function run(): void
     {
+        // ✅ المفتاح هو 'education_stage' (وليس 'education_level') ليطابق اسم
+        // العمود الفعلي في جدول subscription_prices بعد migration
+        // 2026_06_12_212438_rename_education_level_to_education_stage...
+        // كان الـ Seeder يستخدم الاسم القديم فيفشل بـ "Undefined array key".
         $prices = [
-            ['circle_level' => 'build',      'education_level' => 'ابتدائي', 'amount' => 60.00],
-            ['circle_level' => 'mastery',    'education_level' => 'ثانوي',   'amount' => 100.00],
-            ['circle_level' => 'creativity', 'education_level' => 'ثانوي',   'amount' => 100.00],
+            ['circle_level' => 'build',      'education_stage' => 'ابتدائي', 'amount' => 60.00],
+            ['circle_level' => 'mastery',    'education_stage' => 'ثانوي',   'amount' => 100.00],
+            ['circle_level' => 'creativity', 'education_stage' => 'ثانوي',   'amount' => 100.00],
         ];
 
         foreach ($prices as $data) {

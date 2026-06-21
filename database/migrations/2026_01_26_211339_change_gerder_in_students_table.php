@@ -13,7 +13,6 @@ return new class extends Migration
     {
         Schema::table('students', function (Blueprint $table) {
             $table->string('gender', 20)->change();
-            $table->string('education_level', 50)->change();
             $table->string('status', 20)->default('مقيد')->change();
         });
     }
