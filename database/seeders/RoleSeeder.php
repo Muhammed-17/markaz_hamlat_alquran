@@ -7,18 +7,28 @@ use Spatie\Permission\Models\Role;
 
 class RoleSeeder extends Seeder
 {
-    public function run(): void
-    {
-        // ✅ قائمة الأدوار الأساسية في النظام.
-        // general_manager مُضاف هنا لأنه مُستخدم فعلياً في الكونترولرز عبر hasRole()
-        // و في PermissionSeeder، لكنه كان مفقوداً من هذه القائمة فلا يُنشأ كـ Role أبداً
-        // عند migrate:fresh --seed، فيفشل ربط الصلاحيات به لاحقاً.
-        $roles = ['admin', 'general_manager', 'manager', 'supervisor', 'teacher', 'guardian'];
+public function run(): void
+{
+    // تعريف الأدوار مع المسميات العربية المقابلة لها
+    $roles = [
+        'admin'           => 'مدير النظام',
+        'general_manager' => 'مدير عام',
+        'manager'         => 'مدير فرع',
+        'supervisor'      => 'مشرف',
+        'teacher'         => 'معلم',
+        'guardian'        => 'ولي أمر',
+    ];
 
-        foreach ($roles as $role) {
-            Role::firstOrCreate(['name' => $role]);
-        }
-
-        $this->command->info('✅ الأدوار الأساسية تم إنشاؤها وتحديثها.');
+    foreach ($roles as $name => $displayName) {
+        Role::updateOrCreate(
+            ['name' => $name], // البحث بناءً على الاسم الفريد للدور
+            [
+                'display_name' => $displayName,
+                'guard_name'   => 'web' // التأمين والتوافق مع حزمة الصلاحيات
+            ]
+        );
     }
+
+    $this->command->info('✅ الأدوار الأساسية تم إنشاؤها وتحديث المسميات العربية (display_name) بنجاح.');
+}
 }

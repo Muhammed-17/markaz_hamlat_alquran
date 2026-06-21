@@ -11,17 +11,18 @@ $teachersList = $teachers->map(fn($t) => [
 'name' => $r->name,
 'display_name' => $r->display_name ?? $r->name,
 ])->toArray(),
-
 'show_url' => auth()->user()->can('view', $t) ? route('teachers.show', $t) : null,
 'edit_url' => auth()->user()->can('edit teachers') ? route('teachers.edit', $t) : null,
 'delete_url' => auth()->user()->can('delete teachers') ? route('teachers.destroy', $t) : null,
 'toggle_url' => auth()->user()->can('toggle teacher status') ? route('teachers.toggle', $t) : null,
 ]);
 
+// توحيد الألوان برمجياً في مكان واحد لسهولة التعديل مستقبلاً
 $roleColors = [
 'teacher' => 'bg-red-50 text-red-700 border border-red-200',
 'supervisor' => 'bg-blue-50 text-blue-700 border border-blue-200',
-'manager' => 'bg-emerald-50 text-emerald-700 border border-emerald-200',
+'manager' => 'bg-indigo-50 text-indigo-700 border border-indigo-200',
+'admin' => 'bg-purple-50 text-purple-700 border border-purple-200',
 'general_manager' => 'bg-purple-50 text-purple-700 border border-purple-200',
 ];
 @endphp
@@ -32,22 +33,15 @@ $roleColors = [
         function teachersIndex() {
             return {
                 teachers: @json($teachersList),
+                roleColors: @json($roleColors), // تمرير الألوان من الـ PHP مباشرة لـ Alpine
                 q: '',
                 centerId: '',
                 role: '',
-                status: '', // 🔥 إضافة متغير الحالة في Alpine.js
+                status: '',
                 currentPage: 1,
                 perPage: 20,
                 sortField: 'name',
                 sortAsc: true,
-
-                roleColors: {
-                    admin: 'bg-purple-50 text-purple-700',
-                    supervisor: 'bg-blue-50 text-blue-700',
-                    manager: 'bg-indigo-50 text-indigo-700',
-                    teacher: 'bg-red-50 text-red-700',
-                    guardian: 'bg-amber-50 text-amber-700',
-                },
 
                 sortBy(field) {
                     this.sortField === field ?
@@ -60,7 +54,6 @@ $roleColors = [
                     if (page >= 1 && page <= this.totalPages) this.currentPage = page;
                 },
 
-                // 🔥 تحديث التحقق من وجود فلاتر نشطة تشمل الفرع والحالة
                 get hasFilters() {
                     return this.q.trim() !== '' || this.centerId !== '' || this.role !== '' || this.status !== '';
                 },
@@ -69,21 +62,13 @@ $roleColors = [
                     const term = this.q.trim().toLowerCase();
 
                     let result = this.teachers.filter(t => {
-                        // 🔥 1. فلترة بناءً على الفرع (مقارنة دقيقة بالاسم المستخرج من المابينج)
                         if (this.centerId && t.center !== this.centerId) return false;
-
-                        // 🔥 2. فلترة بناءً على الحالة (active / inactive)
                         if (this.status && t.status !== this.status) return false;
-
-                        // 3. فلترة بناءً على الدور
                         if (this.role && !t.roles.some(r => r.name === this.role)) return false;
-
-                        // 4. فلترة بالبحث النصي
                         if (!term) return true;
                         return [t.name, t.email, t.center].join(' ').toLowerCase().includes(term);
                     });
 
-                    // خوارزمية الترتيب
                     result.sort((a, b) => {
                         let vA = a[this.sortField];
                         let vB = b[this.sortField];
@@ -146,7 +131,6 @@ $roleColors = [
                     return list;
                 },
 
-                // 🔥 تفريغ كل الفلاتر بما فيها الحالة والفرع
                 resetFilters() {
                     this.q = '';
                     this.centerId = '';
@@ -185,46 +169,44 @@ $roleColors = [
                         }
                     });
                 },
+
                 async toggleStatus(url) {
-                    setTimeout(async () => {
-                        const result = await Swal.fire({
-                            title: 'تغيير حالة الحساب؟',
-                            icon: 'question',
-                            showCancelButton: true,
-                            confirmButtonColor: '#0a5c36',
-                            cancelButtonColor: '#6b7280',
-                            confirmButtonText: 'نعم، تغيير',
-                            cancelButtonText: 'إلغاء',
-                            customClass: {
-                                popup: 'rounded-3xl font-bold',
-                                confirmButton: 'rounded-xl px-6 py-2.5 text-sm',
-                                cancelButton: 'rounded-xl px-6 py-2.5 text-sm',
-                            }
-                        });
-
-                        if (result.isConfirmed) {
-                            const form = document.createElement('form');
-                            form.method = 'POST';
-                            form.action = url;
-
-                            const token = document.querySelector('meta[name="csrf-token"]').content;
-
-                            const tokenInput = document.createElement('input');
-                            tokenInput.type = 'hidden';
-                            tokenInput.name = '_token';
-                            tokenInput.value = token;
-
-                            const methodInput = document.createElement('input');
-                            methodInput.type = 'hidden';
-                            methodInput.name = '_method';
-                            methodInput.value = 'PATCH';
-
-                            form.appendChild(tokenInput);
-                            form.appendChild(methodInput);
-                            document.body.appendChild(form);
-                            form.submit();
+                    const result = await Swal.fire({
+                        title: 'تغيير حالة الحساب؟',
+                        icon: 'question',
+                        showCancelButton: true,
+                        confirmButtonColor: '#0a5c36',
+                        cancelButtonColor: '#6b7280',
+                        confirmButtonText: 'نعم، تغيير',
+                        cancelButtonText: 'إلغاء',
+                        customClass: {
+                            popup: 'rounded-3xl font-bold',
+                            confirmButton: 'rounded-xl px-6 py-2.5 text-sm',
+                            cancelButton: 'rounded-xl px-6 py-2.5 text-sm',
                         }
-                    }, 0);
+                    });
+
+                    if (result.isConfirmed) {
+                        const form = document.createElement('form');
+                        form.method = 'POST';
+                        form.action = url;
+
+                        // الحماية من انهيار التوكن باستدعائه مباشرة من البليد الآمن
+                        const tokenInput = document.createElement('input');
+                        tokenInput.type = 'hidden';
+                        tokenInput.name = '_token';
+                        tokenInput.value = "{{ csrf_token() }}";
+
+                        const methodInput = document.createElement('input');
+                        methodInput.type = 'hidden';
+                        methodInput.name = '_method';
+                        methodInput.value = 'PATCH';
+
+                        form.appendChild(tokenInput);
+                        form.appendChild(methodInput);
+                        document.body.appendChild(form);
+                        form.submit();
+                    }
                 },
             };
         }
@@ -238,7 +220,6 @@ $roleColors = [
                 <h1 class="text-3xl font-black mb-2">إدارة المعلمين</h1>
                 <p class="text-emerald-100/80 text-sm font-medium"
                     x-text="hasFilters ? (visibleCount + ' نتيجة من ' + totalCount) : (totalCount + ' معلم مسجل في النظام')">
-                    {{ $teachers->count() }} معلم مسجل في النظام
                 </p>
             </div>
             <div class="flex flex-wrap items-center gap-4 w-full md:w-auto">
@@ -272,7 +253,7 @@ $roleColors = [
                     </div>
                 </div>
 
-                {{-- فلتر الفرع المحدث --}}
+                {{-- فلتر الفرع --}}
                 @can('filter teachers by center')
                 @can('view all teachers')
                 <div class="min-w-[180px] flex-1 sm:flex-none">
@@ -302,7 +283,7 @@ $roleColors = [
                 </div>
                 @endcan
 
-                {{-- 🔥 إضافة فلتر الحالة الجديد واجهياً --}}
+                {{-- فلتر الحالة --}}
                 <div class="min-w-[150px] flex-1 sm:flex-none">
                     <label class="block text-xs font-bold text-gray-500 mb-1">الحالة الحسابية</label>
                     <select x-model="status"
@@ -381,13 +362,13 @@ $roleColors = [
                                 </template>
                             </td>
                             <td class="py-4 px-6">
-                                <div class="flex flex-wrap gap-1.5" x-data="{ colors: {{ json_encode($roleColors) }} }">
+                                <div class="flex flex-wrap gap-1.5">
                                     <template x-if="teacher.roles.length === 0">
                                         <span class="text-gray-400 text-xs">—</span>
                                     </template>
                                     <template x-for="role in teacher.roles" :key="role.name">
                                         <div class="px-2.5 py-1 rounded-md text-xs font-bold inline-flex items-center gap-1.5 transition-all shadow-sm"
-                                            :class="colors[role.name] ?? 'bg-gray-50 text-gray-600 border border-gray-200'">
+                                            :class="roleColors[role.name] ?? 'bg-gray-50 text-gray-600 border border-gray-200'">
                                             <span x-text="role.display_name"></span>
                                         </div>
                                     </template>
@@ -433,7 +414,7 @@ $roleColors = [
                                     </template>
                                     <template x-if="teacher.delete_url">
                                         <button type="button" @click="confirmDelete(teacher.delete_url, teacher.name)" class="text-red-400 hover:text-red-600 hover:bg-red-50 p-1.5 rounded-lg transition" title="حذف">
-                                            <svg xmlns="http://www.w3.org/2000/xl" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                             </svg>
                                         </button>
