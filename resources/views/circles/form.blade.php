@@ -1,6 +1,6 @@
 @php
 $isEdit = isset($circle) && $circle->exists;
-$canManageAll = auth()->user()->can('view all circles');
+$canManageAll = auth()->user()->can('view circles');
 @endphp
 
 <div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-8 space-y-6">
@@ -18,7 +18,7 @@ $canManageAll = auth()->user()->can('view all circles');
 
         @if($canManageAll)
         {{-- ═══════════════════════════════════════════════
-                 admin / من يملك صلاحية إدارة كل الفروع — كل الحقول قابلة للتعديل
+                admin / من يملك صلاحية إدارة كل الفروع — كل الحقول قابلة للتعديل
             ════════════════════════════════════════════════ --}}
         <div class="space-y-2">
             <label for="circle_name" class="block text-sm font-bold text-gray-700">اسم الحلقة <span class="text-red-500">*</span></label>

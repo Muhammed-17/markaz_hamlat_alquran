@@ -39,14 +39,12 @@ class PermissionSeeder extends Seeder
             // الفروع والمراكز (centers)
             // ─────────────────────────────────────────────────────────
             'view centers'                => ['عرض الفروع المشترك بها', 'centers'],
-            'view all centers'            => ['عرض جميع الفروع', 'centers'],
             'manage centers'              => ['إدارة الفروع (إضافة/تعديل/حذف)', 'centers'],
 
             // ─────────────────────────────────────────────────────────
             // الحلقات (circles)
             // ─────────────────────────────────────────────────────────
             'view circles'                => ['عرض الحلقات', 'circles'],
-            'view all circles'            => ['عرض جميع الحلقات', 'circles'],
             'create circles'              => ['إنشاء حلقات جديدة', 'circles'],
             'edit circles'                => ['تعديل الحلقات', 'circles'],
             'delete circles'              => ['حذف الحلقات', 'circles'],
@@ -66,7 +64,6 @@ class PermissionSeeder extends Seeder
             // الطلاب (students)
             // ─────────────────────────────────────────────────────────
             'view students'               => ['عرض الطلاب', 'students'],
-            'view all students'           => ['عرض جميع الطلاب', 'students'],
             'create students'             => ['إضافة طلاب', 'students'],
             'edit students'               => ['تعديل بيانات الطلاب', 'students'],
             'delete students'             => ['حذف طلاب', 'students'],
@@ -125,10 +122,8 @@ class PermissionSeeder extends Seeder
                 'delete users',
                 'manage roles',
                 'view centers',
-                'view all centers',
                 'manage centers',
                 'view circles',
-                'view all circles',
                 'create circles',
                 'edit circles',
                 'delete circles',
@@ -140,7 +135,6 @@ class PermissionSeeder extends Seeder
                 'delete teachers',
                 'toggle teacher status',
                 'view students',
-                'view all students',
                 'create students',
                 'edit students',
                 'delete students',
@@ -165,9 +159,7 @@ class PermissionSeeder extends Seeder
                 'export data',
                 'view users',
                 'view centers',
-                'view all centers',
                 'view circles',
-                'view all circles',
                 'create circles',
                 'edit circles',
                 'delete circles',
@@ -179,7 +171,6 @@ class PermissionSeeder extends Seeder
                 'delete teachers',
                 'toggle teacher status',
                 'view students',
-                'view all students',
                 'create students',
                 'edit students',
                 'delete students',
@@ -202,7 +193,6 @@ class PermissionSeeder extends Seeder
                 'edit profile',
                 'view centers',
                 'view circles',
-                'view all circles',
                 'create circles',
                 'edit circles',
                 'delete circles',

@@ -40,7 +40,7 @@ trait ResolvesUserScope
 
     protected function getAccessibleCirclesQuery(User $user): \Illuminate\Database\Eloquent\Builder
     {
-        if ($user->hasRole(['admin', 'general_manager']) || $user->can('view all circles')) {
+        if ($user->hasRole(['admin', 'general_manager']) || $user->can('view circles')) {
             return Circle::orderBy('name');
         }
 
@@ -169,7 +169,7 @@ trait ResolvesUserScope
     // ─── تطبيق فلتر الحلقات على أي query ────────────────────────
     protected function applyCircleFilter($query, User $user, $circleIds): void
     {
-        if ($user->hasRole(['admin', 'general_manager']) || $user->can('view all circles')) {
+        if ($user->hasRole(['admin', 'general_manager']) || $user->can('view circles')) {
             return;
         }
 

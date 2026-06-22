@@ -12,7 +12,7 @@ class CirclePolicy
 
     public function viewAny(User $user): bool
     {
-        return $user->can('view circles') || $user->can('view all circles');
+        return $user->can('view circles');
     }
 
     public function view(User $user, Circle $circle): bool

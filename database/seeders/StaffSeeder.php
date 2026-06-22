@@ -47,9 +47,7 @@ class StaffSeeder extends Seeder
                 [
                     'name' => $member['name'],
                     'password' => Hash::make($member['password']),
-                    'status' => 'active', // assuming status exists
-                    // ✅ users.center_id (راجع CenterScope وUser model) يُستخدم
-                    // أيضاً في أماكن أخرى من النظام لتحديد فرع المستخدم.
+                    'status' => 'active',
                     'center_id' => $center->id,
                 ]
             );
