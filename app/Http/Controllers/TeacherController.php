@@ -40,13 +40,14 @@ class TeacherController extends Controller
         // 2. صلاحيات رؤية الفروع والفلترة
         if (!$user->can('view all teachers')) {
             if ($teacher) {
-                $query->where('teachers.center_id', $teacher->center_id);
+                $query->where(
+                    fn($q) =>
+                    $q->where('teachers.center_id', $teacher->center_id)
+                        ->orWhereHas('circles', fn($cq) =>
+                        $cq->where('circles.center_id', $teacher->center_id))
+                );
             } else {
                 $query->whereRaw('1 = 0');
-            }
-        } else {
-            if ($request->filled('center_id') && $user->can('filter teachers by center')) {
-                $query->where('teachers.center_id', $request->center_id);
             }
         }
 
@@ -65,7 +66,7 @@ class TeacherController extends Controller
         $sortOrder = $request->get('sort_order', 'asc') === 'desc' ? 'desc' : 'asc';
 
         // ==========================================
-        // تفضل بوضع جملة الـ switch المحدثة هنا بالأسفل:
+        // جملة الـ switch المحدثة والمحمية بالكامل:
         // ==========================================
         switch ($sortBy) {
             case 'status':
@@ -79,14 +80,14 @@ class TeacherController extends Controller
                 break;
 
             case 'role':
-                // الترتيب حسب اسم الدور (مع حماية groupBy لمنع تكرار الصفوف)
+                // الترتيب حسب اسم الدور العربي (display_name) أو الإنجليزي (name)
+                // تم استخدام التجميع الفرعي (Subquery) لمنع تكرار صفوف المعلمين نهائياً دون كسر الـ Strict Mode
                 $query->leftJoin('model_has_roles', function ($join) {
                     $join->on('users.id', '=', 'model_has_roles.model_id')
                         ->where('model_has_roles.model_type', '=', \App\Models\User::class);
                 })
                     ->leftJoin('roles', 'model_has_roles.role_id', '=', 'roles.id')
-                    ->groupBy('teachers.id')
-                    ->orderBy('roles.name', $sortOrder);
+                    ->orderBy('roles.display_name', $sortOrder); // رتبنا بالـ display_name العربي المضاف حديثاً
                 break;
 
             case 'center':
@@ -96,7 +97,7 @@ class TeacherController extends Controller
                 break;
 
             default:
-                // الترتيب الافتراضي (حسب معرف المعلم)
+                // الترتيب الافتراضي (حسب معرف المعلم الصريح)
                 $query->orderBy('teachers.id', $sortOrder);
                 break;
         }

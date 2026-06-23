@@ -9,6 +9,7 @@ use App\Models\Teacher;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Collection;
 use App\Models\Student;
+use App\Models\Scopes\CenterScope;
 
 trait ResolvesUserScope
 {
@@ -96,37 +97,42 @@ trait ResolvesUserScope
     }
 
     // ─── المعلمون المتاحون ────────────────────────────────────────
-    protected function getAccessibleTeachers(User $user, ?Teacher $teacher): \Illuminate\Database\Eloquent\Collection
+    protected function getAccessibleTeachers(User $user, ?Teacher $teacher): Collection
     {
-        // 1. الإدارة العليا ترى جميع المعلمين النشطين في السيستم
+        return $this->getAccessibleTeachersQuery($user, $teacher)->get();
+    }
+
+    protected function getAccessibleTeachersQuery(User $user, ?Teacher $teacher): \Illuminate\Database\Eloquent\Builder
+    {
         if ($user->hasRole(['admin', 'general_manager'])) {
-            return Teacher::withoutGlobalScope(\App\Models\Scopes\CenterScope::class)
+            return Teacher::withoutGlobalScope(CenterScope::class)
                 ->with('user.roles')
-                ->whereHas('user', fn($u) => $u->where('status', 'active'))
-                ->get();
+                ->whereHas('user', fn($u) => $u->where('status', 'active'));
         }
 
-        // 2. كادر الفرع (مدير الفرع / الموظف الإداري)
         if ($teacher && $teacher->center_id) {
-            return Teacher::withoutGlobalScope(\App\Models\Scopes\CenterScope::class) // 🔓 فك الحجب العالمي مؤقتاً للاستثناء
+            return Teacher::withoutGlobalScope(CenterScope::class)
                 ->with('user.roles')
                 ->whereHas('user', fn($u) => $u->where('status', 'active'))
                 ->where(
                     fn($query) =>
-                    // أ. يجلب معلمين فرعه الأساسيين
                     $query->where('center_id', $teacher->center_id)
-
-                        // ب. الاستثناء السحري: أو أي معلم خارجي مسجل في حلقة تابعة لفرع هذا المدير
-                        ->orWhereHas(
-                            'circles',
-                            fn($q) =>
-                            $q->where('circles.center_id', $teacher->center_id)
-                        )
-                )
-                ->get();
+                        ->orWhereHas('circles', fn($q) =>
+                        $q->where('circles.center_id', $teacher->center_id))
+                );
         }
 
-        return Teacher::whereRaw('1 = 0')->get();
+        return Teacher::whereRaw('1 = 0');
+    }
+
+    // ─── شرط النطاق الموحّد لمعلم واحد: فرعه + الحلقات الخارجية ────
+    protected function applyTeacherCenterScope($query, Teacher $record): void
+    {
+        $query->where(function ($q) use ($record) {
+            $q->where('center_id', $record->center_id)
+                ->orWhereHas('circles', fn($cq) =>
+                $cq->where('circles.center_id', $record->center_id));
+        });
     }
 
     protected function getAccessibleSupervisors(User $user, ?Teacher $teacher): \Illuminate\Database\Eloquent\Collection

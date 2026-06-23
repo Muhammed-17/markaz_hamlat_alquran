@@ -2,10 +2,15 @@
 
 namespace App\Http\Requests\Teacher;
 
+use App\Traits\ResolvesUserScope;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
+use Spatie\Permission\Models\Role;
 
 class CreateTeacherRequest extends FormRequest
 {
+    use ResolvesUserScope;
+
     public function authorize(): bool
     {
         return true;
@@ -13,14 +18,28 @@ class CreateTeacherRequest extends FormRequest
 
     public function rules(): array
     {
+        $accessibleCenterIds = $this->getAccessibleCenters($this->user())->pluck('id');
+        $allowedRoles        = $this->allowedRolesFor($this->user()); // ⬅️ تغيّر هنا
+
         return [
-            'name'      => 'required|string|max:255',
-            'email'     => 'required|string|email|max:255|unique:users',
-            'password'  => 'required|string|min:8',
-            'center_id' => 'required|integer|exists:centers,id', // ✅
-            'roles'   => 'required|array|size:1',
-            'roles.*' => 'string|exists:roles,name',
+            'name'              => 'required|string|max:255',
+            'email'             => 'required|string|email|max:255|unique:users',
+            'password'          => 'required|string|min:8',
+            'center_id'         => ['required', 'integer', Rule::in($accessibleCenterIds)],
+            'roles'             => 'required|array|size:1',
+            'roles.*'           => ['string', Rule::in($allowedRoles)], // ⬅️ بقي كما هو
+            'is_administrative' => 'nullable|boolean', // ⬅️ إضافة جديدة
         ];
+    }
+
+    // ⬅️ دالة جديدة تُضاف داخل الكلاس
+    private function allowedRolesFor($user): \Illuminate\Support\Collection
+    {
+        if ($user->hasRole(['admin', 'general_manager'])) {
+            return Role::whereNotIn('name', ['admin', 'guardian'])->pluck('name');
+        }
+
+        return Role::whereNotIn('name', ['admin', 'guardian', 'general_manager', 'manager'])->pluck('name');
     }
 
     public function messages(): array
@@ -34,10 +53,10 @@ class CreateTeacherRequest extends FormRequest
             'password.required'  => 'كلمة المرور مطلوبة',
             'password.min'       => 'كلمة المرور يجب أن تكون على الأقل 8 أحرف',
             'center_id.required' => 'الفرع مطلوب',
-            'center_id.exists'   => 'الفرع المختار غير موجود',
+            'center_id.in'       => 'لا يحق لك إضافة معلم لهذا الفرع',
             'roles.required'     => 'يجب اختيار دور واحد على الأقل',
             'roles.size'         => 'يجب اختيار دور واحد فقط',
-            'roles.*.exists'     => 'أحد الأدوار المختارة غير موجود',
+            'roles.*.in'         => 'الدور المختار غير مسموح به',
         ];
     }
 }

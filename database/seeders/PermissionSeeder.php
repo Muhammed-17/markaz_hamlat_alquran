@@ -198,7 +198,6 @@ class PermissionSeeder extends Seeder
                 'delete circles',
                 'manage circle teachers',
                 'view teachers',
-                'view all teachers',
                 'create teachers',
                 'edit teachers',
                 'delete teachers',
@@ -259,10 +258,10 @@ class PermissionSeeder extends Seeder
         // مسميات الأدوار العربية لـ display_name المتواجد بجدول الـ roles
         $roleDisplayNames = [
             'admin'           => 'مدير النظام',
-            'general_manager' => 'المدير العام',
+            'general_manager' => 'مدير عام',
             'manager'         => 'مدير فرع',
-            'supervisor'      => 'مشرف فرع',
-            'teacher'         => 'معلم / محفظ',
+            'supervisor'      => 'مشرف',
+            'teacher'         => 'معلم',
             'guardian'        => 'ولي أمر',
         ];
 

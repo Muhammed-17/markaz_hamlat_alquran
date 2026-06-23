@@ -21,15 +21,17 @@ class TeacherPolicy
         if ($user->can('view all teachers')) return true;
 
         $record = $this->getTeacherRecord($user);
-
         if (!$record) return false;
 
-        // مدير الفرع يرى المعلم إذا كان:
-        // 1. المعلم ينتمي لنفس الفرع أساساً.
-        // 2. 🔥 أو إذا كان المعلم الخارجي يدرس في حلقة تابعة لفرع هذا المدير.
-        return $teacher->center_id === $record->center_id
-            || $teacher->circles()->where('circles.center_id', $record->center_id)->exists();
+        if ($user->hasRole('teacher')) {
+            return $user->id === $teacher->user_id;
+        }
+
+        return $this->getAccessibleTeachersQuery($user, $record)
+            ->whereKey($teacher->id)
+            ->exists();
     }
+
 
     public function create(User $user): bool
     {

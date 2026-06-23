@@ -40,7 +40,6 @@ jobs:
         key: ${{ runner.os }}-php-${{ hashFiles('**/composer.lock') }}
         restore-keys: |
           ${{ runner.os }}-php-
-
     # 4. تثبيت حزم المشروع المعتمدة
     - name: Install dependencies
       run: composer install --prefer-dist --no-progress

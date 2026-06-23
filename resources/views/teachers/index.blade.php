@@ -12,9 +12,9 @@ $teachersList = $teachers->map(fn($t) => [
 'display_name' => $r->display_name ?? $r->name,
 ])->toArray(),
 'show_url' => auth()->user()->can('view', $t) ? route('teachers.show', $t) : null,
-'edit_url' => auth()->user()->can('edit teachers') ? route('teachers.edit', $t) : null,
-'delete_url' => auth()->user()->can('delete teachers') ? route('teachers.destroy', $t) : null,
-'toggle_url' => auth()->user()->can('toggle teacher status') ? route('teachers.toggle', $t) : null,
+'edit_url' => auth()->user()->can('update', $t) ? route('teachers.edit', $t) : null,
+'delete_url' => auth()->user()->can('delete', $t) ? route('teachers.destroy', $t) : null,
+'toggle_url' => auth()->user()->can('toggle', $t) ? route('teachers.toggle', $t) : null,
 ]);
 
 // توحيد الألوان برمجياً في مكان واحد لسهولة التعديل مستقبلاً
@@ -254,7 +254,6 @@ $roleColors = [
                 </div>
 
                 {{-- فلتر الفرع --}}
-                @can('filter teachers by center')
                 @can('view all teachers')
                 <div class="min-w-[180px] flex-1 sm:flex-none">
                     <label class="block text-xs font-bold text-gray-500 mb-1">الفرع</label>
@@ -267,10 +266,9 @@ $roleColors = [
                     </select>
                 </div>
                 @endcan
-                @endcan
 
                 {{-- فلتر الدور --}}
-                @can('filter teachers by role')
+                @can('view all teachers')
                 <div class="min-w-[180px] flex-1 sm:flex-none">
                     <label class="block text-xs font-bold text-gray-500 mb-1">الدور</label>
                     <select x-model="role"
