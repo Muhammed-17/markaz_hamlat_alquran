@@ -5,6 +5,7 @@ namespace App\Http\Requests\Teacher;
 use App\Traits\ResolvesUserScope;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Password;
 use Spatie\Permission\Models\Role;
 
 class CreateTeacherRequest extends FormRequest
@@ -13,7 +14,7 @@ class CreateTeacherRequest extends FormRequest
 
     public function authorize(): bool
     {
-        return true;
+        return $this->user()->can('create teachers');
     }
 
     public function rules(): array
@@ -24,7 +25,7 @@ class CreateTeacherRequest extends FormRequest
         return [
             'name'              => 'required|string|max:255',
             'email'             => 'required|string|email|max:255|unique:users',
-            'password'          => 'required|string|min:8',
+            'password'          => ['required', 'string', Password::min(8)->mixedCase()->numbers()->symbols()],
             'center_id'         => ['required', 'integer', Rule::in($accessibleCenterIds)],
             'roles'             => 'required|array|size:1',
             'roles.*'           => ['string', Rule::in($allowedRoles)], // ⬅️ بقي كما هو
@@ -35,8 +36,12 @@ class CreateTeacherRequest extends FormRequest
     // ⬅️ دالة جديدة تُضاف داخل الكلاس
     private function allowedRolesFor($user): \Illuminate\Support\Collection
     {
-        if ($user->hasRole(['admin', 'general_manager'])) {
+        if ($user->can('assign any role')) {
             return Role::whereNotIn('name', ['admin', 'guardian'])->pluck('name');
+        }
+
+        if ($user->can('assign manager role')) {
+            return Role::whereNotIn('name', ['admin', 'guardian', 'general_manager'])->pluck('name');
         }
 
         return Role::whereNotIn('name', ['admin', 'guardian', 'general_manager', 'manager'])->pluck('name');

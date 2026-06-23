@@ -12,7 +12,6 @@ class CenterScope implements Scope
 {
     private const IGNORED_TABLES = [
         'centers',
-        'users',
         'roles',
         'permissions',
         'model_has_roles',

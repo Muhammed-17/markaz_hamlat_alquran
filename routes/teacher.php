@@ -17,8 +17,7 @@ Route::middleware(['auth'])->group(function () {
 
     Route::middleware('permission:edit teachers')->group(function () {
         Route::get('teachers/{teacher}/edit', [TeacherController::class, 'edit'])->name('teachers.edit');
-        Route::put('teachers/{teacher}', [TeacherController::class, 'update'])->name('teachers.update');
-        Route::patch('teachers/{teacher}', [TeacherController::class, 'update']);
+        Route::match(['put', 'patch'], 'teachers/{teacher}', [TeacherController::class, 'update'])->name('teachers.update');
     });
 
     Route::middleware('permission:delete teachers')->group(function () {

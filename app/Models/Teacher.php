@@ -34,7 +34,6 @@ use Spatie\Permission\Traits\HasRoles;
  */
 class Teacher extends Model
 {
-    use HasRoles;
     protected $fillable = [
         'name',
         'user_id',

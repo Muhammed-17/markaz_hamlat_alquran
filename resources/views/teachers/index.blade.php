@@ -3,10 +3,10 @@
 $teachersList = $teachers->map(fn($t) => [
 'id' => $t->id,
 'name' => $t->name,
-'email' => $t->user->email ?? '',
+'email' => auth()->user()->can('view sensitive data') ? ($t->user->email ?? '') : null,
 'center' => $t->center?->name ?? '',
 'status' => $t->user->status ?? 'inactive',
-'is_online' => $t->user->is_online ?? false,
+'is_online' => auth()->user()->can('view online status') ? ($t->user->is_online ?? false) : null,
 'roles' => $t->user->roles->map(fn($r) => [
 'name' => $r->name,
 'display_name' => $r->display_name ?? $r->name,
@@ -218,9 +218,16 @@ $roleColors = [
         <div class="bg-[#0b3d2c] rounded-3xl p-6 lg:p-8 text-white relative overflow-hidden flex flex-col md:flex-row justify-between items-center shadow-xl gap-6">
             <div class="text-right w-full md:w-auto z-10">
                 <h1 class="text-3xl font-black mb-2">إدارة المعلمين</h1>
+                {{-- ✅ الحل: عرض الإحصائيات فقط للمدراء --}}
+                @can('view all teachers')
                 <p class="text-emerald-100/80 text-sm font-medium"
                     x-text="hasFilters ? (visibleCount + ' نتيجة من ' + totalCount) : (totalCount + ' معلم مسجل في النظام')">
                 </p>
+                @else
+                <p class="text-emerald-100/80 text-sm font-medium">
+                    قائمة المعلمين
+                </p>
+                @endcan
             </div>
             <div class="flex flex-wrap items-center gap-4 w-full md:w-auto">
                 @can('create teachers')

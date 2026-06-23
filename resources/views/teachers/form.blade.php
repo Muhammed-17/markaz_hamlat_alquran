@@ -1,4 +1,3 @@
-{{-- resources/views/teachers/form.blade.php --}}
 @php
 $isEdit = isset($teacher) && $teacher->exists;
 $currentRoles = old('roles', $isEdit ? $teacher->user->roles->pluck('name')->toArray() : []);
@@ -64,6 +63,29 @@ $currentRoles = old('roles', $isEdit ? $teacher->user->roles->pluck('name')->toA
         </div>
     </div>
 
+    {{-- ✅ إضافة هذا هنا: كلمة المرور الحالية (فقط في وضع التعديل) --}}
+    @if($isEdit)
+    <div class="space-y-2" x-data="{ showCurrent: false }">
+        <label class="block text-sm font-bold text-gray-700">
+            كلمة المرور الحالية
+            <span class="text-gray-400 font-normal">(مطلوبة لتغيير كلمة المرور)</span>
+        </label>
+        <div class="relative">
+            <input x-bind:type="showCurrent ? 'text' : 'password'" name="current_password"
+                placeholder="أدخل كلمة المرور الحالية"
+                class="w-full px-4 py-3 pl-10 bg-gray-50 border border-gray-200 focus:bg-white focus:ring-2 focus:ring-emerald-100 focus:border-[#0a5c36] rounded-2xl outline-none transition-all ltr">
+
+            <button type="button" @click="showCurrent = !showCurrent"
+                class="absolute inset-y-0 left-0 flex items-center px-3 text-gray-400 hover:text-gray-600">
+                <span x-text="showCurrent ? '🙈' : '👁'"></span>
+            </button>
+        </div>
+        @error('current_password')
+        <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
+        @enderror
+    </div>
+    @endif
+
     {{-- الفرع / المركز --}}
     <div class="space-y-2">
         <label class="block text-sm font-bold text-gray-700">الفرع / المركز <span class="text-red-500">*</span></label>
@@ -75,7 +97,7 @@ $currentRoles = old('roles', $isEdit ? $teacher->user->roles->pluck('name')->toA
             {{ $centers->first()->name }}
         </div>
         @else
-        {{-- أكثر من فرع → إرجاع القائمة المنسدلة التي سقطت في الكود السابق لتفادي الخطأ البرميجي --}}
+        {{-- أكثر من فرع → إرجاع القائمة المنسدلة التي سقطت في الكود السابق لتفادي الخطأ البرمجي --}}
         <div class="relative">
             <select name="center_id"
                 class="w-full px-4 py-3 bg-gray-50 border border-gray-200 focus:bg-white focus:ring-2 focus:ring-emerald-100 focus:border-[#0a5c36] rounded-2xl outline-none transition-all appearance-none font-bold text-gray-700">

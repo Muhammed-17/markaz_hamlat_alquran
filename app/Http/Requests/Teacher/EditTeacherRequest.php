@@ -13,7 +13,7 @@ class EditTeacherRequest extends FormRequest
 
     public function authorize(): bool
     {
-        return true;
+        return $this->user()->can('edit teachers');
     }
 
     public function rules(): array
@@ -31,6 +31,7 @@ class EditTeacherRequest extends FormRequest
                 Rule::unique('users', 'email')->ignore($teacher->user_id),
             ],
             'password'          => 'nullable|string|min:8',
+            'current_password' => 'required_with:password|string',
             'center_id'         => ['required', 'integer', Rule::in($accessibleCenterIds)],
             'roles'             => 'required|array|size:1',
             'roles.*'           => ['string', Rule::in($allowedRoles)],
@@ -41,8 +42,12 @@ class EditTeacherRequest extends FormRequest
     // ⬅️ دالة جديدة تُضاف داخل الكلاس
     private function allowedRolesFor($user): \Illuminate\Support\Collection
     {
-        if ($user->hasRole(['admin', 'general_manager'])) {
+        if ($user->can('assign any role')) {
             return Role::whereNotIn('name', ['admin', 'guardian'])->pluck('name');
+        }
+
+        if ($user->can('assign manager role')) {
+            return Role::whereNotIn('name', ['admin', 'guardian', 'general_manager'])->pluck('name');
         }
 
         return Role::whereNotIn('name', ['admin', 'guardian', 'general_manager', 'manager'])->pluck('name');
@@ -57,6 +62,7 @@ class EditTeacherRequest extends FormRequest
             'email.email'        => 'يجب أن يكون البريد الإلكتروني صالحًا',
             'email.unique'       => 'البريد الإلكتروني مستخدم بالفعل',
             'password.min'       => 'كلمة المرور يجب أن تكون على الأقل 8 أحرف',
+            'current_password.required_with' => 'يجب إدخال كلمة المرور الحالية لتغييرها.',
             'center_id.required' => 'الفرع مطلوب',
             'center_id.in'       => 'لا يحق لك نقل المعلم لهذا الفرع',
             'roles.required'     => 'يجب اختيار دور واحد على الأقل',

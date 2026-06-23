@@ -10,6 +10,7 @@ use App\Traits\ResolvesUserScope;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Spatie\Permission\Models\Role;
 use App\Models\Center;
 use Illuminate\Support\Facades\DB;
@@ -130,6 +131,7 @@ class TeacherController extends Controller
     public function store(CreateTeacherRequest $request)
     {
         $this->authorize('create', Teacher::class);
+        $this->authorize('create', User::class);
 
         DB::transaction(function () use ($request) {
             $isAdministrative = $request->input('is_administrative', 0);
@@ -201,8 +203,13 @@ class TeacherController extends Controller
     {
         $this->authorize('update', $teacher);
 
+        // منع تعديل الحساب المعطل إلا لمن لديه صلاحية خاصة
+        if ($teacher->user->status === 'inactive' && !$request->user()->can('activate inactive accounts')) {
+            return back()->with('error', 'لا يمكن تعديل حساب معطل. يرجى تفعيله أولاً.');
+        }
+
         DB::transaction(function () use ($request, $teacher) {
-            $isAdministrative = $request->input('is_administrative', 0);
+            $isAdministrative = $request->boolean('is_administrative', false);
 
             // 1. تحديث بيانات المعلم
             $teacher->update([
@@ -212,17 +219,26 @@ class TeacherController extends Controller
             ]);
 
             // 2. تجهيز بيانات المستخدم المرتبط
+            // ✅ الحل: عدم إجبار التفعيل - الحفاظ على الحالة الحالية
             $data = [
                 'name'              => $request->name,
                 'email'             => $request->email,
                 'center_id'         => $request->center_id,
                 'is_administrative' => $isAdministrative,
-                'status'            => 'active', // نضمن بقاء الحساب نشطاً أثناء التعديل
-                'email_verified_at' => now(),    // إعادة تأكيد البريد تلقائياً حتى لو تم تغييره
             ];
+            // لا نضيف status أو email_verified_at هنا
+            // الحالة تبقى كما هي، والتحقق يبقى كما هو
 
-            // تحديث كلمة المرور فقط إذا تم إدخالها في النموذج
+            // ✅ الحل: التحقق من كلمة المرور الحالية قبل التغيير
             if ($request->filled('password')) {
+                // إذا كان المستخدم يعدل نفسه، يجب إدخال كلمة المرور الحالية
+                if ($request->user()->id === $teacher->user_id) {
+                    if (!Hash::check($request->current_password, $teacher->user->password)) {
+                        throw ValidationException::withMessages([
+                            'current_password' => 'كلمة المرور الحالية غير صحيحة.'
+                        ]);
+                    }
+                }
                 $data['password'] = Hash::make($request->password);
             }
 
@@ -230,7 +246,7 @@ class TeacherController extends Controller
             $teacher->user->syncRoles($request->roles ?? []);
         });
 
-        return redirect()->route('teachers.index')->with('success', 'تم تحديث البيانات وتأكيد الحساب بنجاح');
+        return redirect()->route('teachers.index')->with('success', 'تم تحديث البيانات بنجاح');
     }
 
     // ─────────────────────────────────────────
@@ -238,9 +254,34 @@ class TeacherController extends Controller
     {
         $this->authorize('delete', $teacher);
 
+        // التحقق من عدم وجود حلقات مرتبطة
+        if ($teacher->circles()->exists()) {
+            return back()->with('error', 'لا يمكن حذف معلم مرتبط بحلقات.');
+        }
+
+        // منع حذف نفسه
+        if (Auth::id() === $teacher->user_id) {
+            return back()->with('error', 'لا يمكنك حذف حسابك الخاص.');
+        }
+
+        // منع حذف admin أو general_manager
+        if ($teacher->user->hasRole(['admin', 'general_manager'])) {
+            return back()->with('error', 'لا يمكن حذف حساب إداري رئيسي.');
+        }
+
         DB::transaction(function () use ($teacher) {
+            $teacherId = $teacher->id;
+            $userId = $teacher->user_id;
+
             $teacher->user->delete();
             $teacher->delete();
+
+            // Audit Log
+            Log::channel('audit')->info('teacher_deleted', [
+                'actor_id' => Auth::id(),
+                'teacher_id' => $teacherId,
+                'user_id' => $userId,
+            ]);
         });
 
         return redirect()->route('teachers.index')->with('success', 'تم الحذف بنجاح');
@@ -251,8 +292,27 @@ class TeacherController extends Controller
     {
         $this->authorize('toggle', $teacher);
 
+        // منع تعطيل نفسه
+        if (Auth::id() === $teacher->user_id) {
+            return back()->with('error', 'لا يمكنك تعطيل حسابك الخاص.');
+        }
+
+        // منع تعطيل admin أو general_manager
+        if ($teacher->user->hasRole(['admin', 'general_manager'])) {
+            return back()->with('error', 'لا يمكن تعطيل حساب إداري رئيسي.');
+        }
+
+        $newStatus = $teacher->user->status === 'active' ? 'inactive' : 'active';
+
         $teacher->user->update([
-            'status' => $teacher->user->status === 'active' ? 'inactive' : 'active',
+            'status' => $newStatus,
+        ]);
+
+        // Audit Log
+        Log::channel('audit')->info('teacher_toggled', [
+            'actor_id' => Auth::id(),
+            'teacher_id' => $teacher->id,
+            'new_status' => $newStatus,
         ]);
 
         return back()->with('success', 'تم تحديث الحالة بنجاح');

@@ -44,12 +44,13 @@ class TeacherPolicy
         if ($user->can('view all teachers')) return true;
 
         $record = $this->getTeacherRecord($user);
-
         if (!$record) return false;
 
-        // السماح لمدير الفرع بتعديل بيانات المعلم الخارجي المسند لحلقاته (لضمان عمل شاشة edit وتحديث البيانات بنجاح)
-        return $teacher->center_id === $record->center_id
-            || $teacher->circles()->where('circles.center_id', $record->center_id)->exists();
+        $isPrimary = $teacher->center_id === $record->center_id;
+        $isExternal = $teacher->circles()->where('circles.center_id', $record->center_id)->exists();
+
+        // المعلم الخارجي يمكن تعديل حلقاته فقط
+        return $isPrimary || ($isExternal && $user->can('edit external teachers'));
     }
 
     public function delete(User $user, Teacher $teacher): bool
@@ -58,10 +59,8 @@ class TeacherPolicy
         if ($user->can('view all teachers')) return true;
 
         $record = $this->getTeacherRecord($user);
-
         if (!$record) return false;
 
-        // ⚠️ الحذف الحقيقي نتركه فقط لمعلمي الفرع الأساسيين لمنع التداخل بين الفروع
         return $teacher->center_id === $record->center_id;
     }
 
