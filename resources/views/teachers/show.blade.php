@@ -29,8 +29,8 @@
 
             {{-- أزرار الإجراءات --}}
             <div class="flex items-center gap-2">
-                @can('edit teachers')
                 {{-- تعديل --}}
+                @can('update', $teacher)
                 <a href="{{ route('teachers.edit', $teacher) }}"
                     class="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 text-sm font-bold rounded-xl transition-colors">
                     <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -38,8 +38,10 @@
                     </svg>
                     تعديل
                 </a>
+                @endcan
 
-                {{-- تفعيل / تعطيل الحساب من خلال علاقة المستخدم الأساسية --}}
+                {{-- تفعيل / تعطيل الحساب --}}
+                @can('toggle', $teacher)
                 @if($teacher->user)
                 <form method="POST" action="{{ route('teachers.toggle', $teacher) }}">
                     @csrf @method('PATCH')
@@ -61,8 +63,10 @@
                     </button>
                 </form>
                 @endif
+                @endcan
 
                 {{-- حذف الحساب نهائياً --}}
+                @can('delete', $teacher)
                 @if($teacher->circles->isEmpty())
                 <form method="POST" action="{{ route('teachers.destroy', $teacher) }}"
                     onsubmit="return confirm('هل أنت متأكد من حذف هذا المعلم نهائياً من النظام؟')">

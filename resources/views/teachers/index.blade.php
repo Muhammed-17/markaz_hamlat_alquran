@@ -279,7 +279,7 @@ $roleColors = [
                         @endforeach
                     </select>
                 </div>
-                @endcan
+                @endif
 
                 {{-- فلتر الحالة --}}
                 <div class="min-w-[150px] flex-1 sm:flex-none">
