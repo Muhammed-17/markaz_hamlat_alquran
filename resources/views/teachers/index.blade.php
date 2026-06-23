@@ -268,7 +268,7 @@ $roleColors = [
                 @endcan
 
                 {{-- فلتر الدور --}}
-                @can('view all teachers')
+                @if(auth()->user()->can('view all teachers') || auth()->user()->hasRole('manager'))
                 <div class="min-w-[180px] flex-1 sm:flex-none">
                     <label class="block text-xs font-bold text-gray-500 mb-1">الدور</label>
                     <select x-model="role"

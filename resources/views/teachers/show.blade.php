@@ -29,7 +29,7 @@
 
             {{-- أزرار الإجراءات --}}
             <div class="flex items-center gap-2">
-                @can('manage teachers')
+                @can('edit teachers')
                 {{-- تعديل --}}
                 <a href="{{ route('teachers.edit', $teacher) }}"
                     class="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 text-sm font-bold rounded-xl transition-colors">
@@ -41,7 +41,7 @@
 
                 {{-- تفعيل / تعطيل الحساب من خلال علاقة المستخدم الأساسية --}}
                 @if($teacher->user)
-                <form method="POST" action="{{ route('users.toggleStatus', $teacher->user) }}">
+                <form method="POST" action="{{ route('teachers.toggle', $teacher) }}">
                     @csrf @method('PATCH')
                     <button type="submit" class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-bold rounded-xl transition-colors
                                {{ $teacher->user->status === 'active'
@@ -227,16 +227,6 @@
                                 </strong>
                             </span>
                         </div>
-
-                        <!-- @can('view circles')
-                        <a href="{{ route('circles.show', $circle->id) }}"
-                            class="p-1.5 text-gray-400 hover:text-[#0a5c36] hover:bg-emerald-50 rounded-lg transition-colors"
-                            title="عرض تفاصيل الحلقة">
-                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                            </svg>
-                        </a>
-                        @endcan -->
                     </div>
                 </div>
                 @endforeach
