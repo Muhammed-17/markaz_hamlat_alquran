@@ -59,3 +59,11 @@ Thumbs.db
 .env
 node_modules
 
+# Sessions and Temporary Framework Files
+/storage/framework/sessions/*
+!/storage/framework/sessions/.gitignore
+
+# IDE Helper files (Development only)
+/_ide_helper.php
+/_ide_helper_models.php
+/.phpstorm.meta.php
