@@ -57,7 +57,7 @@ class TeacherController extends Controller
         }
 
         // 4. فلتر الدور (Roles)
-        if ($request->filled('role') && $user->can('filter teachers by role')) {
+        if ($request->filled('role') && $user->hasRole(['admin', 'general_manager', 'manager'])) {
             $query->whereHas('user.roles', fn($q) => $q->where('name', $request->role));
         }
 

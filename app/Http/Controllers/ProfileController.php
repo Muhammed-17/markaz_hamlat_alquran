@@ -39,14 +39,20 @@ class ProfileController extends Controller
 
     /**
      * Delete the user's account.
+     * ⚠️ محدودة للـ guardian فقط — الأدوار الإدارية لا تُحذف من هنا بل يحذفها الأدمن
      */
     public function destroy(Request $request): RedirectResponse
     {
+        $user = $request->user();
+
+        // 🛡️ منع الأدوار الإدارية من حذف حساباتهم ذاتياً
+        if ($user->hasRole(['admin', 'general_manager', 'manager', 'supervisor', 'teacher'])) {
+            abort(403, 'لا يمكنك حذف حسابك. تواصل مع مدير النظام.');
+        }
+
         $request->validateWithBag('userDeletion', [
             'password' => ['required', 'current_password'],
         ]);
-
-        $user = $request->user();
 
         Auth::logout();
 

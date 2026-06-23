@@ -92,7 +92,7 @@ class CircleController extends Controller
         $user    = Auth::user();
         $teacher = $this->getTeacherRecord($user);
 
-        $centerId = $user->hasRole('admin')
+        $centerId = $user->hasRole(['admin', 'general_manager'])
             ? $request->center_id
             : $teacher?->center_id;
 
@@ -169,7 +169,7 @@ class CircleController extends Controller
         $user    = Auth::user();
         $teacher = $this->getTeacherRecord($user);
 
-        $centerId = $user->hasRole('admin')
+        $centerId = $user->hasRole(['admin', 'general_manager'])
             ? $request->center_id
             : $teacher?->center_id ?? $circle->center_id;
 

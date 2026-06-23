@@ -41,7 +41,9 @@ trait ResolvesUserScope
 
     protected function getAccessibleCirclesQuery(User $user): \Illuminate\Database\Eloquent\Builder
     {
-        if ($user->hasRole(['admin', 'general_manager']) || $user->can('view circles')) {
+        // ✅ فقط admin و general_manager يرون كل الحلقات بلا قيود
+        // ⚠️ لا نستخدم can('view circles') هنا لأن المعلم يملكها أيضاً لكنه يجب أن يرى حلقاته فقط
+        if ($user->hasRole(['admin', 'general_manager'])) {
             return Circle::orderBy('name');
         }
 
