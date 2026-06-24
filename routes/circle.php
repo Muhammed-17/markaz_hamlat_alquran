@@ -5,7 +5,6 @@ use App\Http\Controllers\CircleController;
 
 Route::middleware(['auth', 'verified'])->group(function () {
 
-    // ✅ create لازم يجي قبل {circle}
     Route::middleware('permission:create circles')->group(function () {
         Route::get('/circles/create', [CircleController::class, 'create'])->name('circles.create');
         Route::post('/circles', [CircleController::class, 'store'])->name('circles.store');
@@ -18,7 +17,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::middleware('permission:edit circles')->group(function () {
         Route::get('/circles/{circle}/edit', [CircleController::class, 'edit'])->name('circles.edit');
-        Route::put('/circles/{circle}', [CircleController::class, 'update'])->name('circles.update');
+        Route::match(['put', 'patch'], '/circles/{circle}', [CircleController::class, 'update'])->name('circles.update');
     });
 
     Route::middleware('permission:delete circles')->group(function () {

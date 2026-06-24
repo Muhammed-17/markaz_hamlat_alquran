@@ -16,7 +16,6 @@ class CircleController extends Controller
     use ResolvesUserScope;
 
     // ─────────────────────────────────────────
-    // دالة index بعد التعديل 🚀
     public function index(Request $request)
     {
         $this->authorize('viewAny', Circle::class);
@@ -25,12 +24,8 @@ class CircleController extends Controller
 
         $query = $this->getAccessibleCirclesQuery($user)
             ->with([
-                // تصفية علاقة المعلم الرئيسي لتتخطى الـ Global Scope لكي يظهر الاسم لمدير الفرع
                 'mainTeacher' => fn($q) => $q->withoutGlobalScope(\App\Models\Scopes\CenterScope::class),
-
-                // تصفية علاقة المعلم المساعد لتتخطى الـ Global Scope
                 'assistantTeacher' => fn($q) => $q->withoutGlobalScope(\App\Models\Scopes\CenterScope::class),
-
                 'supervisors.user',
                 'center',
             ])
@@ -96,6 +91,14 @@ class CircleController extends Controller
             ? $request->center_id
             : $teacher?->center_id;
 
+        // ✅ التحقق من أن المركز متاح للمستخدم
+        if (!$user->hasRole(['admin', 'general_manager'])) {
+            $accessibleCenters = $this->getAccessibleCenters($user)->pluck('id');
+            if (!$accessibleCenters->contains($centerId)) {
+                abort(403, 'ليس لديك صلاحية إنشاء حلقة في هذا الفرع.');
+            }
+        }
+
         $circle = Circle::create([
             'name'      => $request->name,
             'type'      => $request->type,
@@ -110,30 +113,69 @@ class CircleController extends Controller
     }
 
     // ─────────────────────────────────────────
-    // دالة show بعد التعديل 🚀
+    // ✅ FIX: التحقق من الصلاحية FIRST ثم جلب البيانات
     public function show(string $id)
     {
-        $circle = Circle::with([
+        $user = Auth::user();
+
+        // ✅ جلب الحلقة عبر الاستعلام الآمن (مع CenterScope)
+        $circleQuery = Circle::with([
             'mainTeacher' => fn($q) => $q->withoutGlobalScope(\App\Models\Scopes\CenterScope::class),
             'assistantTeacher' => fn($q) => $q->withoutGlobalScope(\App\Models\Scopes\CenterScope::class),
             'supervisors' => fn($q) => $q->withoutGlobalScope(\App\Models\Scopes\CenterScope::class),
             'students',
-        ])->findOrFail($id);
+        ]);
 
+        // ✅ تطبيق CenterScope يدوياً إذا لم يكن admin
+        if (!$user->hasRole(['admin', 'general_manager'])) {
+            $teacher = $this->getTeacherRecord($user);
+            if ($teacher) {
+                $circleQuery->where(function ($q) use ($teacher) {
+                    $q->where('center_id', $teacher->center_id)
+                        ->orWhereIn('id', function ($sub) use ($teacher) {
+                            $sub->select('circle_id')
+                                ->from('circle_teacher')
+                                ->where('teacher_id', $teacher->id)
+                                ->whereIn('role', ['main', 'assistant', 'supervisor']);
+                        });
+                });
+            }
+        }
+
+        $circle = $circleQuery->findOrFail($id);
+
+        // ✅ التحقق من الصلاحية بعد جلب البيانات المُصفَّاة
         $this->authorize('view', $circle);
 
         return view('circles.show', compact('circle'));
     }
 
     // ─────────────────────────────────────────
+    // ✅ FIX: نفس الإصلاح لـ edit()
     public function edit(string $id)
     {
-        $circle = Circle::with(['mainTeacher', 'assistantTeacher', 'supervisors'])
-            ->findOrFail($id);
+        $user = Auth::user();
 
+        $circleQuery = Circle::with(['mainTeacher', 'assistantTeacher', 'supervisors']);
+
+        if (!$user->hasRole(['admin', 'general_manager'])) {
+            $teacher = $this->getTeacherRecord($user);
+            if ($teacher) {
+                $circleQuery->where(function ($q) use ($teacher) {
+                    $q->where('center_id', $teacher->center_id)
+                        ->orWhereIn('id', function ($sub) use ($teacher) {
+                            $sub->select('circle_id')
+                                ->from('circle_teacher')
+                                ->where('teacher_id', $teacher->id)
+                                ->whereIn('role', ['main', 'assistant', 'supervisor']);
+                        });
+                });
+            }
+        }
+
+        $circle = $circleQuery->findOrFail($id);
         $this->authorize('update', $circle);
 
-        $user    = Auth::user();
         $teacher = $this->getTeacherRecord($user);
 
         if ($user->can('view all supervisors')) {
@@ -169,9 +211,18 @@ class CircleController extends Controller
         $user    = Auth::user();
         $teacher = $this->getTeacherRecord($user);
 
+        // ✅ لا يسمح بتغيير الفرع إلا للإداريين
         $centerId = $user->hasRole(['admin', 'general_manager'])
             ? $request->center_id
-            : $teacher?->center_id ?? $circle->center_id;
+            : $circle->center_id;
+
+        // ✅ التحقق من أن المركز الجديد متاح
+        if ($user->hasRole(['admin', 'general_manager']) && $request->has('center_id')) {
+            $accessibleCenters = $this->getAccessibleCenters($user)->pluck('id');
+            if (!$accessibleCenters->contains($centerId)) {
+                abort(403, 'ليس لديك صلاحية نقل الحلقة لهذا الفرع.');
+            }
+        }
 
         $circle->update([
             'name'      => $request->name,
@@ -192,18 +243,77 @@ class CircleController extends Controller
         $circle = Circle::findOrFail($id);
         $this->authorize('delete', $circle);
 
-        $circle->teachers()->detach();
-        $circle->delete();
+        // ✅ التحقق من عدم وجود طلاب مسجلين قبل الحذف
+        if ($circle->students()->count() > 0) {
+            return redirect()->back()->with(
+                'error',
+                'لا يمكن حذف الحلقة لوجود طلاب مسجلين فيها. يرجى نقل الطلاب أولاً.'
+            );
+        }
+
+        DB::transaction(function () use ($circle) {
+            $circle->teachers()->detach();
+            $circle->delete();
+        });
 
         return redirect()->route('circles.index')->with('success', 'تم حذف الحلقة بنجاح');
     }
 
     // ─────────────────────────────────────────
-    // ✅ delete + insert يدوي بدل sync() لأن sync() لا يفهم role كجزء من
-    //    المفتاح المركب (circle_id+teacher_id+role)، فيحاول تحديث صف موجود
-    //    بدور مختلف ويتصادم مع صف آخر له نفس الدور الجديد.
+    // ✅ FIX: تحسين syncCircleStaff مع تحققات أمنية شاملة
     private function syncCircleStaff(Circle $circle, Request $request): void
     {
+        $centerId = $circle->center_id;
+        $user     = Auth::user();
+
+        // ✅ جلب المعلمين المتاحين فقط للمستخدم
+        $accessibleTeacherIds = $this->getAccessibleTeachers($user, $this->getTeacherRecord($user))
+            ->pluck('id')
+            ->toArray();
+
+        // ✅ التحقق من المعلم الرئيسي
+        if ($request->teacher_id) {
+            $teacher = Teacher::find($request->teacher_id);
+            if (!$teacher) {
+                throw new \Exception('المعلم الرئيسي غير موجود.');
+            }
+            if ($teacher->center_id != $centerId) {
+                throw new \Exception('المعلم الرئيسي يجب أن يكون في نفس الفرع.');
+            }
+            if (!in_array($teacher->id, $accessibleTeacherIds) && !$user->hasRole(['admin', 'general_manager'])) {
+                throw new \Exception('ليس لديك صلاحية تعيين هذا المعلم.');
+            }
+        }
+
+        // ✅ التحقق من المعلم المساعد
+        if ($request->assistant_teacher_id) {
+            $teacher = Teacher::find($request->assistant_teacher_id);
+            if (!$teacher) {
+                throw new \Exception('المعلم المساعد غير موجود.');
+            }
+            if ($teacher->center_id != $centerId) {
+                throw new \Exception('المعلم المساعد يجب أن يكون في نفس الفرع.');
+            }
+            if (!in_array($teacher->id, $accessibleTeacherIds) && !$user->hasRole(['admin', 'general_manager'])) {
+                throw new \Exception('ليس لديك صلاحية تعيين هذا المعلم.');
+            }
+        }
+
+        // ✅ التحقق من المشرفين
+        foreach ((array) $request->supervisor_ids as $supervisorId) {
+            if (!$supervisorId) continue;
+            $teacher = Teacher::find($supervisorId);
+            if (!$teacher) {
+                throw new \Exception('المشرف غير موجود.');
+            }
+            if ($teacher->center_id != $centerId) {
+                throw new \Exception('المشرف يجب أن يكون في نفس الفرع.');
+            }
+            if (!in_array($teacher->id, $accessibleTeacherIds) && !$user->hasRole(['admin', 'general_manager'])) {
+                throw new \Exception('ليس لديك صلاحية تعيين هذا المشرف.');
+            }
+        }
+
         // 1) المعلم الرئيسي/المساعد — حذف القديم ثم إدراج الجديد
         DB::table('circle_teacher')
             ->where('circle_id', $circle->id)

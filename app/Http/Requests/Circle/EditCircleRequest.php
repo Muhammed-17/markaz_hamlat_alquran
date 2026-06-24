@@ -3,34 +3,71 @@
 namespace App\Http\Requests\Circle;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
+use App\Traits\ResolvesUserScope;
+use App\Models\Circle;
 
 class EditCircleRequest extends FormRequest
 {
+    use ResolvesUserScope;
     /**
      * Determine if the user is authorized to make this request.
      */
     public function authorize(): bool
     {
-        return true;
+        $circle = Circle::find($this->route('circle'));
+        if (!$circle) return false;
+        return $this->user()->can('edit circles') && $this->user()->can('update', $circle);
     }
 
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
-     */
     public function rules(): array
     {
+        $circleId = $this->route('circle');
+        $circle = Circle::find($circleId);
+        $centerId = $circle?->center_id ?? $this->center_id;
+
+        $accessibleCenterIds = $this->getAccessibleCenters($this->user())->pluck('id');
+
         return [
-            'name' => ['required', 'string', 'max:255', 'unique:circles,name,' . $this->route('circle')],
+            'name' => ['required', 'string', 'max:255', 'unique:circles,name,' . $circleId],
             'type' => 'required|string',
             'level' => 'required|string',
-            'center_id' => 'required|exists:centers,id',
-            'teacher_id' => 'required|exists:teachers,id',
-            'assistant_teacher_id' => 'nullable|exists:teachers,id',
+
+            'center_id' => [
+                'required',
+                'exists:centers,id',
+                Rule::in($accessibleCenterIds),
+            ],
+
+            'teacher_id' => [
+                'required',
+                'exists:teachers,id',
+                $this->validateSameCenter($centerId, 'المعلم الرئيسي'),
+            ],
+
+            'assistant_teacher_id' => [
+                'nullable',
+                'exists:teachers,id',
+                $this->validateSameCenter($centerId, 'المعلم المساعد'),
+            ],
+
             'supervisor_ids' => 'required|array|min:1',
-            'supervisor_ids.*' => 'exists:teachers,id',
+            'supervisor_ids.*' => [
+                'exists:teachers,id',
+                $this->validateSameCenter($centerId, 'المشرف'),
+            ],
         ];
+    }
+
+    private function validateSameCenter(int $centerId, string $roleName)
+    {
+        return function ($attribute, $value, $fail) use ($centerId, $roleName) {
+            if (!$value) return;
+            $teacher = \App\Models\Teacher::find($value);
+            if ($teacher && $teacher->center_id != $centerId) {
+                $fail("{$roleName} يجب أن يكون في نفس الفرع.");
+            }
+        };
     }
 
     public function messages(): array

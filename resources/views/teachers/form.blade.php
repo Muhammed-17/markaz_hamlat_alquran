@@ -2,16 +2,6 @@
 $isEdit = isset($teacher) && $teacher->exists;
 $currentRoles = old('roles', $isEdit ? $teacher->user->roles->pluck('name')->toArray() : []);
 @endphp
-
-@if($errors->any())
-<div class="bg-red-50 border border-red-200 rounded-2xl p-4 mb-6">
-    <ul class="list-disc list-inside text-red-600 text-sm">
-        @foreach($errors->all() as $error)
-        <li>{{ $error }}</li>
-        @endforeach
-    </ul>
-</div>
-@endif
 <div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-8 space-y-6">
     <div class="flex items-center gap-3 mb-8 border-b border-gray-50 pb-4">
         <div class="p-2 bg-emerald-50 rounded-xl text-[#0a5c36]">

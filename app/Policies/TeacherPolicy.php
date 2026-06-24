@@ -23,6 +23,7 @@ class TeacherPolicy
         $record = $this->getTeacherRecord($user);
         if (!$record) return false;
 
+        // ✅ المعلم يرى نفسه فقط
         if ($user->hasRole('teacher')) {
             return $user->id === $teacher->user_id;
         }
@@ -31,7 +32,6 @@ class TeacherPolicy
             ->whereKey($teacher->id)
             ->exists();
     }
-
 
     public function create(User $user): bool
     {
@@ -46,16 +46,20 @@ class TeacherPolicy
         $record = $this->getTeacherRecord($user);
         if (!$record) return false;
 
-        $isPrimary = $teacher->center_id === $record->center_id;
-        $isExternal = $teacher->circles()->where('circles.center_id', $record->center_id)->exists();
-
-        // المعلم الخارجي يمكن تعديل حلقاته فقط
-        return $isPrimary || ($isExternal && $user->can('edit external teachers'));
+        // ✅ تقييد التعديل على المعلمين في نفس الفرع فقط
+        return $teacher->center_id === $record->center_id;
     }
 
     public function delete(User $user, Teacher $teacher): bool
     {
         if (!$user->can('delete teachers')) return false;
+
+        // ✅ منع حذف النفس
+        if ($user->id === $teacher->user_id) return false;
+
+        // ✅ منع حذف الإداريين
+        if ($teacher->user->hasRole(['admin', 'general_manager'])) return false;
+
         if ($user->can('view all teachers')) return true;
 
         $record = $this->getTeacherRecord($user);
@@ -67,13 +71,18 @@ class TeacherPolicy
     public function toggle(User $user, Teacher $teacher): bool
     {
         if (!$user->can('toggle teacher status')) return false;
+
+        // ✅ منع تعطيل النفس
+        if ($user->id === $teacher->user_id) return false;
+
+        // ✅ منع تعطيل الإداريين
+        if ($teacher->user->hasRole(['admin', 'general_manager'])) return false;
+
         if ($user->can('view all teachers')) return true;
 
         $record = $this->getTeacherRecord($user);
-
         if (!$record) return false;
 
-        // ⚠️ تعطيل/تفعيل الحساب يفضل حصره بمدير الفرع الأساسي التابع له المعلم
         return $teacher->center_id === $record->center_id;
     }
 }

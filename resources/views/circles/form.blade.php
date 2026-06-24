@@ -1,6 +1,6 @@
 @php
 $isEdit = isset($circle) && $circle->exists;
-$canManageAll = auth()->user()->can('view circles');
+$canManageAll = auth()->user()->hasRole(['admin', 'general_manager']);
 @endphp
 
 <div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-8 space-y-6">

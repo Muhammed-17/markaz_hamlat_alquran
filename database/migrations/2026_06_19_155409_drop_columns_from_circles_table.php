@@ -19,7 +19,7 @@ return new class extends Migration
             $table->dropForeign(['supervisor_id']);
 
             // 2. الآن يمكنك حذف الأعمدة الثلاثة دفعة واحدة بدون مشاكل
-            $table->dropColumn(['supervisor_id', 'notes', 'max_students']);
+            $table->dropColumn(['supervisor_id', 'notes', 'max_students', 'is_active']);
         });
     }
 
@@ -33,6 +33,8 @@ return new class extends Migration
             $table->unsignedBigInteger('supervisor_id')->nullable()->after('center_id');
             $table->text('notes')->nullable()->after('level');
             $table->integer('max_students')->nullable()->after('level');
+            $table->boolean('is_active')->default(true)->after('level');
+
 
             // إعادة بناء قيد العلاقة للمفتاح الأجنبي
             $table->foreign('supervisor_id')->references('id')->on('teachers')->onDelete('set null'); // 👈 تأكد من اسم جدول المدرسين (teachers أو users) حسب مشروعك

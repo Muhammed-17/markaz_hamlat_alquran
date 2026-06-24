@@ -2,10 +2,10 @@
 $teachersList = $teachers->map(fn($t) => [
 'id' => $t->id,
 'name' => $t->name,
-'email' => $t->user->email ?? '',
+'email' => $t->user_email ?? '', // ✅ من select()
 'center' => $t->center?->name ?? '',
-'status' => $t->user->status ?? 'inactive',
-'is_online' => $t->user->is_online ?? false,
+'status' => $t->user_status ?? 'inactive', // ✅ من select()
+'is_online' => $t->last_seen_at ? \Carbon\Carbon::parse($t->last_seen_at)->diffForHumans() : false, // ✅ من select()
 'roles' => $t->user->roles->map(fn($r) => [
 'name' => $r->name,
 'display_name' => $r->display_name ?? $r->name,
@@ -309,7 +309,7 @@ $roleColors = [
 
         {{-- Table --}}
         <div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-x-auto">
-            <table class="w-full text-right min-w-[950px]">
+            <table class="w-full text-right min-w-250">
                 <thead class="bg-gray-50 text-gray-500 text-sm">
                     <tr>
                         <th @click="sortBy('name')" class="py-4 px-6 font-medium rounded-tr-xl cursor-pointer hover:bg-gray-100 transition-colors select-none">

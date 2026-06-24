@@ -33,7 +33,7 @@ class TeacherController extends Controller
         // ربط جدول المعلمين بجدول المستخدمين لتمكين الترتيب عبر حقول الـ User
         $query = Teacher::query()
             ->join('users', 'teachers.user_id', '=', 'users.id')
-            ->select('teachers.*') // نختار حقول المعلم فقط لتجنب تداخل الـ IDs
+            ->select('teachers.*', 'users.email as user_email', 'users.status as user_status', 'users.last_seen_at')
             ->with(['user.roles', 'center']);
 
         // 1. فلترة المعلمين النشطين للمتصفح العادي
@@ -147,8 +147,6 @@ class TeacherController extends Controller
                 'password'          => Hash::make($request->password),
                 'center_id'         => $request->center_id,
                 'is_administrative' => $isAdministrative,
-                'status'            => 'active',          // تفعيل الحساب تلقائياً
-                'email_verified_at' => now(),             // تخطي خطوة تأكيد الإيميل برمجياً
             ]);
 
             $user->syncRoles($request->roles ?? []);
@@ -277,13 +275,6 @@ class TeacherController extends Controller
 
             $teacher->user->delete();
             $teacher->delete();
-
-            // Audit Log
-            Log::channel('audit')->info('teacher_deleted', [
-                'actor_id' => Auth::id(),
-                'teacher_id' => $teacherId,
-                'user_id' => $userId,
-            ]);
         });
 
         return redirect()->route('teachers.index')->with('success', 'تم الحذف بنجاح');
@@ -308,13 +299,6 @@ class TeacherController extends Controller
 
         $teacher->user->update([
             'status' => $newStatus,
-        ]);
-
-        // Audit Log
-        Log::channel('audit')->info('teacher_toggled', [
-            'actor_id' => Auth::id(),
-            'teacher_id' => $teacher->id,
-            'new_status' => $newStatus,
         ]);
 
         return back()->with('success', 'تم تحديث الحالة بنجاح');

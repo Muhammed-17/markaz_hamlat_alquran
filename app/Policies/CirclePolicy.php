@@ -47,28 +47,29 @@ class CirclePolicy
     // ─── helper ──────────────────────────────────────────────────
     private function canAccessCircle(User $user, Circle $circle): bool
     {
-        if ($user->hasRole('admin')) return true;
+        // ✅ الإداريون يرون كل شيء
+        if ($user->hasRole(['admin', 'general_manager'])) return true;
 
         $teacher = $this->getTeacherRecord($user);
         if (!$teacher) return false;
 
-        // ✅ بغض النظر عن الدور: لو هو مشرف فعلي على هذه الحلقة (أي فرع) → مسموح
-        if ($circle->supervisors->contains('id', $teacher->id)) {
-            return true;
+        // ✅ المشرف على الحلقة (في نفس الفرع)
+        if ($circle->supervisors()->where('teachers.id', $teacher->id)->exists()) {
+            return $circle->center_id === $teacher->center_id;
         }
 
-        // manager → كل حلقات فرعه
+        // ✅ المدير يرى حلقات فرعه
         if ($user->hasRole('manager')) {
             return $circle->center_id === $teacher->center_id;
         }
 
-        // teacher → حلقاته (رئيسي/مساعد) في فرعه
+        // ✅ المعلم يرى حلقاته فقط
         if ($user->hasRole('teacher')) {
             $circleIds = $this->getAccessibleCircleIds($user);
             return $circleIds->contains($circle->id);
         }
 
-        // supervisor بدون أي حلقة إشراف فعلية على هذه الحلقة بالذات → غير مسموح
+        // ❌ أي دور آخر غير مسموح
         return false;
     }
 }
