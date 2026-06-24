@@ -1,12 +1,11 @@
-{{-- 1. نضع كود الـ PHP والـ Mapping في أعلى الملف تماماً --}}
 @php
 $teachersList = $teachers->map(fn($t) => [
 'id' => $t->id,
 'name' => $t->name,
-'email' => auth()->user()->can('view sensitive data') ? ($t->user->email ?? '') : null,
+'email' => $t->user->email ?? '',
 'center' => $t->center?->name ?? '',
 'status' => $t->user->status ?? 'inactive',
-'is_online' => auth()->user()->can('view online status') ? ($t->user->is_online ?? false) : null,
+'is_online' => $t->user->is_online ?? false,
 'roles' => $t->user->roles->map(fn($r) => [
 'name' => $r->name,
 'display_name' => $r->display_name ?? $r->name,

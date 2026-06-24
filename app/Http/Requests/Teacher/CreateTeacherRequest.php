@@ -2,15 +2,16 @@
 
 namespace App\Http\Requests\Teacher;
 
+use App\Traits\HasAllowedRoles;
 use App\Traits\ResolvesUserScope;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
-use Spatie\Permission\Models\Role;
 
 class CreateTeacherRequest extends FormRequest
 {
     use ResolvesUserScope;
+    use HasAllowedRoles;
 
     public function authorize(): bool
     {
@@ -20,7 +21,9 @@ class CreateTeacherRequest extends FormRequest
     public function rules(): array
     {
         $accessibleCenterIds = $this->getAccessibleCenters($this->user())->pluck('id');
-        $allowedRoles        = $this->allowedRolesFor($this->user()); // ⬅️ تغيّر هنا
+        
+        // ✅ استخدام الـ Trait مع hasRole
+        $allowedRoles = $this->getAllowedRolesForCreate($this->user())->pluck('name');
 
         return [
             'name'              => 'required|string|max:255',
@@ -28,23 +31,9 @@ class CreateTeacherRequest extends FormRequest
             'password'          => ['required', 'string', Password::min(8)->mixedCase()->numbers()->symbols()],
             'center_id'         => ['required', 'integer', Rule::in($accessibleCenterIds)],
             'roles'             => 'required|array|size:1',
-            'roles.*'           => ['string', Rule::in($allowedRoles)], // ⬅️ بقي كما هو
-            'is_administrative' => 'nullable|boolean', // ⬅️ إضافة جديدة
+            'roles.*'           => ['string', Rule::in($allowedRoles)],
+            'is_administrative' => 'nullable|boolean',
         ];
-    }
-
-    // ⬅️ دالة جديدة تُضاف داخل الكلاس
-    private function allowedRolesFor($user): \Illuminate\Support\Collection
-    {
-        if ($user->can('assign any role')) {
-            return Role::whereNotIn('name', ['admin', 'guardian'])->pluck('name');
-        }
-
-        if ($user->can('assign manager role')) {
-            return Role::whereNotIn('name', ['admin', 'guardian', 'general_manager'])->pluck('name');
-        }
-
-        return Role::whereNotIn('name', ['admin', 'guardian', 'general_manager', 'manager'])->pluck('name');
     }
 
     public function messages(): array
@@ -56,7 +45,10 @@ class CreateTeacherRequest extends FormRequest
             'email.email'        => 'يجب أن يكون البريد الإلكتروني صالحًا',
             'email.unique'       => 'البريد الإلكتروني مستخدم بالفعل',
             'password.required'  => 'كلمة المرور مطلوبة',
-            'password.min'       => 'كلمة المرور يجب أن تكون على الأقل 8 أحرف',
+            'password.min'       => 'يجب أن تكون كلمة المرور على الأقل 8 أحرف',
+            'password.mixed'     => 'يجب أن تحتوي كلمة المرور على حرف كبير وحرف صغير على الأقل',
+            'password.numbers'   => 'يجب أن تحتوي كلمة المرور على رقم على الأقل',
+            'password.symbols'   => 'يجب أن تحتوي كلمة المرور على رمز خاص على الأقل',
             'center_id.required' => 'الفرع مطلوب',
             'center_id.in'       => 'لا يحق لك إضافة معلم لهذا الفرع',
             'roles.required'     => 'يجب اختيار دور واحد على الأقل',

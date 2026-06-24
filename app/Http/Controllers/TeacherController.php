@@ -7,10 +7,12 @@ use App\Http\Requests\Teacher\EditTeacherRequest;
 use App\Models\Teacher;
 use App\Models\User;
 use App\Traits\ResolvesUserScope;
+use App\Traits\HasAllowedRoles;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 use Spatie\Permission\Models\Role;
 use App\Models\Center;
 use Illuminate\Support\Facades\DB;
@@ -18,6 +20,7 @@ use Illuminate\Support\Facades\DB;
 class TeacherController extends Controller
 {
     use ResolvesUserScope;
+    use HasAllowedRoles;
 
     // ─────────────────────────────────────────
     public function index(Request $request)
@@ -120,12 +123,13 @@ class TeacherController extends Controller
         $user    = Auth::user();
         $centers = $this->getAccessibleCenters($user);
 
-        $roles = Role::whereNotIn('name', ['admin', 'guardian'])
-            ->orderBy('name')
-            ->get();
+
+        $roles = $this->getAllowedRolesForCreate($user);
+
 
         return view('teachers.create', compact('centers', 'roles'));
     }
+
 
     // ─────────────────────────────────────────
     public function store(CreateTeacherRequest $request)
@@ -189,9 +193,8 @@ class TeacherController extends Controller
 
         $teacher->load('user.roles');
 
-        $roles = Role::whereNotIn('name', ['admin', 'guardian'])
-            ->orderBy('name')
-            ->get();
+        // ✅ تمرير الأدوار المسموحة فقط
+        $roles = $this->getAllowedRolesForEdit($user, $teacher);
 
         $currentRoles = $teacher->user->roles->pluck('name')->toArray();
 
@@ -219,24 +222,23 @@ class TeacherController extends Controller
             ]);
 
             // 2. تجهيز بيانات المستخدم المرتبط
-            // ✅ الحل: عدم إجبار التفعيل - الحفاظ على الحالة الحالية
             $data = [
                 'name'              => $request->name,
                 'email'             => $request->email,
                 'center_id'         => $request->center_id,
                 'is_administrative' => $isAdministrative,
             ];
-            // لا نضيف status أو email_verified_at هنا
-            // الحالة تبقى كما هي، والتحقق يبقى كما هو
 
-            // ✅ الحل: التحقق من كلمة المرور الحالية قبل التغيير
+            // ✅ ضع الكود هنا - بعد تجهيز $data وقبل تحديث المستخدم
             if ($request->filled('password')) {
-                // إذا كان المستخدم يعدل نفسه، يجب إدخال كلمة المرور الحالية
-                if ($request->user()->id === $teacher->user_id) {
-                    if (!Hash::check($request->current_password, $teacher->user->password)) {
-                        throw ValidationException::withMessages([
-                            'current_password' => 'كلمة المرور الحالية غير صحيحة.'
-                        ]);
+                // التحقق من كلمة المرور الحالية فقط إذا لم يكن admin أو general_manager
+                if (!Auth::user()->hasRole(['admin', 'general_manager', 'manager'])) {
+                    if ($request->user()->id === $teacher->user_id) {
+                        if (!Hash::check($request->current_password, $teacher->user->password)) {
+                            throw ValidationException::withMessages([
+                                'current_password' => 'كلمة المرور الحالية غير صحيحة.'
+                            ]);
+                        }
                     }
                 }
                 $data['password'] = Hash::make($request->password);
