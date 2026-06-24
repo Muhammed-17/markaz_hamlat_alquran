@@ -14,10 +14,6 @@ use Spatie\Permission\Traits\HasRoles;
  * @property string $name
  * @property string $type
  * @property string $level
- * @property int|null $max_students
- * @property string|null $notes
- * @property bool $is_active
- * @property int $center_id
  * @property \Illuminate\Support\Carbon $created_at
  * @property \Illuminate\Support\Carbon $updated_at
  */
@@ -25,19 +21,11 @@ class Circle extends Model
 {
     use HasFactory, HasRoles;
 
-    // ✅ FIX: إزالة center_id من fillable
+    
     protected $fillable = [
         'name',
         'type',
         'level',
-        'max_students',
-        'notes',
-        'is_active',
-        // 'center_id', // ← تم إزالته لمنع Mass Assignment
-    ];
-
-    protected $casts = [
-        'is_active' => 'boolean',
     ];
 
     public function teachers(): BelongsToMany

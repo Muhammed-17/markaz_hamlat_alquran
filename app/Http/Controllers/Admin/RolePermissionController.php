@@ -12,7 +12,6 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 
 class RolePermissionController extends Controller
@@ -95,15 +94,6 @@ class RolePermissionController extends Controller
                     Permission::whereIn('id', $permissionIds)->get()
                 );
             }
-
-            // ④ Audit Log
-            Log::channel('audit')->info('role_created', [
-                'by_user_id'   => auth()->id(),
-                'by_user_name' => auth()->user()->name,
-                'role_name'    => $validated['name'],
-                'permissions'  => $permissionIds,
-                'ip'           => request()->ip(),
-            ]);
         });
 
         $this->clearPermissionCache();
@@ -143,17 +133,6 @@ class RolePermissionController extends Controller
             $role->syncPermissions(
                 Permission::whereIn('id', $permissionIds)->get()
             );
-
-            // ④ Audit Log
-            Log::channel('audit')->info('role_permissions_updated', [
-                'by_user_id'      => auth()->id(),
-                'by_user_name'    => auth()->user()->name,
-                'role_id'         => $role->id,
-                'role_name'       => $role->name,
-                'old_permissions' => $oldPermissions,
-                'new_permissions' => $permissionIds,
-                'ip'              => request()->ip(),
-            ]);
         });
 
         // ⑤ إلغاء sessions المستخدمين المتأثرين بشكل موثوق
@@ -172,12 +151,6 @@ class RolePermissionController extends Controller
 
         // ① حماية الأدوار الأساسية
         if (in_array($role->name, self::PROTECTED_ROLES)) {
-            Log::channel('audit')->warning('role_delete_attempt_on_protected', [
-                'by_user_id' => auth()->id(),
-                'role_name'  => $role->name,
-                'ip'         => request()->ip(),
-            ]);
-
             return redirect()->route('admin.roles.index')
                 ->with('error', 'لا يمكن حذف الأدوار الأساسية للنظام');
         }
@@ -194,13 +167,6 @@ class RolePermissionController extends Controller
         DB::transaction(function () use ($role, $roleName) {
             $role->syncPermissions([]);
             $role->delete();
-
-            Log::channel('audit')->info('role_deleted', [
-                'by_user_id'   => auth()->id(),
-                'by_user_name' => auth()->user()->name,
-                'role_name'    => $roleName,
-                'ip'           => request()->ip(),
-            ]);
         });
 
         $this->clearPermissionCache();
@@ -227,12 +193,6 @@ class RolePermissionController extends Controller
 
         foreach ($requestedPermissions as $permName) {
             if (!auth()->user()->can($permName)) {
-                Log::channel('audit')->warning('privilege_escalation_attempt', [
-                    'by_user_id'  => auth()->id(),
-                    'permission'  => $permName,
-                    'ip'          => request()->ip(),
-                ]);
-
                 abort(403, "غير مسموح: لا يمكنك منح صلاحية ({$permName}) لأنك لا تملكها");
             }
         }

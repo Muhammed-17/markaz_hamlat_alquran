@@ -10,6 +10,7 @@ use App\Traits\ResolvesUserScope;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class CircleController extends Controller
 {
@@ -109,16 +110,21 @@ class CircleController extends Controller
 
         $this->syncCircleStaff($circle, $request);
 
+        Log::info('Circle created', [
+            'circle_id' => $circle->id,
+            'user_id'   => $user->id,
+            'center_id' => $centerId,
+        ]);
+
         return redirect()->route('circles.index')->with('success', 'تم إنشاء الحلقة بنجاح');
     }
 
     // ─────────────────────────────────────────
-    // ✅ FIX: التحقق من الصلاحية FIRST ثم جلب البيانات
+    // ✅ FIX: IDOR - جلب البيانات الآمن قبل التحقق
     public function show(string $id)
     {
         $user = Auth::user();
 
-        // ✅ جلب الحلقة عبر الاستعلام الآمن (مع CenterScope)
         $circleQuery = Circle::with([
             'mainTeacher' => fn($q) => $q->withoutGlobalScope(\App\Models\Scopes\CenterScope::class),
             'assistantTeacher' => fn($q) => $q->withoutGlobalScope(\App\Models\Scopes\CenterScope::class),
@@ -126,7 +132,7 @@ class CircleController extends Controller
             'students',
         ]);
 
-        // ✅ تطبيق CenterScope يدوياً إذا لم يكن admin
+        // ✅ تطبيق فلترة الأمان يدوياً
         if (!$user->hasRole(['admin', 'general_manager'])) {
             $teacher = $this->getTeacherRecord($user);
             if ($teacher) {
@@ -143,21 +149,24 @@ class CircleController extends Controller
         }
 
         $circle = $circleQuery->findOrFail($id);
-
-        // ✅ التحقق من الصلاحية بعد جلب البيانات المُصفَّاة
         $this->authorize('view', $circle);
 
         return view('circles.show', compact('circle'));
     }
 
     // ─────────────────────────────────────────
-    // ✅ FIX: نفس الإصلاح لـ edit()
+    // ✅ FIX: IDOR - نفس الإصلاح لـ edit()
     public function edit(string $id)
     {
         $user = Auth::user();
 
-        $circleQuery = Circle::with(['mainTeacher', 'assistantTeacher', 'supervisors']);
+        $circleQuery = Circle::with([
+            'mainTeacher' => fn($q) => $q->withoutGlobalScope(\App\Models\Scopes\CenterScope::class),
+            'assistantTeacher' => fn($q) => $q->withoutGlobalScope(\App\Models\Scopes\CenterScope::class),
+            'supervisors' => fn($q) => $q->withoutGlobalScope(\App\Models\Scopes\CenterScope::class),
+        ]);
 
+        // ✅ تطبيق نفس فلترة الأمان
         if (!$user->hasRole(['admin', 'general_manager'])) {
             $teacher = $this->getTeacherRecord($user);
             if ($teacher) {
@@ -203,34 +212,51 @@ class CircleController extends Controller
     }
 
     // ─────────────────────────────────────────
+    // ✅ FIX: IDOR - نفس الإصلاح لـ update()
     public function update(EditCircleRequest $request, string $id)
     {
-        $circle = Circle::findOrFail($id);
-        $this->authorize('update', $circle);
+        $user = Auth::user();
 
-        $user    = Auth::user();
-        $teacher = $this->getTeacherRecord($user);
+        $circleQuery = Circle::query();
 
-        // ✅ لا يسمح بتغيير الفرع إلا للإداريين
-        $centerId = $user->hasRole(['admin', 'general_manager'])
-            ? $request->center_id
-            : $circle->center_id;
-
-        // ✅ التحقق من أن المركز الجديد متاح
-        if ($user->hasRole(['admin', 'general_manager']) && $request->has('center_id')) {
-            $accessibleCenters = $this->getAccessibleCenters($user)->pluck('id');
-            if (!$accessibleCenters->contains($centerId)) {
-                abort(403, 'ليس لديك صلاحية نقل الحلقة لهذا الفرع.');
+        // ✅ تطبيق نفس فلترة الأمان
+        if (!$user->hasRole(['admin', 'general_manager'])) {
+            $teacher = $this->getTeacherRecord($user);
+            if ($teacher) {
+                $circleQuery->where(function ($q) use ($teacher) {
+                    $q->where('center_id', $teacher->center_id)
+                        ->orWhereIn('id', function ($sub) use ($teacher) {
+                            $sub->select('circle_id')
+                                ->from('circle_teacher')
+                                ->where('teacher_id', $teacher->id)
+                                ->whereIn('role', ['main', 'assistant', 'supervisor']);
+                        });
+                });
             }
         }
 
-        $circle->update([
-            'name'      => $request->name,
-            'type'      => $request->type,
-            'level'     => $request->level,
-            'center_id' => $centerId,
-            'is_active' => true,
-        ]);
+        $circle = $circleQuery->findOrFail($id);
+        $this->authorize('update', $circle);
+
+        $centerId = $user->hasRole(['admin', 'general_manager']) && $request->has('center_id')
+            ? $request->center_id
+            : $circle->center_id;
+
+        // ✅ تحديث فقط الحقول المُرسلة
+        $updateData = [];
+        if ($request->has('name')) {
+            $updateData['name'] = $request->name;
+        }
+        if ($request->has('type')) {
+            $updateData['type'] = $request->type;
+        }
+        if ($request->has('level')) {
+            $updateData['level'] = $request->level;
+        }
+        $updateData['center_id'] = $centerId;
+        $updateData['is_active'] = true;
+
+        $circle->update($updateData);
 
         $this->syncCircleStaff($circle, $request);
 
@@ -238,9 +264,30 @@ class CircleController extends Controller
     }
 
     // ─────────────────────────────────────────
+    // ✅ FIX: IDOR - نفس الإصلاح لـ destroy()
     public function destroy(string $id)
     {
-        $circle = Circle::findOrFail($id);
+        $user = Auth::user();
+
+        $circleQuery = Circle::query();
+
+        // ✅ تطبيق نفس فلترة الأمان
+        if (!$user->hasRole(['admin', 'general_manager'])) {
+            $teacher = $this->getTeacherRecord($user);
+            if ($teacher) {
+                $circleQuery->where(function ($q) use ($teacher) {
+                    $q->where('center_id', $teacher->center_id)
+                        ->orWhereIn('id', function ($sub) use ($teacher) {
+                            $sub->select('circle_id')
+                                ->from('circle_teacher')
+                                ->where('teacher_id', $teacher->id)
+                                ->whereIn('role', ['main', 'assistant', 'supervisor']);
+                        });
+                });
+            }
+        }
+
+        $circle = $circleQuery->findOrFail($id);
         $this->authorize('delete', $circle);
 
         // ✅ التحقق من عدم وجود طلاب مسجلين قبل الحذف
@@ -256,6 +303,11 @@ class CircleController extends Controller
             $circle->delete();
         });
 
+        Log::info('Circle deleted', [
+            'circle_id' => $circle->id,
+            'user_id'   => Auth::id(),
+        ]);
+
         return redirect()->route('circles.index')->with('success', 'تم حذف الحلقة بنجاح');
     }
 
@@ -266,10 +318,17 @@ class CircleController extends Controller
         $centerId = $circle->center_id;
         $user     = Auth::user();
 
-        // ✅ جلب المعلمين المتاحين فقط للمستخدم
-        $accessibleTeacherIds = $this->getAccessibleTeachers($user, $this->getTeacherRecord($user))
-            ->pluck('id')
-            ->toArray();
+        // ✅ جلب المعلمين المتاحين حسب الدور
+        if ($user->hasRole(['admin', 'general_manager'])) {
+            // Admin: كل المعلمين متاحين
+            $accessibleTeacherIds = Teacher::pluck('id')->toArray();
+        } else {
+            // مدير فرع: فقط معلمين نفس الفرع
+            $accessibleTeacherIds = $this->getAccessibleTeachers($user, $this->getTeacherRecord($user))
+                ->where('center_id', $centerId)
+                ->pluck('id')
+                ->toArray();
+        }
 
         // ✅ التحقق من المعلم الرئيسي
         if ($request->teacher_id) {
@@ -277,10 +336,11 @@ class CircleController extends Controller
             if (!$teacher) {
                 throw new \Exception('المعلم الرئيسي غير موجود.');
             }
-            if ($teacher->center_id != $centerId) {
+            // ✅ السماح للـ admin بتعيين أي معلم
+            if ($teacher->center_id != $centerId && !$user->hasRole(['admin', 'general_manager'])) {
                 throw new \Exception('المعلم الرئيسي يجب أن يكون في نفس الفرع.');
             }
-            if (!in_array($teacher->id, $accessibleTeacherIds) && !$user->hasRole(['admin', 'general_manager'])) {
+            if (!in_array($teacher->id, $accessibleTeacherIds)) {
                 throw new \Exception('ليس لديك صلاحية تعيين هذا المعلم.');
             }
         }
@@ -291,10 +351,10 @@ class CircleController extends Controller
             if (!$teacher) {
                 throw new \Exception('المعلم المساعد غير موجود.');
             }
-            if ($teacher->center_id != $centerId) {
+            if ($teacher->center_id != $centerId && !$user->hasRole(['admin', 'general_manager'])) {
                 throw new \Exception('المعلم المساعد يجب أن يكون في نفس الفرع.');
             }
-            if (!in_array($teacher->id, $accessibleTeacherIds) && !$user->hasRole(['admin', 'general_manager'])) {
+            if (!in_array($teacher->id, $accessibleTeacherIds)) {
                 throw new \Exception('ليس لديك صلاحية تعيين هذا المعلم.');
             }
         }
@@ -306,10 +366,10 @@ class CircleController extends Controller
             if (!$teacher) {
                 throw new \Exception('المشرف غير موجود.');
             }
-            if ($teacher->center_id != $centerId) {
+            if ($teacher->center_id != $centerId && !$user->hasRole(['admin', 'general_manager'])) {
                 throw new \Exception('المشرف يجب أن يكون في نفس الفرع.');
             }
-            if (!in_array($teacher->id, $accessibleTeacherIds) && !$user->hasRole(['admin', 'general_manager'])) {
+            if (!in_array($teacher->id, $accessibleTeacherIds)) {
                 throw new \Exception('ليس لديك صلاحية تعيين هذا المشرف.');
             }
         }

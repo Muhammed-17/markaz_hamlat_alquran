@@ -3,6 +3,16 @@ $isEdit = isset($circle) && $circle->exists;
 $canManageAll = auth()->user()->hasRole(['admin', 'general_manager']);
 @endphp
 
+@if ($errors->any())
+<div class="p-4 mb-4 text-sm text-red-800 rounded-2xl bg-red-50 border border-red-100">
+    <strong class="font-bold block mb-2">🚨 يرجى تصحيح الأخطاء التالية:</strong>
+    <ul class="list-disc list-inside space-y-1 text-xs">
+        @foreach ($errors->all() as $error)
+        <li>{{ $error }}</li>
+        @endforeach
+    </ul>
+</div>
+@endif
 <div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-8 space-y-6">
     <div class="flex items-center gap-3 mb-6 border-b border-gray-50 pb-4">
         <div class="p-2 bg-emerald-50 rounded-xl text-[#0a5c36]">
@@ -133,7 +143,7 @@ $canManageAll = auth()->user()->hasRole(['admin', 'general_manager']);
                 @foreach($teachers as $teacher)
                 <option value="{{ $teacher->id }}"
                     {{ old('teacher_id', $circle->mainTeacher->first()?->id ?? '') == $teacher->id ? 'selected' : '' }}>
-                    {{ $teacher->name }}
+                    {{ $teacher->name }} ({{ $teacher->center->name }})
                 </option>
                 @endforeach
             </select>
@@ -149,7 +159,7 @@ $canManageAll = auth()->user()->hasRole(['admin', 'general_manager']);
                 @foreach($teachers as $teacher)
                 <option value="{{ $teacher->id }}"
                     {{ old('assistant_teacher_id', $circle->assistantTeacher->first()?->id ?? '') == $teacher->id ? 'selected' : '' }}>
-                    {{ $teacher->name }}
+                    {{ $teacher->name }} ({{ $teacher->center->name }})
                 </option>
                 @endforeach
             </select>

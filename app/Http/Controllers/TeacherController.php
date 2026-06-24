@@ -165,18 +165,31 @@ class TeacherController extends Controller
     // ─────────────────────────────────────────
     public function show(string $id)
     {
-        // ✅ فك الحجب عن الموديل الأساسي والعلاقات معاً لضمان جلب المعلم الخارجي بنجاح
-        $teacher = Teacher::withoutGlobalScope(\App\Models\Scopes\CenterScope::class)
+        $user = Auth::user();
+        $record = $this->getTeacherRecord($user);
+
+        // ✅ فلترة أمان قبل الجلب
+        $query = Teacher::withoutGlobalScope(\App\Models\Scopes\CenterScope::class)
             ->with([
                 'user.roles',
                 'center',
-                'circles' => function ($query) {
-                    // فك الحجب عن الحلقات أيضاً إذا كانت تخضع لنفس الـ Scope
-                    $query->withoutGlobalScope(\App\Models\Scopes\CenterScope::class);
-                }
-            ])->findOrFail($id);
+                'circles' => fn($q) => $q->withoutGlobalScope(\App\Models\Scopes\CenterScope::class),
+            ]);
 
-        // 🛡️ هنا يتم الفحص الأمني الذكي (الـ Policy ستسمح له إذا كان بينهما حلقات مشتركة)
+        // المعلم/المشرف: فقط نفسه
+        if ($user->hasRole(['teacher', 'supervisor']) && !$user->hasRole(['manager', 'admin', 'general_manager'])) {
+            $query->where('user_id', $user->id);
+        }
+        // المدير: فقط فرعه
+        elseif ($record && $user->hasRole('manager')) {
+            $query->where(function ($q) use ($record) {
+                $q->where('center_id', $record->center_id)
+                    ->orWhereHas('circles', fn($cq) => $cq->where('circles.center_id', $record->center_id));
+            });
+        }
+
+        $teacher = $query->findOrFail($id);
+
         $this->authorize('view', $teacher);
 
         return view('teachers.show', compact('teacher'));
@@ -206,7 +219,7 @@ class TeacherController extends Controller
 
         // منع تعديل الحساب المعطل إلا لمن لديه صلاحية خاصة
         if ($teacher->user->status === 'inactive' && !$request->user()->can('activate inactive accounts')) {
-            return back()->with('error', 'لا يمكن تعديل حساب معطل. يرجى تفعيله أولاً.');
+            return back()->with('error', 'لا يمكن تعديل حساب معطل. يرجى تفعيله أولاًّ.');
         }
 
         DB::transaction(function () use ($request, $teacher) {
@@ -219,7 +232,7 @@ class TeacherController extends Controller
                 'is_administrative' => $isAdministrative,
             ]);
 
-            // 2. تجهيز بيانات المستخدم المرتبط
+            // 2. تجهيز بيانات المستخدم
             $data = [
                 'name'              => $request->name,
                 'email'             => $request->email,
@@ -227,18 +240,8 @@ class TeacherController extends Controller
                 'is_administrative' => $isAdministrative,
             ];
 
-            // ✅ ضع الكود هنا - بعد تجهيز $data وقبل تحديث المستخدم
+            // ✅ تغيير كلمة المرور
             if ($request->filled('password')) {
-                // التحقق من كلمة المرور الحالية فقط إذا لم يكن admin أو general_manager
-                if (!Auth::user()->hasRole(['admin', 'general_manager', 'manager'])) {
-                    if ($request->user()->id === $teacher->user_id) {
-                        if (!Hash::check($request->current_password, $teacher->user->password)) {
-                            throw ValidationException::withMessages([
-                                'current_password' => 'كلمة المرور الحالية غير صحيحة.'
-                            ]);
-                        }
-                    }
-                }
                 $data['password'] = Hash::make($request->password);
             }
 

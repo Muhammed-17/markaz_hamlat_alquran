@@ -44,32 +44,37 @@ class CirclePolicy
         return $this->canAccessCircle($user, $circle);
     }
 
-    // ─── helper ──────────────────────────────────────────────────
     private function canAccessCircle(User $user, Circle $circle): bool
     {
-        // ✅ الإداريون يرون كل شيء
+        // ✅ الإداريون
         if ($user->hasRole(['admin', 'general_manager'])) return true;
 
         $teacher = $this->getTeacherRecord($user);
         if (!$teacher) return false;
 
-        // ✅ المشرف على الحلقة (في نفس الفرع)
-        if ($circle->supervisors()->where('teachers.id', $teacher->id)->exists()) {
-            return $circle->center_id === $teacher->center_id;
+        // ✅ المشرف النقي — فقط الحلقات التي يشرف عليها
+        if ($user->hasRole('supervisor') && !$user->hasRole(['manager', 'teacher', 'admin', 'general_manager'])) {
+            return $circle->supervisors()->where('teachers.id', $teacher->id)->exists();
         }
 
-        // ✅ المدير يرى حلقات فرعه
+        // ✅ المدير — فرعه
         if ($user->hasRole('manager')) {
             return $circle->center_id === $teacher->center_id;
         }
 
-        // ✅ المعلم يرى حلقاته فقط
+        // ✅ المعلم — حلقاته (main/assistant) + مشرف
         if ($user->hasRole('teacher')) {
-            $circleIds = $this->getAccessibleCircleIds($user);
-            return $circleIds->contains($circle->id);
+            $isMainOrAssistant = DB::table('circle_teacher')
+                ->where('circle_id', $circle->id)
+                ->where('teacher_id', $teacher->id)
+                ->whereIn('role', ['main', 'assistant'])
+                ->exists();
+
+            $isSupervisor = $circle->supervisors()->where('teachers.id', $teacher->id)->exists();
+
+            return $isMainOrAssistant || $isSupervisor;
         }
 
-        // ❌ أي دور آخر غير مسموح
         return false;
     }
 }

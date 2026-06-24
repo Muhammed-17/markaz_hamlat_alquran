@@ -13,10 +13,8 @@ use App\Models\Scopes\CenterScope;
 
 trait ResolvesUserScope
 {
-    // ✅ static cache يستمر طول الـ request
     private static array $teacherRecordCache = [];
 
-    // ─── جلب teacher record مع static cache ──────────────────────
     protected function getTeacherRecord(User $user): ?Teacher
     {
         if (isset(self::$teacherRecordCache[$user->id])) {
@@ -32,22 +30,19 @@ trait ResolvesUserScope
         return $teacher;
     }
 
-    // ─── الحلقات المتاحة ──────────────────────────────────────────
     protected function getAccessibleCircles(User $user): \Illuminate\Database\Eloquent\Collection
     {
         return $this->getAccessibleCirclesQuery($user)->get();
     }
 
-
     protected function getAccessibleCirclesQuery(User $user): \Illuminate\Database\Eloquent\Builder
     {
-        // ✅ فقط admin و general_manager يرون كل الحلقات بلا قيود
-        // ⚠️ لا نستخدم can('view circles') هنا لأن المعلم يملكها أيضاً لكنه يجب أن يرى حلقاته فقط
+        // ✅ admin / general_manager — كل شيء
         if ($user->hasRole(['admin', 'general_manager'])) {
             return Circle::orderBy('name');
         }
 
-        // ✅ guardian فقط — وليس أي دور آخر يملك نفس الصلاحية
+        // ✅ guardian — أطفاله فقط
         if ($user->hasRole('guardian') && $user->can('view own children')) {
             return Circle::whereIn(
                 'id',
@@ -59,30 +54,51 @@ trait ResolvesUserScope
         }
 
         $teacher = $this->getTeacherRecord($user);
-        if (!$teacher || !$teacher->center_id) {
+        if (!$teacher) {
             return Circle::whereRaw('1=0');
         }
 
-        if ($user->hasRole('manager')) {
-            $circleIds = $this->getTeacherCircleIds($teacher);
-            $query = Circle::where('center_id', $teacher->center_id);
-
-            if ($circleIds->isNotEmpty()) {
-                $query->orWhereIn('id', $circleIds);
-            }
-        } else {
-            $circleIds = $this->getTeacherCircleIds($teacher);
-            $query = $circleIds->isEmpty()
-                ? Circle::whereRaw('1=0')
-                : Circle::whereIn('id', $circleIds);
+        // ✅ المشرف النقي (فقط دور supervisor، ليس manager ولا teacher)
+        // يُرى فقط الحلقات التي يشرف عليها
+        if ($user->hasRole('supervisor') && !$user->hasRole(['manager', 'teacher', 'admin', 'general_manager'])) {
+            return Circle::whereHas('supervisors', fn($q) => $q->where('teachers.id', $teacher->id))
+                ->orderBy('name');
         }
 
-        return $query
-            ->orWhereHas('supervisors', fn($q) => $q->where('teachers.id', $teacher->id))
-            ->orderBy('name');
+        // ✅ المدير — حلقات فرعه + حلقاته كمعلم/مشرف
+        if ($user->hasRole('manager')) {
+            return Circle::where(function ($query) use ($teacher) {
+                $query->where('center_id', $teacher->center_id);
+
+                $circleIds = $this->getTeacherCircleIds($teacher);
+                if ($circleIds->isNotEmpty()) {
+                    $query->orWhereIn('id', $circleIds);
+                }
+
+                $query->orWhereHas('supervisors', fn($q) => $q->where('teachers.id', $teacher->id));
+            })->orderBy('name');
+        }
+
+        // ✅ المعلم — حلقاته فقط (main/assistant) + حلقاته كمشرف
+        if ($user->hasRole('teacher')) {
+            $circleIds = $this->getTeacherCircleIds($teacher);
+
+            return Circle::where(function ($query) use ($teacher, $circleIds) {
+                if ($circleIds->isNotEmpty()) {
+                    $query->whereIn('id', $circleIds);
+                } else {
+                    $query->whereRaw('1=0'); // لا حلقات كمعلم
+                }
+
+                $query->orWhereHas('supervisors', fn($q) => $q->where('teachers.id', $teacher->id));
+            })->orderBy('name');
+        }
+
+        // ❌ أي دور آخر — لا شيء
+        return Circle::whereRaw('1=0');
     }
 
-    // ─── الفروع المتاحة ───────────────────────────────────────────
+    // ─── باقي الدوال بدون تغيير ─────────────────────────────────
     protected function getAccessibleCenters(User $user): \Illuminate\Database\Eloquent\Collection
     {
         if ($user->hasRole(['admin', 'general_manager'])) {
@@ -98,7 +114,6 @@ trait ResolvesUserScope
         return Center::whereRaw('1=0')->get();
     }
 
-    // ─── المعلمون المتاحون ────────────────────────────────────────
     protected function getAccessibleTeachers(User $user, ?Teacher $teacher): Collection
     {
         return $this->getAccessibleTeachersQuery($user, $teacher)->get();
@@ -127,7 +142,6 @@ trait ResolvesUserScope
         return Teacher::whereRaw('1 = 0');
     }
 
-    // ─── شرط النطاق الموحّد لمعلم واحد: فرعه + الحلقات الخارجية ────
     protected function applyTeacherCenterScope($query, Teacher $record): void
     {
         $query->where(function ($q) use ($record) {
@@ -165,7 +179,6 @@ trait ResolvesUserScope
         return Teacher::whereRaw('1 = 0')->get();
     }
 
-    // ─── helper: circle IDs للـ teacher (رئيسي/مساعد فقط) ────────
     private function getTeacherCircleIds(Teacher $teacher): Collection
     {
         return DB::table('circle_teacher')
@@ -174,7 +187,6 @@ trait ResolvesUserScope
             ->pluck('circle_id');
     }
 
-    // ─── تطبيق فلتر الحلقات على أي query ────────────────────────
     protected function applyCircleFilter($query, User $user, $circleIds): void
     {
         if ($user->hasRole(['admin', 'general_manager']) || $user->can('view circles')) {
@@ -184,12 +196,11 @@ trait ResolvesUserScope
         $query->whereIn('circle_id', $circleIds);
     }
 
-    // ✅ مسح الـ static cache — للـ Tests
     public static function clearScopeCache(): void
     {
         self::$teacherRecordCache = [];
     }
-    // ─── IDs الحلقات المتاحة ──────────────────────────────────────
+
     protected function getAccessibleCircleIds(User $user): Collection
     {
         return $this->getAccessibleCirclesQuery($user)->pluck('id');

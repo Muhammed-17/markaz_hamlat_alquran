@@ -28,6 +28,12 @@ class TeacherPolicy
             return $user->id === $teacher->user_id;
         }
 
+        // ✅ المشرف يرى نفسه فقط
+        if ($user->hasRole('supervisor') && !$user->hasRole(['manager', 'teacher', 'admin', 'general_manager'])) {
+            return $user->id === $teacher->user_id;
+        }
+
+        // ✅ المدير يرى معلمي فرعه
         return $this->getAccessibleTeachersQuery($user, $record)
             ->whereKey($teacher->id)
             ->exists();
@@ -46,7 +52,17 @@ class TeacherPolicy
         $record = $this->getTeacherRecord($user);
         if (!$record) return false;
 
-        // ✅ تقييد التعديل على المعلمين في نفس الفرع فقط
+        // ✅ المعلم يعدل نفسه فقط
+        if ($user->hasRole('teacher')) {
+            return $user->id === $teacher->user_id;
+        }
+
+        // ✅ المشرف يعدل نفسه فقط
+        if ($user->hasRole('supervisor') && !$user->hasRole(['manager', 'teacher', 'admin', 'general_manager'])) {
+            return $user->id === $teacher->user_id;
+        }
+
+        // ✅ المدير يعدل معلمي فرعه
         return $teacher->center_id === $record->center_id;
     }
 
@@ -57,13 +73,25 @@ class TeacherPolicy
         // ✅ منع حذف النفس
         if ($user->id === $teacher->user_id) return false;
 
-        // ✅ منع حذف الإداريين
-        if ($teacher->user->hasRole(['admin', 'general_manager'])) return false;
+        // ✅ السماح للـ admin فقط بحذف الإداريين
+        if ($teacher->user->hasRole(['admin', 'general_manager']) && !$user->hasRole('admin')) {
+            return false;
+        }
 
         if ($user->can('view all teachers')) return true;
 
         $record = $this->getTeacherRecord($user);
         if (!$record) return false;
+
+        // ✅ المعلم لا يحذف أحداً
+        if ($user->hasRole('teacher') && !$user->hasRole(['manager', 'admin', 'general_manager'])) {
+            return false;
+        }
+
+        // ✅ المشرف لا يحذف أحداً
+        if ($user->hasRole('supervisor') && !$user->hasRole(['manager', 'teacher', 'admin', 'general_manager'])) {
+            return false;
+        }
 
         return $teacher->center_id === $record->center_id;
     }
@@ -82,6 +110,16 @@ class TeacherPolicy
 
         $record = $this->getTeacherRecord($user);
         if (!$record) return false;
+
+        // ✅ المعلم لا يُعطل أحداً
+        if ($user->hasRole('teacher') && !$user->hasRole(['manager', 'admin', 'general_manager'])) {
+            return false;
+        }
+
+        // ✅ المشرف لا يُعطل أحداً
+        if ($user->hasRole('supervisor') && !$user->hasRole(['manager', 'teacher', 'admin', 'general_manager'])) {
+            return false;
+        }
 
         return $teacher->center_id === $record->center_id;
     }
