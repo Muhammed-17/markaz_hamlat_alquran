@@ -19,13 +19,14 @@ use Spatie\Permission\Traits\HasRoles;
  */
 class Circle extends Model
 {
-    use HasFactory, HasRoles;
+    use HasFactory;
 
     
     protected $fillable = [
         'name',
         'type',
         'level',
+        'center_id',
     ];
 
     public function teachers(): BelongsToMany

@@ -10,7 +10,7 @@ use App\Traits\ResolvesUserScope;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
+
 
 class CircleController extends Controller
 {
@@ -61,6 +61,25 @@ class CircleController extends Controller
         $user    = Auth::user();
         $teacher = $this->getTeacherRecord($user);
 
+        $centers = $this->getAccessibleCenters($user);
+
+        // ✅ FIX: للمشرف بدون center_id — استخدم فرع أول حلقة يشرف عليها
+        if ($centers->isEmpty() && $user->hasRole('supervisor')) {
+            $firstCircle = Circle::whereHas('supervisors', fn($q) => $q->where('teachers.id', $teacher?->id))
+                ->with('center')
+                ->first();
+
+            if ($firstCircle?->center) {
+                $centers = collect([$firstCircle->center]);
+            }
+        }
+
+        // ✅ إذا ما زال فارغاً — امنع الإنشاء
+        if ($centers->isEmpty()) {
+            return redirect()->route('circles.index')
+                ->with('error', 'لا يوجد فرع مرتبط بحسابك. لا يمكن إنشاء حلقة.');
+        }
+
         if ($user->can('view all supervisors')) {
             $supervisors      = $this->getAccessibleSupervisors($user, $teacher);
             $lockedSupervisor = null;
@@ -74,7 +93,7 @@ class CircleController extends Controller
             'teachers'              => $this->getAccessibleTeachers($user, $teacher),
             'supervisors'           => $supervisors,
             'lockedSupervisor'      => $lockedSupervisor,
-            'centers'               => $this->getAccessibleCenters($user),
+            'centers'               => $centers,
             'canManageCenters'      => $user->can('manage centers'),
             'selectedSupervisorIds' => [],
         ]);
@@ -88,18 +107,21 @@ class CircleController extends Controller
         $user    = Auth::user();
         $teacher = $this->getTeacherRecord($user);
 
-        $centerId = $user->hasRole(['admin', 'general_manager'])
-            ? $request->center_id
-            : $teacher?->center_id;
+        // ✅ FIX: دائماً استخدم center_id من Request إذا كان صالحاً
+        if ($user->hasRole(['admin', 'general_manager'])) {
+            $centerId = $request->center_id;
+        } else {
+            // للمدير/المشرف: من Request (hidden input) أو من teacher
+            $centerId = $request->input('center_id') ?: $teacher?->center_id;
+        }
 
-        // ✅ التحقق من أن المركز متاح للمستخدم
+        // ✅ تحقق من صلاحية الفرع
         if (!$user->hasRole(['admin', 'general_manager'])) {
             $accessibleCenters = $this->getAccessibleCenters($user)->pluck('id');
-            if (!$accessibleCenters->contains($centerId)) {
+            if (!$centerId || !$accessibleCenters->contains($centerId)) {
                 abort(403, 'ليس لديك صلاحية إنشاء حلقة في هذا الفرع.');
             }
         }
-
         $circle = Circle::create([
             'name'      => $request->name,
             'type'      => $request->type,
@@ -110,15 +132,8 @@ class CircleController extends Controller
 
         $this->syncCircleStaff($circle, $request);
 
-        Log::info('Circle created', [
-            'circle_id' => $circle->id,
-            'user_id'   => $user->id,
-            'center_id' => $centerId,
-        ]);
-
         return redirect()->route('circles.index')->with('success', 'تم إنشاء الحلقة بنجاح');
     }
-
     // ─────────────────────────────────────────
     // ✅ FIX: IDOR - جلب البيانات الآمن قبل التحقق
     public function show(string $id)
@@ -218,8 +233,6 @@ class CircleController extends Controller
         $user = Auth::user();
 
         $circleQuery = Circle::query();
-
-        // ✅ تطبيق نفس فلترة الأمان
         if (!$user->hasRole(['admin', 'general_manager'])) {
             $teacher = $this->getTeacherRecord($user);
             if ($teacher) {
@@ -238,12 +251,16 @@ class CircleController extends Controller
         $circle = $circleQuery->findOrFail($id);
         $this->authorize('update', $circle);
 
+        // ✅ FIX: المشرف/المدير لا يُغير الفرع
         $centerId = $user->hasRole(['admin', 'general_manager']) && $request->has('center_id')
             ? $request->center_id
             : $circle->center_id;
 
-        // ✅ تحديث فقط الحقول المُرسلة
-        $updateData = [];
+        $updateData = [
+            'center_id' => $centerId,
+            'is_active' => true,
+        ];
+
         if ($request->has('name')) {
             $updateData['name'] = $request->name;
         }
@@ -253,11 +270,8 @@ class CircleController extends Controller
         if ($request->has('level')) {
             $updateData['level'] = $request->level;
         }
-        $updateData['center_id'] = $centerId;
-        $updateData['is_active'] = true;
 
         $circle->update($updateData);
-
         $this->syncCircleStaff($circle, $request);
 
         return redirect()->route('circles.index')->with('success', 'تم تحديث الحلقة بنجاح');
@@ -302,11 +316,6 @@ class CircleController extends Controller
             $circle->teachers()->detach();
             $circle->delete();
         });
-
-        Log::info('Circle deleted', [
-            'circle_id' => $circle->id,
-            'user_id'   => Auth::id(),
-        ]);
 
         return redirect()->route('circles.index')->with('success', 'تم حذف الحلقة بنجاح');
     }

@@ -11,7 +11,6 @@ use App\Traits\HasAllowedRoles;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 use Spatie\Permission\Models\Role;
 use App\Models\Center;
@@ -42,7 +41,7 @@ class TeacherController extends Controller
         }
 
         // 2. صلاحيات رؤية الفروع والفلترة
-        if (!$user->can('view all teachers')) {
+        if (!$user->hasRole(['admin', 'general_manager'])) {
             if ($teacher) {
                 $query->where(
                     fn($q) =>
@@ -79,7 +78,7 @@ class TeacherController extends Controller
                 break;
 
             case 'online':
-                // الترتيب حسب الاتصال (الأحدث ظهوراً أولاً) مع دفع الـ NULL للأسفل
+                // الترتيب حسب الاتصال (الأحدث ظهوراُ أولاُ) مع دفع الـ NULL للأسفل
                 $query->orderByRaw('users.last_seen_at IS NULL, users.last_seen_at ' . $sortOrder);
                 break;
 
@@ -123,13 +122,10 @@ class TeacherController extends Controller
         $user    = Auth::user();
         $centers = $this->getAccessibleCenters($user);
 
-
         $roles = $this->getAllowedRolesForCreate($user);
-
 
         return view('teachers.create', compact('centers', 'roles'));
     }
-
 
     // ─────────────────────────────────────────
     public function store(CreateTeacherRequest $request)
@@ -194,6 +190,7 @@ class TeacherController extends Controller
 
         return view('teachers.show', compact('teacher'));
     }
+
     // ─────────────────────────────────────────
     public function edit(Teacher $teacher)
     {

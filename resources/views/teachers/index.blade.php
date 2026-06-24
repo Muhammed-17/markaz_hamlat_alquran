@@ -2,10 +2,10 @@
 $teachersList = $teachers->map(fn($t) => [
 'id' => $t->id,
 'name' => $t->name,
-'email' => $t->user_email ?? '', // ✅ من select()
+'email' => $t->user_email ?? '',
 'center' => $t->center?->name ?? '',
-'status' => $t->user_status ?? 'inactive', // ✅ من select()
-'is_online' => $t->last_seen_at ? \Carbon\Carbon::parse($t->last_seen_at)->diffForHumans() : false, // ✅ من select()
+'status' => $t->user_status ?? 'inactive',
+'is_online' => $t->last_seen_at ? \Carbon\Carbon::parse($t->last_seen_at)->diffForHumans() : false,
 'roles' => $t->user->roles->map(fn($r) => [
 'name' => $r->name,
 'display_name' => $r->display_name ?? $r->name,
@@ -16,7 +16,6 @@ $teachersList = $teachers->map(fn($t) => [
 'toggle_url' => auth()->user()->can('toggle', $t) ? route('teachers.toggle', $t) : null,
 ]);
 
-// توحيد الألوان برمجياً في مكان واحد لسهولة التعديل مستقبلاً
 $roleColors = [
 'teacher' => 'bg-red-50 text-red-700 border border-red-200',
 'supervisor' => 'bg-blue-50 text-blue-700 border border-blue-200',
@@ -32,7 +31,7 @@ $roleColors = [
         function teachersIndex() {
             return {
                 teachers: @json($teachersList),
-                roleColors: @json($roleColors), // تمرير الألوان من الـ PHP مباشرة لـ Alpine
+                roleColors: @json($roleColors),
                 q: '',
                 centerId: '',
                 role: '',
@@ -190,7 +189,6 @@ $roleColors = [
                         form.method = 'POST';
                         form.action = url;
 
-                        // الحماية من انهيار التوكن باستدعائه مباشرة من البليد الآمن
                         const tokenInput = document.createElement('input');
                         tokenInput.type = 'hidden';
                         tokenInput.name = '_token';
@@ -217,8 +215,7 @@ $roleColors = [
         <div class="bg-[#0b3d2c] rounded-3xl p-6 lg:p-8 text-white relative overflow-hidden flex flex-col md:flex-row justify-between items-center shadow-xl gap-6">
             <div class="text-right w-full md:w-auto z-10">
                 <h1 class="text-3xl font-black mb-2">إدارة المعلمين</h1>
-                {{-- ✅ الحل: عرض الإحصائيات فقط للمدراء --}}
-                @can('view all teachers')
+                @if(auth()->user()->hasRole(['admin', 'general_manager']))
                 <p class="text-emerald-100/80 text-sm font-medium"
                     x-text="hasFilters ? (visibleCount + ' نتيجة من ' + totalCount) : (totalCount + ' معلم مسجل في النظام')">
                 </p>
@@ -226,7 +223,7 @@ $roleColors = [
                 <p class="text-emerald-100/80 text-sm font-medium">
                     قائمة المعلمين
                 </p>
-                @endcan
+                @endif
             </div>
             <div class="flex flex-wrap items-center gap-4 w-full md:w-auto">
                 @can('create teachers')
@@ -247,7 +244,7 @@ $roleColors = [
             <div class="flex flex-wrap gap-3 items-end">
 
                 {{-- بحث --}}
-                <div class="flex-1 min-w-[200px]">
+                <div class="flex-1 min-w-50">
                     <label class="block text-xs font-bold text-gray-500 mb-1">بحث بالاسم أو البريد</label>
                     <div class="relative">
                         <input type="search" x-model.debounce.200ms="q"
@@ -260,35 +257,37 @@ $roleColors = [
                 </div>
 
                 {{-- فلتر الفرع --}}
-                @can('view all teachers')
-                <div class="min-w-[180px] flex-1 sm:flex-none">
+                @if(auth()->user()->hasRole(['admin', 'general_manager']))
+                <div class="min-w-45 flex-1 sm:flex-none">
                     <label class="block text-xs font-bold text-gray-500 mb-1">الفرع</label>
                     <select x-model="centerId"
-                        class="w-full p-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-[#0a5c36] transition-all appearance-none bg-no-repeat bg-[left_10px_center]">
+                        class="w-full p-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-[#0a5c36] transition-all appearance-none bg-no-repeat bg-position-[left_10px_center]">
                         <option value="">-- كل الفروع --</option>
                         @foreach($centers as $center)
                         <option value="{{ $center->name }}">{{ $center->name }}</option>
                         @endforeach
                     </select>
                 </div>
-                @endcan
+                @endif
 
                 {{-- فلتر الدور --}}
-                @if(auth()->user()->can('view all teachers') || auth()->user()->hasRole('manager'))
-                <div class="min-w-[180px] flex-1 sm:flex-none">
+                @if(auth()->user()->hasRole(['admin', 'general_manager', 'manager']))
+                <div class="min-w-45 flex-1 sm:flex-none">
                     <label class="block text-xs font-bold text-gray-500 mb-1">الدور</label>
                     <select x-model="role"
                         class="w-full p-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-[#0a5c36] transition-all appearance-none">
                         <option value="">-- كل الأدوار --</option>
                         @foreach($roles as $r)
+                        @if(!in_array($r->name, ['admin', 'guardian']))
                         <option value="{{ $r->name }}">{{ $r->display_name ?? $r->name }}</option>
+                        @endif
                         @endforeach
                     </select>
                 </div>
                 @endif
 
                 {{-- فلتر الحالة --}}
-                <div class="min-w-[150px] flex-1 sm:flex-none">
+                <div class="min-w-37.5 flex-1 sm:flex-none">
                     <label class="block text-xs font-bold text-gray-500 mb-1">الحالة الحسابية</label>
                     <select x-model="status"
                         class="w-full p-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-[#0a5c36] transition-all appearance-none">
@@ -447,7 +446,7 @@ $roleColors = [
                     <template x-for="(page,i) in pages" :key="i">
                         <span class="inline-flex items-center">
                             <span x-show="page==='...'" class="px-1.5 text-gray-400 select-none">...</span>
-                            <button x-show="page!=='...'" @click="goToPage(page)" class="px-3 py-1.5 rounded-lg text-sm font-medium transition-all min-w-[36px] text-center" :class="currentPage===page?'bg-[#0a5c36] text-white shadow-sm':'text-gray-600 border border-gray-200 hover:bg-gray-50'" x-text="page"></button>
+                            <button x-show="page!=='...'" @click="goToPage(page)" class="px-3 py-1.5 rounded-lg text-sm font-medium transition-all min-w-9 text-center" :class="currentPage===page?'bg-[#0a5c36] text-white shadow-sm':'text-gray-600 border border-gray-200 hover:bg-gray-50'" x-text="page"></button>
                         </span>
                     </template>
                     <button @click="goToPage(currentPage+1)" :disabled="currentPage===totalPages" :class="currentPage===totalPages?'text-gray-300 border-gray-100 cursor-not-allowed':'text-gray-600 border-gray-200 hover:bg-gray-50'" class="px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors">التالي ›</button>

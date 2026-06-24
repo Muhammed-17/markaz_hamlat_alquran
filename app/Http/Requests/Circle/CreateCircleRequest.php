@@ -8,9 +8,6 @@ use App\Traits\ResolvesUserScope;
 
 class CreateCircleRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
     use ResolvesUserScope;
 
     public function authorize(): bool
@@ -23,6 +20,16 @@ class CreateCircleRequest extends FormRequest
         $user = $this->user();
         $accessibleCenterIds = $this->getAccessibleCenters($user)->pluck('id');
 
+        // ✅ FIX: للمشرف — أضف center_id من الحلقات التي يشرف عليها
+        if ($user->hasRole('supervisor') && !$user->hasRole(['manager', 'admin', 'general_manager'])) {
+            $teacher = $this->getTeacherRecord($user);
+            $supervisorCenterIds = \App\Models\Circle::whereHas('supervisors', fn($q) => $q->where('teachers.id', $teacher?->id))
+                ->pluck('center_id')
+                ->unique()
+                ->values();
+            $accessibleCenterIds = $accessibleCenterIds->merge($supervisorCenterIds);
+        }
+
         return [
             'name' => 'required|string|max:255|unique:circles,name',
             'type' => 'required|string',
@@ -31,7 +38,7 @@ class CreateCircleRequest extends FormRequest
             'center_id' => [
                 'required',
                 'exists:centers,id',
-                Rule::in($accessibleCenterIds), // ✅ التحقق من الصلاحية
+                Rule::in($accessibleCenterIds),
             ],
             
             'teacher_id' => [
@@ -78,6 +85,7 @@ class CreateCircleRequest extends FormRequest
             'level.string' => 'حقل المستوى يجب أن يكون نصًا.',
             'center_id.required' => 'حقل الفرع مطلوب.',
             'center_id.exists' => 'الفرع المحدد غير موجود.',
+            'center_id.in' => 'الفرع المحدد غير متاح لك.',
             'teacher_id.required' => 'حقل المعلم الرئيسي مطلوب.',
             'teacher_id.exists' => 'المعلم الرئيسي المحدد غير موجود.',
             'assistant_teacher_id.exists' => 'المعلم المساعد المحدد غير موجود.',
@@ -87,11 +95,36 @@ class CreateCircleRequest extends FormRequest
             'supervisor_ids.*.exists' => 'أحد المشرفين المحددين غير موجود.',
         ];
     }
+
     protected function prepareForValidation(): void
     {
-        $name = trim($this->name);
-        $this->merge([
-            'name' => str_starts_with($name, 'حلقة') ? $name : 'حلقة ' . $name,
-        ]);
+        $user = $this->user();
+        $teacher = $this->getTeacherRecord($user);
+
+        // ✅ FIX: إذا لم يكن center_id مرسلاً أو فارغاً، استخدم فرع المستخدم
+        $centerId = $this->input('center_id');
+        
+        if (!$centerId) {
+            $centerId = $teacher?->center_id;
+            
+            // للمشرف بدون center_id — من أول حلقة يشرف عليها
+            if (!$centerId && $user->hasRole('supervisor')) {
+                $firstCircle = \App\Models\Circle::whereHas('supervisors', fn($q) => $q->where('teachers.id', $teacher?->id))
+                    ->first();
+                $centerId = $firstCircle?->center_id;
+            }
+            
+            if ($centerId) {
+                $this->merge(['center_id' => $centerId]);
+            }
+        }
+
+        // تنسيق الاسم
+        if ($this->has('name')) {
+            $name = trim($this->name);
+            $this->merge([
+                'name' => str_starts_with($name, 'حلقة') ? $name : 'حلقة ' . $name,
+            ]);
+        }
     }
 }

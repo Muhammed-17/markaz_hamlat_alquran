@@ -54,7 +54,6 @@ class PermissionSeeder extends Seeder
             // المعلمين (teachers)
             // ─────────────────────────────────────────────────────────
             'view teachers'               => ['عرض المعلمين', 'teachers'],
-            'view all teachers'           => ['عرض جميع المعلمين', 'teachers'],
             'create teachers'             => ['إضافة معلمين', 'teachers'],
             'edit teachers'               => ['تعديل بيانات المعلمين', 'teachers'],
             'delete teachers'             => ['حذف معلمين', 'teachers'],
@@ -129,7 +128,6 @@ class PermissionSeeder extends Seeder
                 'delete circles',
                 'manage circle teachers',
                 'view teachers',
-                'view all teachers',
                 'create teachers',
                 'edit teachers',
                 'delete teachers',
@@ -165,7 +163,6 @@ class PermissionSeeder extends Seeder
                 'delete circles',
                 'manage circle teachers',
                 'view teachers',
-                'view all teachers',
                 'create teachers',
                 'edit teachers',
                 'delete teachers',

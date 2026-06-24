@@ -4,10 +4,9 @@ namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\URL; // <-- تأكد من وجود هذا السطر
-use Illuminate\Support\Facades\Vite; // <-- تأكد من وجود هذا السطر
-use Illuminate\Auth\Events\Login; // <-- جديد
-use Illuminate\Support\Facades\Event; // <-- جديد
+use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Facades\Vite; 
+use Illuminate\Support\Facades\Event;
 
 class AppServiceProvider extends ServiceProvider
 {

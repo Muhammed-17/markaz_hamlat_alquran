@@ -12,13 +12,13 @@ class TeacherPolicy
 
     public function viewAny(User $user): bool
     {
-        return $user->can('view teachers') || $user->can('view all teachers');
+        return $user->can('view teachers') || $user->hasRole(['admin', 'general_manager']);
     }
 
     public function view(User $user, Teacher $teacher): bool
     {
         if (!$user->can('view teachers')) return false;
-        if ($user->can('view all teachers')) return true;
+        if ($user->hasRole(['admin', 'general_manager'])) return true;
 
         $record = $this->getTeacherRecord($user);
         if (!$record) return false;
@@ -47,7 +47,7 @@ class TeacherPolicy
     public function update(User $user, Teacher $teacher): bool
     {
         if (!$user->can('edit teachers')) return false;
-        if ($user->can('view all teachers')) return true;
+        if ($user->hasRole(['admin', 'general_manager'])) return true;
 
         $record = $this->getTeacherRecord($user);
         if (!$record) return false;
@@ -78,7 +78,7 @@ class TeacherPolicy
             return false;
         }
 
-        if ($user->can('view all teachers')) return true;
+        if ($user->hasRole(['admin', 'general_manager'])) return true;
 
         $record = $this->getTeacherRecord($user);
         if (!$record) return false;
@@ -106,7 +106,7 @@ class TeacherPolicy
         // ✅ منع تعطيل الإداريين
         if ($teacher->user->hasRole(['admin', 'general_manager'])) return false;
 
-        if ($user->can('view all teachers')) return true;
+        if ($user->hasRole(['admin', 'general_manager'])) return true;
 
         $record = $this->getTeacherRecord($user);
         if (!$record) return false;

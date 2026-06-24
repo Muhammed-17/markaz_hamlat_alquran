@@ -15,8 +15,6 @@
                 <div>
                     <div class="flex items-center gap-2">
                         <h1 class="text-2xl font-black text-gray-800">{{ $teacher->name }}</h1>
-
-                        {{-- 🌟 شارة الكادر الإداري بجانب الاسم مباشرة إن وجد --}}
                         @if($teacher->is_administrative)
                         <span class="inline-flex items-center gap-1 px-2.5 py-0.5 bg-amber-50 text-amber-800 border border-amber-200 text-xs font-bold rounded-lg shadow-sm">
                             👑 كادر إداري
@@ -46,9 +44,9 @@
                 <form method="POST" action="{{ route('teachers.toggle', $teacher) }}">
                     @csrf @method('PATCH')
                     <button type="submit" class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-bold rounded-xl transition-colors
-                               {{ $teacher->user->status === 'active'
-                                   ? 'bg-orange-50 hover:bg-orange-100 text-orange-600'
-                                   : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700' }}">
+                            {{ $teacher->user->status === 'active'
+                                ? 'bg-orange-50 hover:bg-orange-100 text-orange-600'
+                                : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700' }}">
                         @if($teacher->user->status === 'active')
                         <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
