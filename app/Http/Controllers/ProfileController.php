@@ -37,30 +37,4 @@ class ProfileController extends Controller
         return Redirect::route('profile.edit')->with('status', 'profile-updated');
     }
 
-    /**
-     * Delete the user's account.
-     * ⚠️ محدودة للـ guardian فقط — الأدوار الإدارية لا تُحذف من هنا بل يحذفها الأدمن
-     */
-    public function destroy(Request $request): RedirectResponse
-    {
-        $user = $request->user();
-
-        // 🛡️ منع الأدوار الإدارية من حذف حساباتهم ذاتياً
-        if ($user->hasRole(['admin', 'general_manager', 'manager', 'supervisor', 'teacher'])) {
-            abort(403, 'لا يمكنك حذف حسابك. تواصل مع مدير النظام.');
-        }
-
-        $request->validateWithBag('userDeletion', [
-            'password' => ['required', 'current_password'],
-        ]);
-
-        Auth::logout();
-
-        $user->delete();
-
-        $request->session()->invalidate();
-        $request->session()->regenerateToken();
-
-        return Redirect::to('/');
-    }
 }

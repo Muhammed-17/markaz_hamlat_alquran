@@ -25,8 +25,8 @@ class CircleController extends Controller
 
         $query = $this->getAccessibleCirclesQuery($user)
             ->with([
-                'mainTeacher' => fn($q) => $q->withoutGlobalScope(\App\Models\Scopes\CenterScope::class),
-                'assistantTeacher' => fn($q) => $q->withoutGlobalScope(\App\Models\Scopes\CenterScope::class),
+                'mainTeachers' => fn($q) => $q->withoutGlobalScope(\App\Models\Scopes\CenterScope::class),
+                'assistantTeachers' => fn($q) => $q->withoutGlobalScope(\App\Models\Scopes\CenterScope::class),
                 'supervisors.user',
                 'center',
             ])
@@ -88,8 +88,14 @@ class CircleController extends Controller
             $lockedSupervisor = $teacher ? Teacher::with('user.roles')->find($teacher->id) : null;
         }
 
+        // ✅ FIX: تهيئة العلاقات كـ Collection فارغة لتجنب null
+        $circle = new Circle();
+        $circle->setRelation('mainTeachers', collect());
+        $circle->setRelation('assistantTeachers', collect());
+        $circle->setRelation('supervisors', collect());
+
         return view('circles.create', [
-            'circle'                => new Circle(),
+            'circle'                => $circle,
             'teachers'              => $this->getAccessibleTeachers($user, $teacher),
             'supervisors'           => $supervisors,
             'lockedSupervisor'      => $lockedSupervisor,
@@ -127,7 +133,6 @@ class CircleController extends Controller
             'type'      => $request->type,
             'level'     => $request->level,
             'center_id' => $centerId,
-            'is_active' => true,
         ]);
 
         $this->syncCircleStaff($circle, $request);
@@ -141,8 +146,8 @@ class CircleController extends Controller
         $user = Auth::user();
 
         $circleQuery = Circle::with([
-            'mainTeacher' => fn($q) => $q->withoutGlobalScope(\App\Models\Scopes\CenterScope::class),
-            'assistantTeacher' => fn($q) => $q->withoutGlobalScope(\App\Models\Scopes\CenterScope::class),
+            'mainTeachers' => fn($q) => $q->withoutGlobalScope(\App\Models\Scopes\CenterScope::class),
+            'assistantTeachers' => fn($q) => $q->withoutGlobalScope(\App\Models\Scopes\CenterScope::class),
             'supervisors' => fn($q) => $q->withoutGlobalScope(\App\Models\Scopes\CenterScope::class),
             'students',
         ]);
@@ -176,8 +181,8 @@ class CircleController extends Controller
         $user = Auth::user();
 
         $circleQuery = Circle::with([
-            'mainTeacher' => fn($q) => $q->withoutGlobalScope(\App\Models\Scopes\CenterScope::class),
-            'assistantTeacher' => fn($q) => $q->withoutGlobalScope(\App\Models\Scopes\CenterScope::class),
+            'mainTeachers' => fn($q) => $q->withoutGlobalScope(\App\Models\Scopes\CenterScope::class),
+            'assistantTeachers' => fn($q) => $q->withoutGlobalScope(\App\Models\Scopes\CenterScope::class),
             'supervisors' => fn($q) => $q->withoutGlobalScope(\App\Models\Scopes\CenterScope::class),
         ]);
 
@@ -258,7 +263,6 @@ class CircleController extends Controller
 
         $updateData = [
             'center_id' => $centerId,
-            'is_active' => true,
         ];
 
         if ($request->has('name')) {

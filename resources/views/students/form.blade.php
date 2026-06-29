@@ -1231,7 +1231,6 @@ $isNextYearReg = ($regMonth >= 7 && $regMonth <= 9);
                         this.selected = {
                             id: null,
                             name: 'بدون ولي أمر',
-                            is_active: null
                         };
                         this.query = '';
                         this.results = [];

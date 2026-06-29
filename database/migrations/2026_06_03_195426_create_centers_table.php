@@ -16,12 +16,6 @@ return new class extends Migration
             $table->string('name')->unique();
             $table->timestamps();
         });
-
-        // Insert initial data
-        \Illuminate\Support\Facades\DB::table('centers')->insert([
-            ['name' => 'الرئيسي', 'created_at' => now(), 'updated_at' => now()],
-            ['name' => 'العواسجة', 'created_at' => now(), 'updated_at' => now()],
-        ]);
     }
 
     /**

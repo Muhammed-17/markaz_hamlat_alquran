@@ -18,11 +18,11 @@ class SubscriptionPolicy
 
     public function view(User $user, Subscription $subscription): bool
     {
-        if ($user->hasRole('admin')) return true;
+        if ($user->hasAnyRole(['admin', 'general_manager'])) return true;
 
         if ($user->hasRole('guardian')) {
             return $user->can('view own subscriptions')
-                && $subscription->student->guardian_id === $user->id;
+                && $subscription->student?->guardian_id === $user->id;
         }
 
         return $user->can('view subscriptions')
@@ -40,23 +40,21 @@ class SubscriptionPolicy
             && $this->canAccessSubscription($user, $subscription);
     }
 
-
-
     public function delete(User $user, Subscription $subscription): bool
     {
-        return $user->hasRole('admin');
+        return $user->can('delete subscriptions')
+            && $this->canAccessSubscription($user, $subscription);
     }
 
-    // ─── helper مشترك ────────────────────────────────────────────
     private function canAccessSubscription(User $user, Subscription $subscription): bool
     {
-        if ($user->hasRole('admin')) return true;
+        if ($user->hasAnyRole(['admin', 'general_manager'])) return true;
 
         $teacher = $this->getTeacherRecord($user);
         if (!$teacher) return false;
 
         if ($user->hasRole('manager')) {
-            return $subscription->student->center_id === $teacher->center_id;
+            return $subscription->student->circle?->center_id === $teacher->center_id;
         }
 
         return $this->getAccessibleCircleIds($user)

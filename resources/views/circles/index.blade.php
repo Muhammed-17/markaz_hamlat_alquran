@@ -49,7 +49,7 @@ $sortIcon = fn($field) => request('sort') === $field
             </div>
 
             {{-- فلتر الفرع --}}
-            
+
             <div class="w-full lg:w-48">
                 <label for="filter_center_id" class="block text-xs font-bold text-gray-400 mb-1.5">الفرع</label>
                 <select id="filter_center_id" name="center_id"
@@ -187,11 +187,11 @@ $sortIcon = fn($field) => request('sort') === $field
                         </td>
 
                         <td class="px-6 py-4 text-gray-600">
-                            {{ $circle->mainTeacher->first()?->name ?? '—' }}
+                            {{ $circle->mainTeachers->first()?->name ?? '—' }}
                         </td>
 
                         <td class="px-6 py-4 text-gray-600">
-                            {{ $circle->assistantTeacher->first()?->name ?? '—' }}
+                            {{ $circle->assistantTeachers->first()?->name ?? '—' }}
                         </td>
 
                         <td class="px-6 py-4 text-gray-600">

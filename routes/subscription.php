@@ -6,12 +6,20 @@ use App\Http\Controllers\SubscriptionPriceController;
 
 Route::middleware(['auth', 'verified'])->group(function () {
 
+    Route::get('subscriptions/filter-options', [SubscriptionController::class, 'getFilterOptions'])
+        ->name('subscriptions.filter-options');
+
     // ─── عرض الاشتراكات ───────────────────────────────────────────
     Route::middleware('permission:view subscriptions|view own subscriptions')->group(function () {
         Route::get('/subscriptions', [SubscriptionController::class, 'index'])
             ->name('subscriptions.index');
         Route::get('/subscriptions/late-and-unpaid', [SubscriptionController::class, 'lateAndUnpaid'])
             ->name('subscriptions.late_and_unpaid');
+        Route::get('/subscriptions/late-and-unpaid/{student}/months', [SubscriptionController::class, 'lateDetail'])
+            ->name('subscriptions.late_detail');
+        Route::get('/subscriptions/student/{student}/details-unpaid', [SubscriptionController::class, 'DetailsUnpaid']) // ✅
+        ->name('subscriptions.details_unpaid');
+
     });
 
     // ─── إضافة اشتراك ─────────────────────────────────────────────

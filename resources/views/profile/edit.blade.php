@@ -40,14 +40,6 @@
                         @include('profile.partials.update-password-form')
                     </div>
                 </div>
-
-                <!-- Delete Account Section -->
-                <div
-                    class="p-6 sm:p-10 bg-red-50/30 shadow-sm border border-red-100 rounded-3xl transition-all hover:border-red-200 mt-12">
-                    <div class="max-w-2xl">
-                        @include('profile.partials.delete-user-form')
-                    </div>
-                </div>
             </div>
 
             <!-- Sidebar Info -->

@@ -15,12 +15,26 @@ class CenterController extends Controller
 
     public function store(Request $request)
     {
+        // ✅ تنظيف الاسم: إزالة "فرع" و"الفرع" من أي مكان في النص + المسافات الزائدة
+        $cleanName = $request->input('name', '');
+
+        // حذف "الفرع" أولاً (الأطول) ثم "فرع" لتجنب بقايا الـ "ال"
+        $cleanName = preg_replace('/\bالفرع\b/u', ' ', $cleanName);
+        $cleanName = preg_replace('/\bفرع\b/u', ' ', $cleanName);
+
+        // إزالة المسافات الزائدة (متعددة، بداية، نهاية)
+        $cleanName = preg_replace('/\s+/u', ' ', $cleanName);
+        $cleanName = trim($cleanName);
+
+        // ✅ استبدال القيمة في الطلب للتحقق منها
+        $request->merge(['name' => $cleanName]);
+
         $validated = $request->validate([
-            'id' => 'nullable|exists:centers,id',
+            'id'   => 'nullable|exists:centers,id',
             'name' => 'required|string|max:255|unique:centers,name,' . $request->id,
         ], [
             'name.required' => 'حقل الاسم مطلوب.',
-            'name.unique' => 'هذا الفرع مسجل بالفعل.',
+            'name.unique'   => 'هذا الفرع مسجل بالفعل.',
         ]);
 
         if (!empty($validated['id'])) {

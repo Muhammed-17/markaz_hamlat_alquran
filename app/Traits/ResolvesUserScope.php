@@ -15,18 +15,15 @@ trait ResolvesUserScope
 {
     private static array $teacherRecordCache = [];
 
+    // ✅ إصلاح 1: حفظ null في الـ cache
     protected function getTeacherRecord(User $user): ?Teacher
     {
-        if (isset(self::$teacherRecordCache[$user->id])) {
+        if (array_key_exists($user->id, self::$teacherRecordCache)) {
             return self::$teacherRecordCache[$user->id];
         }
 
         $teacher = Teacher::where('user_id', $user->id)->first();
-
-        if ($teacher) {
-            self::$teacherRecordCache[$user->id] = $teacher;
-        }
-
+        self::$teacherRecordCache[$user->id] = $teacher;
         return $teacher;
     }
 
@@ -35,14 +32,13 @@ trait ResolvesUserScope
         return $this->getAccessibleCirclesQuery($user)->get();
     }
 
+    // ✅ إصلاح 2: تبسيط منطق الـ manager
     protected function getAccessibleCirclesQuery(User $user): \Illuminate\Database\Eloquent\Builder
     {
-        // ✅ admin / general_manager — كل شيء
         if ($user->hasRole(['admin', 'general_manager'])) {
             return Circle::orderBy('name');
         }
 
-        // ✅ guardian — أطفاله فقط
         if ($user->hasRole('guardian') && $user->can('view own children')) {
             return Circle::whereIn(
                 'id',
@@ -54,51 +50,39 @@ trait ResolvesUserScope
         }
 
         $teacher = $this->getTeacherRecord($user);
-        if (!$teacher) {
+        if (!$teacher || !$teacher->center_id) {
             return Circle::whereRaw('1=0');
         }
 
-        // ✅ المشرف النقي (فقط دور supervisor، ليس manager ولا teacher)
-        // يُرى فقط الحلقات التي يشرف عليها
-        if ($user->hasRole('supervisor') && !$user->hasRole(['manager', 'teacher', 'admin', 'general_manager'])) {
-            return Circle::whereHas('supervisors', fn($q) => $q->where('teachers.id', $teacher->id))
+        // ✅ مدير الفرع — كل حلقات فرعه
+        if ($user->hasRole('manager')) {
+            return Circle::where('center_id', $teacher->center_id)
                 ->orderBy('name');
         }
 
-        // ✅ المدير — حلقات فرعه + حلقاته كمعلم/مشرف
-        if ($user->hasRole('manager')) {
-            return Circle::where(function ($query) use ($teacher) {
-                $query->where('center_id', $teacher->center_id);
+        // ✅ المشرف — الحلقات اللي هو مشرف عليها فقط
+        if ($user->hasRole('supervisor')) {
+            $circleIds = DB::table('circle_teacher')
+                ->where('teacher_id', $teacher->id)
+                ->whereIn('role', ['supervisor', 'main', 'assistant'])
+                ->pluck('circle_id');
 
-                $circleIds = $this->getTeacherCircleIds($teacher);
-                if ($circleIds->isNotEmpty()) {
-                    $query->orWhereIn('id', $circleIds);
-                }
-
-                $query->orWhereHas('supervisors', fn($q) => $q->where('teachers.id', $teacher->id));
-            })->orderBy('name');
+            return $circleIds->isEmpty()
+                ? Circle::whereRaw('1=0')
+                : Circle::whereIn('id', $circleIds)->orderBy('name');
         }
 
-        // ✅ المعلم — حلقاته فقط (main/assistant) + حلقاته كمشرف
-        if ($user->hasRole('teacher')) {
-            $circleIds = $this->getTeacherCircleIds($teacher);
+        // ✅ المعلم — الحلقات اللي هو معلم أساسي أو مساعد فيها
+        $circleIds = DB::table('circle_teacher')
+            ->where('teacher_id', $teacher->id)
+            ->whereIn('role', ['main', 'assistant'])
+            ->pluck('circle_id');
 
-            return Circle::where(function ($query) use ($teacher, $circleIds) {
-                if ($circleIds->isNotEmpty()) {
-                    $query->whereIn('id', $circleIds);
-                } else {
-                    $query->whereRaw('1=0'); // لا حلقات كمعلم
-                }
-
-                $query->orWhereHas('supervisors', fn($q) => $q->where('teachers.id', $teacher->id));
-            })->orderBy('name');
-        }
-
-        // ❌ أي دور آخر — لا شيء
-        return Circle::whereRaw('1=0');
+        return $circleIds->isEmpty()
+            ? Circle::whereRaw('1=0')
+            : Circle::whereIn('id', $circleIds)->orderBy('name');
     }
 
-    // ─── باقي الدوال بدون تغيير ─────────────────────────────────
     protected function getAccessibleCenters(User $user): \Illuminate\Database\Eloquent\Collection
     {
         if ($user->hasRole(['admin', 'general_manager'])) {
@@ -189,12 +173,13 @@ trait ResolvesUserScope
 
     protected function applyCircleFilter($query, User $user, $circleIds): void
     {
-        if ($user->hasRole(['admin', 'general_manager']) || $user->can('view circles')) {
+        if ($user->hasRole(['admin', 'general_manager'])) {
             return;
         }
 
         $query->whereIn('circle_id', $circleIds);
     }
+
 
     public static function clearScopeCache(): void
     {

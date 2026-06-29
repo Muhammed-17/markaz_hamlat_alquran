@@ -1,167 +1,169 @@
-<x-layouts.markaz-layout>
-    <div class="space-y-6">
-        <!-- Header Card -->
-        <div
-            class="bg-[#0a4d31] rounded-3xl p-8 text-white relative overflow-hidden flex flex-col md:flex-row justify-between items-center shadow-xl gap-6">
-            <div class="text-right w-full md:w-auto z-10">
-                <h1 class="text-3xl font-black mb-2">إحصائيات الحضور والغياب</h1>
-                <p class="text-emerald-100/80 text-sm font-medium">تحليل بياني لأداء المركز والحلقات</p>
-            </div>
+<x-markaz-layout>
+    <x-slot name="title">تقرير الحضور والغياب</x-slot>
 
-            <div class="flex gap-6 z-10">
-                <a href="{{ route('attendance.index') }}"
-                    class="px-6 py-3 bg-white/10 hover:bg-white/20 border border-white/20 rounded-2xl text-white font-bold transition-all flex items-center gap-2">
-                    <svg class="w-5 h-45" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M10 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                    </svg>
-                    سجل المتابعة
-                </a>
-                <a href="{{ route('attendance.create') }}"
-                    class="px-6 py-3 bg-white/10 hover:bg-white/20 border border-white/20 rounded-2xl text-white font-bold transition-all flex items-center gap-2">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                    </svg>
-                    تسجيل الغياب
-                </a>
-            </div>
+    <div class="max-w-7xl mx-auto py-8 px-4">
+        <h1 class="text-2xl font-bold text-gray-900 mb-6">تقرير الحضور والغياب</h1>
 
-            <!-- Decorative background element -->
-            <div class="absolute -right-10 -bottom-10 w-40 h-40 bg-white/10 rounded-full blur-3xl"></div>
+        <!-- Export Buttons -->
+        <div class="flex flex-wrap gap-3 mb-6">
+            <a href="{{ route('attendance.export.excel', request()->all()) }}"
+               class="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition">
+                <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+                تصدير Excel
+            </a>
+            <a href="{{ route('attendance.export.pdf', request()->all()) }}"
+               class="inline-flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition">
+                <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+                </svg>
+                تصدير PDF
+            </a>
+            <a href="{{ route('attendance.export.monthly', request()->all()) }}"
+               class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+                <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                </svg>
+                تقرير شهري
+            </a>
         </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <!-- Pie Chart: Status Distribution -->
-            <div class="bg-white p-8 rounded-[40px] shadow-sm border border-gray-100">
-                <h3 class="text-[#0a5c36] font-black text-xl mb-8 border-b border-gray-50 pb-4">توزيع الحالة (آخر 30
-                    يوم)</h3>
-                <div class="relative h-100">
-                    <canvas id="statusChart"></canvas>
+        <!-- Stats Cards -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            @php
+                $statLabels = ['present' => ['حاضر', 'green'], 'absent' => ['غائب', 'red'], 'late' => ['متأخر', 'yellow'], 'excused' => ['بعذر', 'blue']];
+            @endphp
+            @foreach($statLabels as $key => [$label, $color])
+                @php $stat = $stats->firstWhere('status', $key); @endphp
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-gray-500">{{ $label }}</p>
+                            <p class="text-3xl font-bold text-{{ $color }}-600">{{ $stat?->count ?? 0 }}</p>
+                        </div>
+                        <div class="w-12 h-12 rounded-full bg-{{ $color }}-100 flex items-center justify-center">
+                            <svg class="w-6 h-6 text-{{ $color }}-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                @if($key === 'present')
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                @elseif($key === 'absent')
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                @elseif($key === 'late')
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                @else
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                                @endif
+                            </svg>
+                        </div>
+                    </div>
                 </div>
-            </div>
+            @endforeach
+        </div>
 
-            <!-- Line Chart: Daily Presence -->
-            <div class="bg-white p-8 rounded-[40px] shadow-sm border border-gray-100">
-                <h3 class="text-[#0a5c36] font-black text-xl mb-8 border-b border-gray-50 pb-4">معدل الحضور (آخر 7 أيام)
-                </h3>
-                <div class="relative h-100">
-                    <canvas id="dailyChart"></canvas>
-                </div>
+        <!-- Monthly Chart -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+            <h2 class="text-lg font-semibold text-gray-900 mb-4">إحصائيات الأشهر</h2>
+            <div class="h-64" id="monthlyChart"></div>
+        </div>
+
+        <!-- Daily Stats -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+            <h2 class="text-lg font-semibold text-gray-900 mb-4">الحضور اليومي (آخر 7 أيام)</h2>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-4 py-3 text-right text-gray-600">التاريخ</th>
+                            <th class="px-4 py-3 text-right text-gray-600">عدد الحضور</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                        @forelse($dailyStats as $stat)
+                            <tr class="hover:bg-gray-50">
+                                <td class="px-4 py-3">{{ $stat->date }}</td>
+                                <td class="px-4 py-3">
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                        {{ $stat->count }}
+                                    </span>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="2" class="px-4 py-8 text-center text-gray-400">لا توجد بيانات</td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Circle Comparison -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <h2 class="text-lg font-semibold text-gray-900 mb-4">مقارنة الحلقات</h2>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-4 py-3 text-right text-gray-600">الحلقة</th>
+                            <th class="px-4 py-3 text-right text-gray-600">إجمالي</th>
+                            <th class="px-4 py-3 text-right text-gray-600">حاضر</th>
+                            <th class="px-4 py-3 text-right text-gray-600">غائب</th>
+                            <th class="px-4 py-3 text-right text-gray-600">متأخر</th>
+                            <th class="px-4 py-3 text-right text-gray-600">بعذر</th>
+                            <th class="px-4 py-3 text-right text-gray-600">نسبة الحضور</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                        @forelse($circleStats as $circleName => $data)
+                            <tr class="hover:bg-gray-50">
+                                <td class="px-4 py-3 font-medium">{{ $circleName }}</td>
+                                <td class="px-4 py-3">{{ $data['total'] }}</td>
+                                <td class="px-4 py-3 text-green-600">{{ $data['present'] }}</td>
+                                <td class="px-4 py-3 text-red-600">{{ $data['absent'] }}</td>
+                                <td class="px-4 py-3 text-yellow-600">{{ $data['late'] }}</td>
+                                <td class="px-4 py-3 text-blue-600">{{ $data['excused'] }}</td>
+                                <td class="px-4 py-3">
+                                    <div class="flex items-center gap-2">
+                                        <div class="w-20 h-2 bg-gray-200 rounded-full overflow-hidden">
+                                            <div class="h-full bg-green-500 rounded-full" style="width: {{ $data['rate'] }}%"></div>
+                                        </div>
+                                        <span class="text-sm">{{ $data['rate'] }}%</span>
+                                    </div>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="7" class="px-4 py-8 text-center text-gray-400">لا توجد بيانات</td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
 
-    <!-- Chart.js Library -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
     <script>
-        const statusData = @json($stats);
-        const dailyData = @json($dailyStats);
+        const ctx = document.getElementById('monthlyChart');
+        const monthlyData = @json($monthlyStats);
+        const labels = Object.keys(monthlyData);
+        const presentData = labels.map(m => monthlyData[m].find(s => s.status === 'present')?.count ?? 0);
+        const absentData = labels.map(m => monthlyData[m].find(s => s.status === 'absent')?.count ?? 0);
 
-        // Status Distribution Chart
-        new Chart(document.getElementById('statusChart'), {
-            type: 'doughnut',
+        new Chart(ctx, {
+            type: 'bar',
             data: {
-                labels: statusData.map(d => {
-                    const translations = {
-                        'present': 'حاضر',
-                        'absent': 'غائب',
-                        'late': 'متأخر',
-                        'excused': 'بعذر'
-                    };
-                    return translations[d.status] || d.status;
-                }),
-                datasets: [{
-                    data: statusData.map(d => d.count),
-                    backgroundColor: [
-                        '#ef4444', // red-500
-                        '#3b82f6', // blue-500
-                        '#f59e0b', // amber-500
-                        '#10b981', // emerald-500
-                    ],
-                    borderWidth: 0,
-                    hoverOffset: 20
-                }]
+                labels: labels,
+                datasets: [
+                    { label: 'حاضر', data: presentData, backgroundColor: '#10B981' },
+                    { label: 'غائب', data: absentData, backgroundColor: '#EF4444' },
+                ]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        position: 'bottom',
-                        rtl: true,
-                        labels: {
-                            font: {
-                                family: 'Cairo',
-                                size: 14,
-                                weight: 'bold'
-                            },
-                            padding: 20
-                        }
-                    }
-                },
-                cutout: '70%'
-            }
-        });
-
-        // Daily Presence Chart
-        new Chart(document.getElementById('dailyChart'), {
-            type: 'line',
-            data: {
-                labels: dailyData.map(d => d.date),
-                datasets: [{
-                    label: 'عدد الطلاب الحاضرين',
-                    data: dailyData.map(d => d.count),
-                    borderColor: '#10b981',
-                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                    fill: true,
-                    tension: 0.4,
-                    pointBackgroundColor: '#10b981',
-                    pointRadius: 6,
-                    pointHoverRadius: 8
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        rtl: true,
-                        grid: {
-                            borderDash: [5, 5]
-                        },
-                        ticks: {
-                            font: {
-                                family: 'Cairo'
-                            }
-                        }
-                    },
-                    x: {
-                        rtl: true,
-                        grid: {
-                            display: false
-                        },
-                        ticks: {
-                            font: {
-                                family: 'Cairo'
-                            }
-                        }
-                    }
-                },
-                plugins: {
-                    legend: {
-                        rtl: true,
-                        labels: {
-                            font: {
-                                family: 'Cairo',
-                                size: 14,
-                                weight: 'bold'
-                            }
-                        }
-                    }
-                }
+                scales: { y: { beginAtZero: true } }
             }
         });
     </script>
-</x-layouts.markaz-layout>
+</x-markaz-layout>

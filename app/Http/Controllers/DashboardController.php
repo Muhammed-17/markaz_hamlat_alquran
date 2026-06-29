@@ -30,7 +30,7 @@ class DashboardController extends Controller
 
         // 1. Determine Scope for Students, Circles, and Subscriptions
         $studentQuery = Student::where('status', '!=', 'متوقف');
-        $circleQuery = Circle::where('is_active', true);
+        $circleQuery = Circle::query();
         $subscriptionQuery = Subscription::query();
 
         if ($user->hasRole('supervisor') && $user->teacher) {

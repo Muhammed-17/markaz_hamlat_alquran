@@ -8,38 +8,56 @@ use Illuminate\Console\Command;
 
 class NotifySequentialAbsences extends Command
 {
-    protected $signature = 'app:notify-sequential-absences
-        {--force : Send even if already notified today}
-        {--dry-run : Preview students that would be notified without actually sending}';
+    protected $signature = 'notify:sequential-absences
+                            {--force : Force send even if already notified today}
+                            {--dry-run : Simulate without sending}
+                            {--days=30 : Number of days to look back}
+                            {--min-absences=2 : Minimum absence days to trigger}';
 
-    protected $description = 'Detect sequential absence patterns and notify guardians';
+    protected $description = 'Send notifications to guardians for students with sequential absences';
 
     public function handle(): int
     {
         $force = $this->option('force');
         $dryRun = $this->option('dry-run');
+        $days = (int) $this->option('days');
+        $minAbsences = (int) $this->option('min-absences');
         $sent = 0;
         $skipped = 0;
+        $noGuardian = 0;
 
-        $students = Student::with(['attendances' => function ($q) {
-            $q->orderBy('date', 'desc')->take(30);
-        }, 'guardian', 'circle'])
+        $students = Student::with([
+            'attendances' => fn($q) => $q->orderBy('date', 'desc')->take($days),
+            'guardian',
+            'circle'
+        ])
             ->where('status', '!=', 'متوقف')
             ->whereHas('guardian')
             ->get();
 
-        $this->info('Checking ' . $students->count() . ' students for sequential absences...');
+        $this->info("Checking {$students->count()} students for sequential absences (last {$days} days, min {$minAbsences} absences)...");
+        $this->newLine();
+
+        $bar = $this->output->createProgressBar($students->count());
+        $bar->start();
 
         foreach ($students as $student) {
+            $bar->advance();
+
             if (!$this->hasSequentialAbsencePattern($student)) {
                 continue;
             }
 
             $absenceDays = $student->attendances->where('status', 'absent')->count();
+
+            if ($absenceDays < $minAbsences) {
+                continue;
+            }
+
             $guardian = $student->guardian;
 
             if (!$guardian) {
-                $this->warn("Skipping student {$student->name}: No linked guardian found in users table.");
+                $noGuardian++;
                 continue;
             }
 
@@ -49,19 +67,31 @@ class NotifySequentialAbsences extends Command
             }
 
             if ($dryRun) {
-                $this->line("  [DRY-RUN] Would notify {$student->name} → {$guardian->name} ({$absenceDays} absence days)");
+                $this->newLine();
+                $this->line("  [DRY-RUN] Would notify: {$student->name} → {$guardian->name} ({$absenceDays} absence days)");
                 $sent++;
                 continue;
             }
 
-            $guardian->notify(new SequentialAbsenceNotification($student, $absenceDays));
-            $sent++;
-
-            $this->line("  Sent notification for: {$student->name} → {$guardian->name}");
+            try {
+                $guardian->notify(new SequentialAbsenceNotification($student, $absenceDays));
+                $sent++;
+                $this->newLine();
+                $this->info("  ✓ Sent: {$student->name} → {$guardian->name}");
+            } catch (\Exception $e) {
+                $this->newLine();
+                $this->error("  ✗ Failed: {$student->name} - {$e->getMessage()}");
+            }
         }
 
+        $bar->finish();
+        $this->newLine(2);
+
         $label = $dryRun ? 'Would send' : 'Sent';
-        $this->info("Done. {$label}: {$sent}, Skipped (already notified today): {$skipped}");
+        $this->info("📊 Summary:");
+        $this->line("   {$label}: {$sent}");
+        $this->line("   Skipped (already notified today): {$skipped}");
+        $this->line("   No guardian: {$noGuardian}");
 
         return 0;
     }
@@ -70,19 +100,29 @@ class NotifySequentialAbsences extends Command
     {
         $records = $student->attendances->sortBy('date')->values();
         $statuses = $records->pluck('status')->toArray();
+        $count = count($statuses);
 
-        // Condition 1: two or more consecutive absences
-        for ($i = 0; $i < count($statuses) - 1; $i++) {
+        if ($count < 2) return false;
+
+        // Two consecutive absences
+        for ($i = 0; $i < $count - 1; $i++) {
             if ($statuses[$i] === 'absent' && $statuses[$i + 1] === 'absent') {
                 return true;
             }
         }
 
-        // Condition 2: absent → (not absent) → absent
-        for ($i = 0; $i < count($statuses) - 2; $i++) {
+        // Absent with one day gap
+        for ($i = 0; $i < $count - 2; $i++) {
             if ($statuses[$i] === 'absent' && $statuses[$i + 2] === 'absent') {
                 return true;
             }
+        }
+
+        // Three absences in any 5-day window
+        for ($i = 0; $i <= $count - 3; $i++) {
+            $window = array_slice($statuses, $i, 5);
+            $absences = collect($window)->filter(fn($s) => $s === 'absent')->count();
+            if ($absences >= 3) return true;
         }
 
         return false;

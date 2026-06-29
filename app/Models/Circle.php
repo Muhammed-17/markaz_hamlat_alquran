@@ -7,21 +7,11 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Spatie\Permission\Traits\HasRoles;
 
-/**
- * @property int $id
- * @property string $name
- * @property string $type
- * @property string $level
- * @property \Illuminate\Support\Carbon $created_at
- * @property \Illuminate\Support\Carbon $updated_at
- */
 class Circle extends Model
 {
     use HasFactory;
 
-    
     protected $fillable = [
         'name',
         'type',
@@ -54,7 +44,7 @@ class Circle extends Model
             ->withTimestamps();
     }
 
-    public function mainTeacher(): BelongsToMany
+    public function mainTeachers(): BelongsToMany
     {
         return $this->belongsToMany(Teacher::class, 'circle_teacher')
             ->wherePivot('role', 'main')
@@ -62,12 +52,23 @@ class Circle extends Model
             ->withTimestamps();
     }
 
-    public function assistantTeacher(): BelongsToMany
+    public function assistantTeachers(): BelongsToMany
     {
         return $this->belongsToMany(Teacher::class, 'circle_teacher')
             ->wherePivot('role', 'assistant')
             ->withPivot('role')
             ->withTimestamps();
+    }
+
+    // ✅ accessors للقراءة فقط (snake_case في Blade)
+    public function getMainTeacherAttribute(): ?Teacher
+    {
+        return $this->mainTeachers->first();
+    }
+
+    public function getAssistantTeacherAttribute(): ?Teacher
+    {
+        return $this->assistantTeachers->first();
     }
 
     public function center(): BelongsTo

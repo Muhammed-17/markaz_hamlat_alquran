@@ -7,7 +7,7 @@ use App\Models\User;
 use App\Models\Teacher;
 use Illuminate\Support\Facades\Hash;
 
-class StaffSeeder extends Seeder
+class TeacherSeeder extends Seeder
 {
     public function run(): void
     {
@@ -16,17 +16,17 @@ class StaffSeeder extends Seeder
             // --- الموظفون السابقون ---
             [
                 'name'              => 'سعد أحمد سعد الشعراوي',
-                'email'             => '01212345678@markaz.com',
+                'email'             => '03232345678@markaz.com',
                 'role'              => 'supervisor',
-                'password'          => '12345678',
-                'is_administrative' => 1,
+                'password'          => '32345678',
+                'is_administrative' => 3,
                 'center_id'         => 2, // فرع العواسجة
             ],
             [
                 'name'              => 'عبدالفتاح أحمد سعدون',
-                'email'             => '01150175090@markaz.com',
+                'email'             => '03350375090@markaz.com',
                 'role'              => 'teacher',
-                'password'          => '12345678',
+                'password'          => '32345678',
                 'is_administrative' => 0,
                 'center_id'         => 2, // فرع العواسجة
             ],
@@ -34,8 +34,8 @@ class StaffSeeder extends Seeder
                 'name'              => 'عبدالبديع أبوالمعاطي',
                 'email'             => 'adbelbadea@markaz.com',
                 'role'              => 'supervisor',
-                'password'          => '12345678',
-                'is_administrative' => 1,
+                'password'          => '32345678',
+                'is_administrative' => 3,
                 'center_id'         => 3, // الفرع الرئيسي
             ],
 
@@ -44,7 +44,7 @@ class StaffSeeder extends Seeder
                 'name'              => 'محمد جمال عبد الحميد',
                 'email'             => 'mohamed.gamal@markaz.com',
                 'role'              => 'teacher',
-                'password'          => '12345678',
+                'password'          => '32345678',
                 'is_administrative' => 0,
                 'center_id'         => 2,
             ],
@@ -52,7 +52,7 @@ class StaffSeeder extends Seeder
                 'name'              => 'أحمد محمود الرفاعي',
                 'email'             => 'ahmed.refaei@markaz.com',
                 'role'              => 'teacher',
-                'password'          => '12345678',
+                'password'          => '32345678',
                 'is_administrative' => 0,
                 'center_id'         => 2,
             ],
@@ -60,7 +60,7 @@ class StaffSeeder extends Seeder
                 'name'              => 'خالد وليد الشربيني',
                 'email'             => 'khaled.sharbini@markaz.com',
                 'role'              => 'teacher',
-                'password'          => '12345678',
+                'password'          => '32345678',
                 'is_administrative' => 0,
                 'center_id'         => 2,
             ],
@@ -68,15 +68,15 @@ class StaffSeeder extends Seeder
                 'name'              => 'محمود عبد العزيز غانم',
                 'email'             => 'mahmoud.ghanem@markaz.com',
                 'role'              => 'supervisor',
-                'password'          => '12345678',
-                'is_administrative' => 1,
+                'password'          => '32345678',
+                'is_administrative' => 3,
                 'center_id'         => 2,
             ],
             [
                 'name'              => 'مصطفى هاني القاضي',
                 'email'             => 'mostafa.qadi@markaz.com',
                 'role'              => 'teacher',
-                'password'          => '12345678',
+                'password'          => '32345678',
                 'is_administrative' => 0,
                 'center_id'         => 2,
             ],
@@ -86,7 +86,7 @@ class StaffSeeder extends Seeder
                 'name'              => 'إبراهيم علي الدسوقي',
                 'email'             => 'ibrahim.desouky@markaz.com',
                 'role'              => 'teacher',
-                'password'          => '12345678',
+                'password'          => '32345678',
                 'is_administrative' => 0,
                 'center_id'         => 3,
             ],
@@ -94,7 +94,7 @@ class StaffSeeder extends Seeder
                 'name'              => 'حسن بيومي المتولي',
                 'email'             => 'hasan.metwally@markaz.com',
                 'role'              => 'teacher',
-                'password'          => '12345678',
+                'password'          => '32345678',
                 'is_administrative' => 0,
                 'center_id'         => 3,
             ],
@@ -102,15 +102,15 @@ class StaffSeeder extends Seeder
                 'name'              => 'صلاح الدين الأيوبي جاد',
                 'email'             => 'salah.gad@markaz.com',
                 'role'              => 'supervisor',
-                'password'          => '12345678',
-                'is_administrative' => 1,
+                'password'          => '32345678',
+                'is_administrative' => 3,
                 'center_id'         => 3,
             ],
             [
                 'name'              => 'عبد الرحمن محمد الشافعي',
                 'email'             => 'shafei@markaz.com',
                 'role'              => 'teacher',
-                'password'          => '12345678',
+                'password'          => '32345678',
                 'is_administrative' => 0,
                 'center_id'         => 3,
             ],
@@ -118,7 +118,7 @@ class StaffSeeder extends Seeder
                 'name'              => 'يوسف طارق الباز',
                 'email'             => 'youssef.baz@markaz.com',
                 'role'              => 'teacher',
-                'password'          => '12345678',
+                'password'          => '32345678',
                 'is_administrative' => 0,
                 'center_id'         => 3,
             ],
@@ -126,14 +126,14 @@ class StaffSeeder extends Seeder
                 'name'              => 'بلال عوض القرشي',
                 'email'             => 'belal.qurashi@markaz.com',
                 'role'              => 'teacher',
-                'password'          => '12345678',
+                'password'          => '32345678',
                 'is_administrative' => 0,
                 'center_id'         => 3,
             ]
         ];
 
         foreach ($staffMembers as $member) {
-            // 1. إنشاء أو تحديث بيانات المستخدم الأساسية وربطه بفرعه الصحيح
+            // 3. إنشاء أو تحديث بيانات المستخدم الأساسية وربطه بفرعه الصحيح
             $user = User::updateOrCreate(
                 ['email' => $member['email']],
                 [

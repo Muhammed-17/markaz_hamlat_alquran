@@ -55,9 +55,10 @@ class CenterScope implements Scope
             if (!$circleIds->isEmpty()) {
                 $nestedQuery->orWhere(function ($q) use ($table, $circleIds) {
                     match ($table) {
-                        'circles' => $q->whereIn('id', $circleIds),
-                        'students' => $q->whereIn('circle_id', $circleIds),
-                        'subscriptions', 'attendances' => $q->whereIn('student_id', function ($sub) use ($circleIds) {
+                        'circles'       => $q->whereIn('id', $circleIds),
+                        'students'      => $q->whereIn('circle_id', $circleIds),
+                        'subscriptions' => $q->whereIn('circle_id', $circleIds), // ✅
+                        'attendances'   => $q->whereIn('student_id', function ($sub) use ($circleIds) {
                             $sub->select('id')->from('students')->whereIn('circle_id', $circleIds);
                         }),
                         default => null,
@@ -87,7 +88,13 @@ class CenterScope implements Scope
 
             'students', 'teachers' => $builder->where("{$table}.center_id", $teacher->center_id),
 
-            'subscriptions', 'attendances' => $builder->whereIn('student_id', function ($sub) use ($teacher) {
+            // ✅ الاشتراكات بـ circle_id مباشرة
+            'subscriptions' => $builder->whereIn('circle_id', function ($sub) use ($teacher) {
+                $sub->select('id')->from('circles')->where('center_id', $teacher->center_id);
+            }),
+
+            // ✅ الحضور بـ student_id
+            'attendances' => $builder->whereIn('student_id', function ($sub) use ($teacher) {
                 $sub->select('id')->from('students')->where('center_id', $teacher->center_id);
             }),
 
@@ -126,15 +133,22 @@ class CenterScope implements Scope
             return;
         }
 
+        // ✅ للاشتراكات نفلتر بـ circle_id مباشرة مش student_id
+        if ($table === 'subscriptions') {
+            $builder->whereIn('circle_id', $circleIds);
+            return;
+        }
+
         $this->applyScopeByCircleIds($builder, $table, $circleIds);
     }
 
     private function applyScopeByCircleIds(Builder $builder, string $table, Collection|array $circleIds): void
     {
         match ($table) {
-            'circles' => $builder->whereIn('id', $circleIds),
-            'students' => $builder->whereIn('circle_id', $circleIds),
-            'subscriptions', 'attendances' => $builder->whereIn('student_id', function ($sub) use ($circleIds) {
+            'circles'       => $builder->whereIn('id', $circleIds),
+            'students'      => $builder->whereIn('circle_id', $circleIds),
+            'subscriptions' => $builder->whereIn('circle_id', $circleIds), // ✅
+            'attendances'   => $builder->whereIn('student_id', function ($sub) use ($circleIds) {
                 $sub->select('id')->from('students')->whereIn('circle_id', $circleIds);
             }),
             default => null,
@@ -169,7 +183,6 @@ class CenterScope implements Scope
                         ->where('teacher_id', $teacher->id)
                         ->where('role', 'supervisor');
                 })
-                ->where('is_active', true)
                 ->pluck('id');
         }
         return self::$circleIdsCache[$cacheKey];
@@ -187,7 +200,6 @@ class CenterScope implements Scope
                         ->whereIn('role', ['main', 'assistant']);
                 })
                 ->where('center_id', $teacher->center_id)
-                ->where('is_active', true)
                 ->pluck('id');
         }
         return self::$circleIdsCache[$cacheKey];

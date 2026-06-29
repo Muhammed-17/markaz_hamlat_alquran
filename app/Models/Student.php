@@ -57,7 +57,7 @@ use App\Models\Scopes\CenterScope;
  * @property string|null $decision
  * @property float|null $subscription_fees
  * @property string|null $received_tools
- * * @property-read \Illuminate\Database\Eloquent\Collection<int, Attendance> $attendances
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, Attendance> $attendances
  * @property-read int|null $attendances_count
  * @property-read \App\Models\Center|null $center
  * @property-read Circle|null $circle
@@ -186,6 +186,18 @@ class Student extends Model
     public function ibdaDetail()
     {
         return $this->hasOne(StudentIbdaDetail::class, 'student_id');
+    }
+
+    // ==========================================
+    // خصائص مساعدة (Helpers)
+    // ==========================================
+
+    /**
+     * المعلم الرئيسي للحلقة (أول معلم رئيسي)
+     */
+    public function mainTeacher(): ?Teacher
+    {
+        return $this->circle?->mainTeachers?->first();
     }
 
     // ==========================================

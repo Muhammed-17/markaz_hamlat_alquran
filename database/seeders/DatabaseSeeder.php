@@ -9,17 +9,15 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->call([
+            CenterSeeder::class,
             PermissionSeeder::class,
             RoleSeeder::class,
-            // ⚠️ RolePermissionSeeder لم يعد يُستدعى هنا عمداً: كان يُشغَّل بعد
-            // PermissionSeeder ويستبدل صلاحيات supervisor/teacher/guardian
-            // بقوائم مختصرة متعارضة (مثلاً يحذف 'create students' و
-            // 'create attendance' من supervisor). راجع التعليق أعلى الملف
-            // نفسه لتفاصيل أكثر. PermissionSeeder هو المصدر الوحيد الآن.
             SubscriptionPriceSeeder::class,
             AdminUserSeeder::class,
-            StaffSeeder::class,
+            TeacherSeeder::class,
             StudentSeeder::class,
+            SubscriptionSeeder::class,
+            LateStudentsSeeder::class,
         ]);
     }
 }

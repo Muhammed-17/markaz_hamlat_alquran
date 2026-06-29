@@ -144,8 +144,11 @@ $canManageAll = auth()->user()->hasRole(['admin', 'general_manager']);
                 class="w-full px-4 py-3 bg-gray-50 border border-gray-200 focus:bg-white focus:ring-2 focus:ring-emerald-100 focus:border-[#0a5c36] rounded-2xl outline-none transition-all appearance-none">
                 <option value="">-- اختر المعلم --</option>
                 @foreach($teachers as $teacher)
+                @php
+                $selectedTeacherId = old('teacher_id', $circle->mainTeachers->first()?->id ?? '');
+                @endphp
                 <option value="{{ $teacher->id }}"
-                    {{ old('teacher_id', $circle->mainTeacher->first()?->id ?? '') == $teacher->id ? 'selected' : '' }}>
+                    {{ $selectedTeacherId == $teacher->id ? 'selected' : '' }}>
                     {{ $teacher->name }} ({{ $teacher->center->name }})
                 </option>
                 @endforeach
@@ -160,8 +163,11 @@ $canManageAll = auth()->user()->hasRole(['admin', 'general_manager']);
                 class="w-full px-4 py-3 bg-gray-50 border border-gray-200 focus:bg-white focus:ring-2 focus:ring-emerald-100 focus:border-[#0a5c36] rounded-2xl outline-none transition-all appearance-none">
                 <option value="">-- اختر المعلم المساعد --</option>
                 @foreach($teachers as $teacher)
+                @php
+                $selectedAssistantId = old('assistant_teacher_id', $circle->assistantTeachers->first()?->id ?? '');
+                @endphp
                 <option value="{{ $teacher->id }}"
-                    {{ old('assistant_teacher_id', $circle->assistantTeacher->first()?->id ?? '') == $teacher->id ? 'selected' : '' }}>
+                    {{ $selectedAssistantId == $teacher->id ? 'selected' : '' }}>
                     {{ $teacher->name }} ({{ $teacher->center->name }})
                 </option>
                 @endforeach

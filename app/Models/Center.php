@@ -21,4 +21,9 @@ use Illuminate\Database\Eloquent\Model;
 class Center extends Model
 {
     protected $fillable = ['name'];
+
+    public function circles(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(Circle::class);
+    }
 }

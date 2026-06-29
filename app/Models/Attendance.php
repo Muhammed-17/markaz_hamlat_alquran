@@ -1,65 +1,107 @@
 <?php
 
-
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\Permission\Traits\HasRoles;
 
-/**
- * @property int $id
- * @property int $student_id
- * @property \Illuminate\Support\Carbon $date
- * @property string $status
- * @property string|null $notes
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
- * @property int|null $user_id
- * @property-read \Illuminate\Database\Eloquent\Collection<int, \Spatie\Permission\Models\Permission> $permissions
- * @property-read int|null $permissions_count
- * @property-read \Illuminate\Database\Eloquent\Collection<int, \Spatie\Permission\Models\Role> $roles
- * @property-read int|null $roles_count
- * @property-read \App\Models\Student $student
- * @property-read \App\Models\User|null $user
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Attendance newModelQuery()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Attendance newQuery()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Attendance permission($permissions, $without = false)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Attendance query()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Attendance role($roles, $guard = null, $without = false)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Attendance whereCreatedAt($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Attendance whereDate($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Attendance whereId($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Attendance whereNotes($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Attendance whereStatus($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Attendance whereStudentId($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Attendance whereUpdatedAt($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Attendance whereUserId($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Attendance withoutPermission($permissions)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Attendance withoutRole($roles, $guard = null)
- * @mixin \Eloquent
- */
 class Attendance extends Model
 {
-    use HasRoles;
+    use HasFactory, HasRoles, SoftDeletes;
+
     protected $fillable = ['student_id', 'date', 'status', 'notes', 'user_id'];
 
     protected $casts = [
         'date' => 'date',
+        'deleted_at' => 'datetime',
     ];
+
     protected static function booted(): void
     {
         static::addGlobalScope(new \App\Models\Scopes\CenterScope());
     }
 
-    // علاقة: الحضور ← طالبه
     public function student()
     {
         return $this->belongsTo(Student::class);
     }
 
-    // علاقة: الحضور ← المستخدم الذي سجله
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    // Scope: Present only
+    public function scopePresent($query)
+    {
+        return $query->where('status', 'present');
+    }
+
+    // Scope: Absent only
+    public function scopeAbsent($query)
+    {
+        return $query->where('status', 'absent');
+    }
+
+    // Scope: Late only
+    public function scopeLate($query)
+    {
+        return $query->where('status', 'late');
+    }
+
+    // Scope: Excused only
+    public function scopeExcused($query)
+    {
+        return $query->where('status', 'excused');
+    }
+
+    // Scope: Date range
+    public function scopeBetweenDates($query, $start, $end)
+    {
+        return $query->whereBetween('date', [$start, $end]);
+    }
+
+    // Scope: For specific student
+    public function scopeForStudent($query, $studentId)
+    {
+        return $query->where('student_id', $studentId);
+    }
+
+    // Accessor: Status label in Arabic
+    public function getStatusLabelAttribute(): string
+    {
+        return match ($this->status) {
+            'present' => 'حاضر',
+            'absent' => 'غائب',
+            'late' => 'متأخر',
+            'excused' => 'بعذر',
+            default => $this->status,
+        };
+    }
+
+    // Accessor: Status color
+    public function getStatusColorAttribute(): string
+    {
+        return match ($this->status) {
+            'present' => 'green',
+            'absent' => 'red',
+            'late' => 'yellow',
+            'excused' => 'blue',
+            default => 'gray',
+        };
+    }
+
+    // Accessor: Status icon
+    public function getStatusIconAttribute(): string
+    {
+        return match ($this->status) {
+            'present' => 'check-circle',
+            'absent' => 'x-circle',
+            'late' => 'clock',
+            'excused' => 'document-text',
+            default => 'question-mark',
+        };
     }
 }

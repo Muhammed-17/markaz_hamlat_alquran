@@ -4,6 +4,8 @@
         window.__csrf = '{{ csrf_token() }}';
         window.__notifyUrl = '{{ route('attendance.sequential-absences.notify', '__ID__') }}';
         window.__toggleUrl = '{{ route('attendance.sequential-absences.toggle-contact', '__ID__') }}';
+        // window.__notifyUrl = '{{ route('attendance.sequential-absences.notify', '__ID__') }}';
+        // window.__toggleUrl = '{{ route('attendance.sequential-absences.toggle-contact', '__ID__') }}';
     </script>
     <div class="max-w-6xl mx-auto"
         x-data="{
@@ -97,14 +99,14 @@
                      this.sendingIds = this.sendingIds.filter(id => id !== studentId);
                  }
              },
-             async toggleContact(studentId) {
-                 if (this.togglingIds.includes(studentId)) return;
-                 this.togglingIds.push(studentId);
-                 try {
-                      const res = await fetch(this.toggleUrl.replace('__ID__', studentId), {
-                         method: 'POST',
-                         headers: { 'X-CSRF-TOKEN': this.csrfToken, 'X-HTTP-Method-Override': 'PATCH', 'Accept': 'application/json', 'Content-Type': 'application/json' },
-                     });
+async toggleContact(studentId) {
+    if (this.togglingIds.includes(studentId)) return;
+    this.togglingIds.push(studentId);
+    try {
+         const res = await fetch(this.toggleUrl.replace('__ID__', studentId), {
+            method: 'POST',
+            headers: { 'X-CSRF-TOKEN': this.csrfToken, 'Accept': 'application/json', 'Content-Type': 'application/json' },
+        });
                      const data = await res.json();
                      if (res.ok) {
                          this.showToast(data.message, 'success');
@@ -165,8 +167,8 @@
                 <span class="text-sm text-gray-500">طالب متطابق مع نمط الغياب المتتالي</span>
             </div>
             <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                <span class="block text-2xl font-bold text-red-600">{{ $students->sum('absence_days') }}</span>
-                <span class="text-sm text-gray-500">إجمالي أيام الغياب</span>
+                <span class="block text-2xl font-bold text-amber-600">{{ $students->where('is_guardian_contacted', false)->count() }}</span>
+                <span class="text-sm text-gray-500">بانتظار التواصل مع ولي الأمر</span>
             </div>
             <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
                 <span class="block text-2xl font-bold text-emerald-600">{{ $students->avg('absence_days') ? number_format($students->avg('absence_days'), 1) : 0 }}</span>
@@ -212,18 +214,10 @@
                                     <span class="font-medium text-gray-800" x-text="student.name"></span>
                                 </td>
                                 <td class="px-4 py-3 text-gray-600" x-text="student.circle?.name || '—'"></td>
-                                <td class="px-4 py-3 text-gray-600" x-text="student.circle?.supervisor?.name || student.circle?.main_teacher?.name || '—'"></td>
+                                <td class="px-4 py-3 text-gray-600" x-text="student.circle?.supervisors?.[0]?.name || student.circle?.main_teachers?.[0]?.name || '—'"></td>
                                 <td class="px-4 py-3 text-center">
                                     <span class="inline-block bg-red-100 text-red-700 text-xs px-3 py-1 rounded-full font-bold" x-text="student.absence_days"></span>
                                 </td>
-                                <!-- <td class="px-4 py-3 text-center">
-                                    <span class="inline-flex items-center gap-1 bg-red-50 text-red-600 text-xs px-3 py-1 rounded-full border border-red-100">
-                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                                        </svg>
-                                        نمط متتال
-                                    </span>
-                                </td> -->
                                 <td class="px-4 py-3 text-center">
                                     <button @click="openNotifyModal(student.id)"
                                         :disabled="sendingIds.includes(student.id)"
@@ -240,16 +234,16 @@
                                     </button>
                                 </td>
                                 <td class="px-4 py-3 text-center">
-                                    <button @click="toggleContact(student.id)"
-                                        :disabled="togglingIds.includes(student.id)"
-                                        class="relative inline-flex items-center h-6 w-11 rounded-full transition-colors duration-200 focus:outline-none"
-                                        :class="student.is_guardian_contacted ? 'bg-emerald-500' : 'bg-gray-200'">
-                                        <span class="inline-block w-4 h-4 transform rounded-full bg-white shadow-sm transition-transform duration-200"
-                                            :class="student.is_guardian_contacted ? 'translate-x-6' : 'translate-x-1'"></span>
-                                    </button>
-                                    <span class="block text-xs mt-1"
-                                        :class="student.is_guardian_contacted ? 'text-emerald-600' : 'text-gray-400'"
-                                        x-text="student.is_guardian_contacted ? 'تم التواصل' : 'لم يتم'"></span>
+                                    <label class="inline-flex items-center gap-2 cursor-pointer">
+                                        <input type="checkbox"
+                                            :checked="student.is_guardian_contacted"
+                                            @change="toggleContact(student.id)"
+                                            :disabled="togglingIds.includes(student.id)"
+                                            class="w-5 h-5 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 focus:ring-offset-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed accent-emerald-600">
+                                        <span class="text-xs"
+                                            :class="student.is_guardian_contacted ? 'text-emerald-600' : 'text-gray-400'"
+                                            x-text="student.is_guardian_contacted ? 'تم التواصل' : 'لم يتم'"></span>
+                                    </label>
                                 </td>
                             </tr>
                         </template>

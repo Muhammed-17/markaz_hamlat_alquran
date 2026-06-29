@@ -216,6 +216,15 @@ class StudentController extends Controller
             }
 
             $student = Student::create($studentData);
+            if ($student->circle_id) {
+                \App\Models\CircleAssignmentHistory::create([
+                    'student_id' => $student->id,
+                    'circle_id'  => $student->circle_id,
+                    'from_date'  => $student->join_date ?? now(),
+                    'to_date'    => null,
+                ]);
+            }
+
             $this->syncDetailRecord($student, $data, 'create');
 
             // ✅ مزامنة حالة ولي الأمر
@@ -257,7 +266,8 @@ class StudentController extends Controller
         $this->authorizeStudentCenter($student);
 
         $student->load([
-            'circle.mainTeacher',
+            'circle.mainTeachers',        // ✅ صحيح: العلاقة BelongsToMany
+            'circle.assistantTeachers',   // ✅ إذا كنت تحتاجها
             'guardian',
             'attendances',
             'subscriptions',
@@ -386,7 +396,16 @@ class StudentController extends Controller
                 }
             }
 
+            // ✅ حفظ الحلقة القديمة قبل التحديث لمقارنتها بعده
+            $oldCircleId = $student->circle_id;
+
             $student->update($studentData);
+
+            // ✅ تسجيل انتقال الحلقة في جدول التاريخ إذا تغيّرت فعليًا
+            if (isset($studentData['circle_id']) && $studentData['circle_id'] != $oldCircleId) {
+                \App\Models\CircleAssignmentHistory::openNewFor($student->id, $studentData['circle_id']);
+            }
+
             $this->syncDetailRecord($student, $data, 'update');
 
             // ✅ مزامنة حالة ولي الأمر
@@ -404,7 +423,6 @@ class StudentController extends Controller
             return redirect()->back()->with('error', 'حدث خطأ: ' . $e->getMessage())->withInput();
         }
     }
-
     // ─────────────────────────────────────────
     public function destroy($id)
     {
@@ -560,8 +578,9 @@ class StudentController extends Controller
 
         if ($entryLevel === 'construction' && !empty($data['group_name'])) {
             $circle = Circle::where('name', $data['group_name'])->first();
-            if ($circle && auth()->user()->can('assign student to circle')) {
+            if ($circle && auth()->user()->can('assign student to circle') && $student->circle_id != $circle->id) {
                 $student->update(['circle_id' => $circle->id]);
+                \App\Models\CircleAssignmentHistory::openNewFor($student->id, $circle->id);
             }
         }
 

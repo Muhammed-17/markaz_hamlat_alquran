@@ -1,28 +1,71 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\AttendanceController;
 
 Route::middleware(['auth', 'verified'])->group(function () {
 
+    // ✅ الـ routes الثابتة أولاً (قبل أي {parameter})
+    Route::middleware('permission:view attendance')->group(function () {
+        Route::get('/attendance/sequential-absences', 'App\Http\Controllers\AttendanceController@sequentialAbsences')
+            ->name('attendance.sequential-absences');
+    });
+
+    Route::middleware('permission:notify attendance')->group(function () {
+        Route::post(
+            '/attendance/sequential-absences/{student}/notify',
+            'App\Http\Controllers\AttendanceController@notifyStudent'
+        )
+            ->name('attendance.sequential-absences.notify');
+
+        Route::post(
+            '/attendance/sequential-absences/{student}/toggle-contact',
+            'App\Http\Controllers\AttendanceController@toggleContact'
+        )
+            ->name('attendance.sequential-absences.toggle-contact');
+    });
+
+    Route::middleware('permission:view reports')->group(function () {
+        Route::get('/attendance/report', 'App\Http\Controllers\AttendanceController@report')
+            ->name('attendance.report');
+    });
+
+    Route::middleware('permission:export data')->group(function () {
+        Route::get('/attendance/export/excel', 'App\Http\Controllers\AttendanceController@export')
+            ->name('attendance.export.excel');
+        Route::get('/attendance/export/monthly', 'App\Http\Controllers\AttendanceController@exportMonthly')
+            ->name('attendance.export.monthly');
+        Route::get('/attendance/export/pdf', 'App\Http\Controllers\AttendanceController@pdfReport')
+            ->name('attendance.export.pdf');
+    });
+
     Route::middleware('permission:create attendance')->group(function () {
-        Route::get('/attendance/create', [AttendanceController::class, 'create'])->name('attendance.create');
-        Route::post('/attendance', [AttendanceController::class, 'store'])->name('attendance.store');
+        Route::get('/attendance/create', 'App\Http\Controllers\AttendanceController@create')
+            ->name('attendance.create');
+        Route::post('/attendance', 'App\Http\Controllers\AttendanceController@store')
+            ->name('attendance.store');
     });
 
     Route::middleware('permission:edit attendance')->group(function () {
-        Route::get('/attendance/{attendance}/edit', [AttendanceController::class, 'edit'])->name('attendance.edit');
-        Route::put('/attendance/{attendance}', [AttendanceController::class, 'update'])->name('attendance.update');
+        Route::get('/attendance/{attendance}/edit', 'App\Http\Controllers\AttendanceController@edit')
+            ->name('attendance.edit');
+        Route::put('/attendance/{attendance}', 'App\Http\Controllers\AttendanceController@update')
+            ->name('attendance.update');
+    });
+    Route::middleware('permission:delete attendance')->group(function () {
+        Route::delete('/attendance/{attendance}', 'App\Http\Controllers\AttendanceController@destroy')
+            ->name('attendance.destroy');
     });
 
+    // ✅ الـ {attendance} parameter في الآخر دائماً
     Route::middleware('permission:view attendance')->group(function () {
-        Route::get('/attendance/sequential-absences', [AttendanceController::class, 'sequentialAbsences'])->name('attendance.sequential-absences');
-        Route::get('/attendance/report', [AttendanceController::class, 'report'])->name('attendance.report');
-        Route::get('/attendance', [AttendanceController::class, 'index'])->name('attendance.index');
-        Route::get('/attendance/{attendance}', [AttendanceController::class, 'show'])->name('attendance.show');
+        Route::get('/attendance', 'App\Http\Controllers\AttendanceController@index')
+            ->name('attendance.index');
+        Route::get('/attendance/{attendance}', 'App\Http\Controllers\AttendanceController@show')
+            ->name('attendance.show');
     });
 
     Route::middleware('permission:view own attendance')->group(function () {
-        Route::get('/my-attendance', [AttendanceController::class, 'myAttendance'])->name('attendance.own');
+        Route::get('/my-attendance', 'App\Http\Controllers\AttendanceController@myAttendance')
+            ->name('attendance.own');
     });
 });

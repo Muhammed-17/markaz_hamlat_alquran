@@ -108,20 +108,27 @@
                     اشتراكات الطلاب
                 </a>
                 @endcan
-
-                @can('view notifications')
-                <a href="{{ route('notifications.index') }}"
-                    class="block px-4 py-2 rounded-lg {{ request()->routeIs('notifications.*') ? 'bg-[#0d7a48]' : 'hover:bg-[#0d7a48]' }}">
+                <!-- @can('view subscription deliveries') -->
+                <a href="{{ route('subscription-deliveries.index') }}"
+                    class="block px-4 py-2 rounded-lg {{ request()->routeIs('subscription-deliveries.*') ? 'bg-[#0d7a48]' : 'hover:bg-[#0d7a48]' }}">
                     <div class="flex items-center justify-between">
-                        <span>الإشعارات</span>
-                        @php $unreadCount = auth()->user()->unreadNotifications()->count(); @endphp
-                        @if ($unreadCount > 0)
-                        <span class="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">{{ $unreadCount }}</span>
+                        <span>تسليم الاشتراكات</span>
+                        @php
+                        $pendingDeliveries = \App\Models\SubscriptionDelivery::where('confirmed_by_admin', false)
+                        ->whereNotNull('delivered_at') // تم التسليم فعلياً
+                        ->when(!auth()->user()->hasRole(['admin', 'general_manager']), function($q) {
+                        $q->whereHas('circle', function($cq) {
+                        $cq->whereHas('supervisors', fn($sq) => $sq->where('teacher_id', auth()->id()));
+                        });
+                        })
+                        ->count();
+                        @endphp
+                        @if ($pendingDeliveries > 0)
+                        <span class="bg-amber-500 text-white text-xs px-2 py-0.5 rounded-full">{{ $pendingDeliveries }}</span>
                         @endif
                     </div>
                 </a>
-                @endcan
-
+                <!-- @endcan -->
                 @canany(['view settings', 'manage roles', 'view centers', 'view subscription prices'])
                 <div x-data="{ open: {{ (request()->routeIs('subscription-prices.*') || request()->routeIs('centers.*') || request()->routeIs('profile.*') || request()->routeIs('admin.settings.*') || request()->routeIs('admin.roles.*')) ? 'true' : 'false' }} }" class="space-y-1">
                     <button @click="open = !open"
@@ -173,7 +180,7 @@
                             الماليات
                         </a>
                         @endif
-                        
+
                         @can('manage roles')
                         <a href="{{ route('admin.roles.index') }}"
                             class="block px-4 py-2 rounded-lg text-[13px] {{ request()->routeIs('admin.roles.*') ? 'bg-[#0d7a48] font-bold' : 'hover:bg-[#0d7a48]' }}">
@@ -235,57 +242,19 @@
 
     {{-- SweetAlert2 عام لكل الصفحات --}}
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script>
-        function confirmLogout() {
-            Swal.fire({
-                title: 'تسجيل الخروج',
-                text: 'هل أنت متأكد من رغبتك في تسجيل الخروج؟',
-                icon: 'question',
-                showCancelButton: true,
-                confirmButtonColor: '#dc2626',
-                cancelButtonColor: '#6b7280',
-                confirmButtonText: 'نعم، خروج',
-                cancelButtonText: 'إلغاء',
-                reverseButtons: true,
-                customClass: {
-                    popup: 'rounded-3xl font-bold',
-                    confirmButton: 'rounded-xl px-6 py-2.5 text-sm',
-                    cancelButton: 'rounded-xl px-6 py-2.5 text-sm',
-                }
-            }).then(result => {
-                if (result.isConfirmed) {
-                    document.getElementById('logout-form').submit();
-                }
-            });
-        }
 
+    @vite(['resources/js/confirm-logout.js', 'resources/js/confirm-delete.js', 'resources/js/confirm-success.js'])
+
+    <script>
         @if(session('success'))
-        Swal.fire({
-            icon: 'success',
-            title: 'تم بنجاح',
-            text: "{{ session('success') }}",
-            confirmButtonColor: '#0a5c36',
-            confirmButtonText: 'حسناً',
-            timer: 3000,
-            timerProgressBar: true,
-            customClass: {
-                popup: 'rounded-3xl font-bold',
-                confirmButton: 'rounded-xl px-6 py-2.5 text-sm',
-            }
+        document.addEventListener('DOMContentLoaded', () => {
+            showSuccess("{{ session('success') }}");
         });
         @endif
 
         @if(session('error'))
-        Swal.fire({
-            icon: 'error',
-            title: 'خطأ',
-            text: "{{ session('error') }}",
-            confirmButtonColor: '#dc2626',
-            confirmButtonText: 'حسناً',
-            customClass: {
-                popup: 'rounded-3xl font-bold',
-                confirmButton: 'rounded-xl px-6 py-2.5 text-sm',
-            }
+        document.addEventListener('DOMContentLoaded', () => {
+            showError("{{ session('error') }}");
         });
         @endif
     </script>

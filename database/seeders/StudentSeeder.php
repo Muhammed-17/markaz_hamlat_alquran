@@ -13,31 +13,28 @@ class StudentSeeder extends Seeder
 {
     public function run(): void
     {
-        // 0. التأكد من وجود مركز افتراضي بدل افتراض center_id=1 ثابتاً
-        //    (كان هذا يفشل بصمت أو يربط بيانات بمركز غير موجود في بيئة فارغة)
-        $center = Center::firstOrCreate(
-            ['name' => 'المركز الرئيسي'],
-        );
+        // استبدل السطر الخاص بـ $center في الخطوة 1 بهذا الكود النظيف:
+        $center = Center::where('name', 'العواسجة')->first()
+            ?? Center::where('name', 'الرئيسي')->first();
 
-        // 1. التأكد من وجود الحلقة وتوافق حقولها
-        //    ملاحظة: max_students و center_id أعمدة إلزامية (NOT NULL) في الجدول
-        //    ولم تكن موجودة هنا، ما يسبب خطأ SQL عند الإدراج.
+        // 2. التأكد من وجود الحلقة وربطها بالفرع المجلوب
         $circle = Circle::updateOrCreate(
             ['name' => 'حلقة أبو بكر الصديق'],
             [
                 'type' => 'group',
                 'level' => 'build',
-                'is_active' => true,
-                'center_id' => $center->id,
+                'center_id' => $center->id, // سيرتبط بفرع العواسجة تلقائياً
             ]
         );
 
-        // 2. التأكد من وجود ولي الأمر
+        // 3. التأكد من وجود ولي الأمر وربطه بنفس الفرع لسلامة القيود
         $guardian = User::updateOrCreate(
             ['email' => 'mohamed@markaz.com'],
             [
                 'name' => "محمد السيد الشعراوي",
                 'password' => Hash::make('12345678'),
+                'status' => 'active',
+                'center_id' => $center->id,
             ]
         );
 
@@ -45,7 +42,7 @@ class StudentSeeder extends Seeder
             $guardian->syncRoles(['guardian']);
         }
 
-        // 3. مصفوفة الطلاب ببيانات متوافقة تماماً مع الـ Schema الواقعية لديك
+        // 4. مصفوفة الطلاب
         $students = [
             ['name' => 'محمد أحمد الصالح', 'gender' => 'ذكر', 'status' => 'متوقف', 'stage' => 'ابتدائي', 'grade' => 'الأول'],
             ['name' => 'عبدالرحمن علي يوسف', 'gender' => 'ذكر', 'status' => 'مقيد', 'stage' => 'ابتدائي', 'grade' => 'الثاني'],
@@ -60,7 +57,6 @@ class StudentSeeder extends Seeder
         ];
 
         foreach ($students as $index => $data) {
-            // توليد كود طالب افتراضي يشبه نظامك STU-2026-0000X
             $studentCode = 'STU-' . now()->year . '-' . str_pad($index + 1, 5, '0', STR_PAD_LEFT);
 
             Student::updateOrCreate(
@@ -79,7 +75,7 @@ class StudentSeeder extends Seeder
                     'join_date' => now()->toDateString(),
                     'student_code' => $studentCode,
                     'decision' => 'تحت الاختبار',
-                    'center_id' => $center->id,
+                    'center_id' => $center->id, // هنا تم الربط بالفرع المجلوب بأمان
                     'supervisor_id' => null,
                     'applicant' => 'الطالب',
                     'health_status' => 'طبيعية',
@@ -90,6 +86,6 @@ class StudentSeeder extends Seeder
             );
         }
 
-        $this->command->info('✅ تم إضافة وتحديث الطلاب بنجاح وتوافق تام مع قاعدة البيانات.');
+        $this->command->info('✅ تم ربط الطلاب بفرعهم الصحيح دون تكرار إنشاء فروع جديدة.');
     }
 }

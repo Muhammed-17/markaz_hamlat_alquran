@@ -75,6 +75,8 @@ class PermissionSeeder extends Seeder
             'view attendance'             => ['عرض سجلات الحضور', 'attendance'],
             'create attendance'           => ['تسجيل حضور وغياب', 'attendance'],
             'edit attendance'             => ['تعديل الحضور والغياب', 'attendance'],
+            'delete attendance'           => ['حذف الحضور والغياب', 'attendance'],
+            'notify attendance'           => ['إشعار أولياء الأمور بالغياب', 'attendance'],
             'view own attendance'         => ['عرض حضور الأبناء الشخصي', 'attendance'],
 
             // ─────────────────────────────────────────────────────────
@@ -82,12 +84,16 @@ class PermissionSeeder extends Seeder
             // ─────────────────────────────────────────────────────────
             'view subscriptions'          => ['عرض الاشتراكات والمدفوعات', 'subscriptions'],
             'create subscriptions'         => ['تسجيل دفع اشتراك', 'subscriptions'],
-            'edit subscriptions'           => ['تعديل سندات الاشتراكات', 'subscriptions'],
+            'delete subscriptions'         => ['حذف سندات الاشتراكات', 'subscriptions'],
+            'view subscriptions chart'    => ['عرض رسوم الاشتراكات', 'subscriptions'],
             'manage subscription prices'  => ['إدارة وتحديد أسعار الاشتراكات', 'subscriptions'],
             'view subscription prices'    => ['عرض أسعار الاشتراكات', 'subscriptions'],
-            'view subscriptions chart'    => ['عرض إحصائيات الرسوم والاشتراكات', 'subscriptions'],
             'view own subscriptions'      => ['عرض مدفوعات الأبناء الشخصية', 'subscriptions'],
 
+            // ─────────────────────────────────────────────────────────
+            // الاشتراكات والمالية (subscriptions deliveries)
+            // ─────────────────────────────────────────────────────────
+            'view subscription deliveries' => ['عرض سندات الاشتراكات', 'subscriptions deliveries'],
             // ─────────────────────────────────────────────────────────
             // أولياء الأمور والأبناء (guardians)
             // ─────────────────────────────────────────────────────────
@@ -122,16 +128,19 @@ class PermissionSeeder extends Seeder
                 'manage roles',
                 'view centers',
                 'manage centers',
+                //!  circles
                 'view circles',
                 'create circles',
                 'edit circles',
                 'delete circles',
                 'manage circle teachers',
+                //! teachers
                 'view teachers',
                 'create teachers',
                 'edit teachers',
                 'delete teachers',
                 'toggle teacher status',
+                //! students
                 'view students',
                 'create students',
                 'edit students',
@@ -141,12 +150,15 @@ class PermissionSeeder extends Seeder
                 'view attendance',
                 'create attendance',
                 'edit attendance',
+                'delete attendance',
+                'notify attendance',
                 'view subscriptions',
                 'create subscriptions',
-                'edit subscriptions',
+                'delete subscriptions',
                 'manage subscription prices',
                 'view subscription prices',
-                'view subscriptions chart'
+                'view subscriptions chart',
+                'view subscription deliveries'
             ],
 
             'general_manager' => [
@@ -158,15 +170,9 @@ class PermissionSeeder extends Seeder
                 'view users',
                 'view centers',
                 'view circles',
-                'create circles',
                 'edit circles',
-                'delete circles',
                 'manage circle teachers',
                 'view teachers',
-                'create teachers',
-                'edit teachers',
-                'delete teachers',
-                'toggle teacher status',
                 'view students',
                 'create students',
                 'edit students',
@@ -176,11 +182,14 @@ class PermissionSeeder extends Seeder
                 'view attendance',
                 'create attendance',
                 'edit attendance',
+                'delete attendance',
+                'notify attendance',
                 'view subscriptions',
                 'create subscriptions',
-                'edit subscriptions',
+                'delete subscriptions',
                 'view subscription prices',
-                'view subscriptions chart'
+                'view subscriptions chart',
+                'view subscription deliveries'
             ],
 
             'manager' => [
@@ -190,15 +199,9 @@ class PermissionSeeder extends Seeder
                 'edit profile',
                 'view centers',
                 'view circles',
-                'create circles',
                 'edit circles',
-                'delete circles',
                 'manage circle teachers',
                 'view teachers',
-                'create teachers',
-                'edit teachers',
-                'delete teachers',
-                'toggle teacher status',
                 'view students',
                 'create students',
                 'edit students',
@@ -208,11 +211,14 @@ class PermissionSeeder extends Seeder
                 'view attendance',
                 'create attendance',
                 'edit attendance',
+                'delete attendance',
+                'notify attendance',
                 'view subscriptions',
                 'create subscriptions',
-                'edit subscriptions',
+                'delete subscriptions',
                 'view subscription prices',
-                'view subscriptions chart'
+                'view subscriptions chart',
+                'view subscription deliveries'
             ],
 
             'supervisor' => [
@@ -220,7 +226,7 @@ class PermissionSeeder extends Seeder
                 'view notifications',
                 'edit profile',
                 'view circles',
-                'view teachers',
+                'edit circles',
                 'view students',
                 'create students',
                 'edit students',
@@ -229,18 +235,21 @@ class PermissionSeeder extends Seeder
                 'create attendance',
                 'edit attendance',
                 'view subscriptions',
-                'view subscription prices'
+                'create subscriptions',
+                'delete subscriptions',
+                'view subscription prices',
+                'view subscription deliveries'
             ],
 
             'teacher' => [
                 'view dashboard',
                 'view notifications',
                 'edit profile',
-                'view circles',
                 'view students',
                 'view attendance',
                 'create attendance',
-                'view subscriptions'
+                'view subscriptions',
+                'create subscriptions',
             ],
 
             'guardian' => [

@@ -143,7 +143,6 @@ class GuardianSearchController extends Controller
             'id'        => $guardian->id,
             'name'      => $guardian->name,
             'mobile'    => $guardian->mobile ?? '',
-            'is_active' => $guardian->status === 'active',
             'status'    => $guardian->status,
         ];
 

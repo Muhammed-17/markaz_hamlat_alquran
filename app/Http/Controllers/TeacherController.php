@@ -22,8 +22,7 @@ class TeacherController extends Controller
     use HasAllowedRoles;
 
     // ─────────────────────────────────────────
-    public function index(Request $request)
-    {
+    public function index(Request $request){
         $this->authorize('viewAny', Teacher::class);
 
         $user    = Auth::user();

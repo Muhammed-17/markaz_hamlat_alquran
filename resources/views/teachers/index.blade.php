@@ -5,7 +5,7 @@ $teachersList = $teachers->map(fn($t) => [
 'email' => $t->user_email ?? '',
 'center' => $t->center?->name ?? '',
 'status' => $t->user_status ?? 'inactive',
-'is_online' => $t->last_seen_at ? \Carbon\Carbon::parse($t->last_seen_at)->diffForHumans() : false,
+'is_online' => $t->last_seen_at ? \Carbon\Carbon::parse($t->last_seen_at)->gt(now()->subMinutes(5)) : false,
 'roles' => $t->user->roles->map(fn($r) => [
 'name' => $r->name,
 'display_name' => $r->display_name ?? $r->name,
@@ -135,37 +135,6 @@ $roleColors = [
                     this.role = '';
                     this.status = '';
                     this.currentPage = 1;
-                },
-
-                confirmDelete(url, name) {
-                    Swal.fire({
-                        title: 'حذف معلم: ' + name,
-                        text: 'سيتم حذف المعلم وحسابه من النظام. لن تتمكن من التراجع!',
-                        icon: 'warning',
-                        showCancelButton: true,
-                        confirmButtonColor: '#dc2626',
-                        cancelButtonColor: '#6b7280',
-                        confirmButtonText: 'نعم، احذف',
-                        cancelButtonText: 'إلغاء',
-                        reverseButtons: true,
-                        customClass: {
-                            popup: 'rounded-3xl font-bold',
-                            confirmButton: 'rounded-xl px-6 py-2.5 text-sm',
-                            cancelButton: 'rounded-xl px-6 py-2.5 text-sm',
-                        }
-                    }).then(result => {
-                        if (result.isConfirmed) {
-                            const form = document.createElement('form');
-                            form.method = 'POST';
-                            form.action = url;
-                            form.innerHTML = `
-                                <input type="hidden" name="_token" value="{{ csrf_token() }}">
-                                <input type="hidden" name="_method" value="DELETE">
-                            `;
-                            document.body.appendChild(form);
-                            form.submit();
-                        }
-                    });
                 },
 
                 async toggleStatus(url) {
@@ -416,7 +385,15 @@ $roleColors = [
                                         </a>
                                     </template>
                                     <template x-if="teacher.delete_url">
-                                        <button type="button" @click="confirmDelete(teacher.delete_url, teacher.name)" class="text-red-400 hover:text-red-600 hover:bg-red-50 p-1.5 rounded-lg transition" title="حذف">
+                                        <button
+                                            type="button"
+                                            @click="confirmDelete($event, { 
+                                                name: teacher.name, 
+                                                type: 'المعلم',
+                                                url: teacher.delete_url 
+                                            })"
+                                            class="text-red-400 hover:text-red-600 hover:bg-red-50 p-1.5 rounded-lg transition"
+                                            title="حذف">
                                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                             </svg>
@@ -458,6 +435,7 @@ $roleColors = [
     {{-- SweetAlert Scripts --}}
     @push('scripts')
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="{{ asset('js/confirm_delete.js') }}"></script>
     <script>
         @if(session('success'))
         document.addEventListener('DOMContentLoaded', () => {

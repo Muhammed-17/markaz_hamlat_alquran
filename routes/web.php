@@ -42,7 +42,6 @@ Route::get('/guardian-dashboard', [DashboardController::class, 'guardianDashboar
 Route::middleware(['auth', 'permission:edit profile'])->group(function () {
     Route::get('/profile',    [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile',  [ProfileController::class, 'update'])->name('profile.update');
-    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
 // ================================================================
@@ -71,6 +70,7 @@ require __DIR__ . '/admin.php';
 require __DIR__ . '/attendance.php';
 require __DIR__ . '/teacher.php';
 require __DIR__ . '/subscription.php';
+require __DIR__ . '/subscription_delivery.php';
 require __DIR__ . '/center.php';
 require __DIR__ . '/guardian_accounts.php';
 require __DIR__ . '/guardian_notification.php';

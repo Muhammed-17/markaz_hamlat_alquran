@@ -1,75 +1,9 @@
-<div class="space-y-6" x-data="{
-    selectedCircle: '{{ old('circle_id', $subscription->circle_id ?? request('circle_id')) }}',
-    selectedStudent: '{{ old('student_id', $subscription->student_id ?? request('student_id')) }}',
-    selectedMonth: '{{ old('month', isset($subscription) ? \Carbon\Carbon::parse($subscription->month)->format('Y-m') : (request('month') ?? date('Y-m'))) }}',
-    amount: {{ old('amount', $subscription->amount ?? 60) }},
-    status: '{{ old('status', $subscription->status ?? 'مدفوع') }}',
-    isSubmitting: false,
-
-    students: {{ Js::from($students) }},
-    circles: {{ Js::from($circles) }},
-    prices: {{ Js::from($prices) }},
-
-    init() {
-        if (this.selectedCircle && this.selectedStudent && !{{ isset($subscription) ? 'true' : 'false' }}) {
-            this.$nextTick(() => {
-                this.updateDefaultAmount();
-            });
-        }
-        this.$watch('status', () => this.applyStatusRules());
-        this.applyStatusRules();
-    },
-
-    get filteredStudents() {
-        if (!this.selectedCircle) return [];
-
-        let filtered = this.students.filter(s => s.circle_id == this.selectedCircle);
-
-        if (!this.selectedMonth) return filtered;
-
-        return filtered.filter(s => {
-            if (s.id == this.selectedStudent) return true;
-
-            const hasSub = s.subscriptions && s.subscriptions.some(sub => sub.month && sub.month.startsWith(this.selectedMonth));
-            return !hasSub;
-        });
-    },
-
-    updateDefaultAmount() {
-        const student = this.students.find(s => s.id == this.selectedStudent);
-
-        if (student) {
-            const eduStage = student.educational_stage ?? '';
-            const circleLevel = student.circle?.level ?? '';
-
-            const priceRule = this.prices.find(p =>
-                p.education_stage == eduStage &&
-                p.circle_level == circleLevel
-            );
-
-            this.amount = priceRule ? priceRule.amount : 60;
-        } else {
-            this.amount = 60;
-        }
-
-        this.applyStatusRules();
-    },
-
-    applyStatusRules() {
-        if (this.status === 'معفي') {
-            this.amount = 0;
-        } else if (this.amount == 0) {
-            this.updateDefaultAmount();
-            }
-    }
-}">
+<div class="space-y-6" x-data="formData()">
     <!-- Header -->
     <div class="bg-[#0b3d2c] rounded-3xl p-8 text-white flex justify-between items-center shadow-xl">
         <div>
-            <h1 class="text-3xl font-black mb-2">{{ isset($subscription) ? 'تعديل الاشتراك' : 'تسجيل اشتراك جديد' }}</h1>
-            <p class="text-emerald-100/80 text-sm font-medium">
-                {{ isset($subscription) ? 'تعديل سجل سداد مالي لطالب في المركز' : 'إضافة سجل سداد مالي لطالب في المركز' }}
-            </p>
+            <h1 class="text-3xl font-black mb-2">تسجيل اشتراك جديد</h1>
+            <p>إضافة سجل سداد مالي لطالب في المركز</p>
         </div>
 
         <a href="{{ route('subscriptions.index') }}"
@@ -83,16 +17,10 @@
     <!-- Form -->
     <div class="bg-white p-10 rounded-[40px] shadow-sm border border-gray-100">
 
-        <form action="{{ isset($subscription) ? route('subscriptions.update', $subscription->id) : route('subscriptions.store') }}"
-            method="POST" @submit="isSubmitting = true" class="max-w-4xl mx-auto space-y-8">
-
+        <form action="{{ route('subscriptions.store') }}" method="POST" @submit="isSubmitting = true" class="max-w-4xl mx-auto space-y-8">
             @csrf
-            @if(isset($subscription))
-            @method('PUT')
-            @endif
-
             <!-- Selected Student Summary -->
-            <div x-show="selectedStudent"
+            <div x-show="selectedStudent || '{{ request('student_id') }}'"
                 class="col-span-1 md:col-span-2 bg-emerald-50 border border-emerald-100 rounded-2xl p-4 flex items-center gap-4 animate-fade-in">
                 <div class="bg-emerald-100 p-3 rounded-full text-emerald-600">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -101,56 +29,97 @@
                     </svg>
                 </div>
                 <div>
-                    <p class="text-sm text-emerald-600 font-bold">
-                        {{ isset($subscription) ? 'يتم تعديل الاشتراك للطالب:' : 'يتم تسجيل الاشتراك للطالب:' }}
+                    <p class="text-sm text-gray-500">
+                        يتم تسجيل الاشتراك للطالب في حلقة:
+                        <span class="font-bold text-emerald-700"
+                            x-text="circles.find(c => c.id == selectedCircle)?.name"></span>
                     </p>
                     <p class="text-lg font-black text-gray-800"
                         x-text="students.find(s => s.id == selectedStudent)?.name"></p>
                 </div>
             </div>
+            {{-- ═══════════════════════════════════════════════════════ --}}
+            {{-- ✅ حقل المعلم - في بداية الـ Form --}}
+            {{-- ═══════════════════════════════════════════════════════ --}}
+            @php
+            $isAdmin = auth()->user()->hasRole(['admin', 'general_manager']);
+            $currentUser = auth()->user();
+            @endphp
+
+            {{-- ✅ للأدمن: قائمة منسدلة بجميع المشرفين والمدراء والمعلمين --}}
+            @if($isAdmin)
+            <div>
+                <label class="block text-gray-700 font-bold mb-2">المعلم / المسؤول</label>
+
+                @php
+                $teacherOptions = $teachers->map(fn($t) => [
+                'value' => $t->id,
+                'label' => $t->name . ($t->roles->isNotEmpty()
+                ? ' (' . $t->roles->pluck('name')->map(fn($r) => ['supervisor'=>'مشرف','manager'=>'مدير','general_manager'=>'مدير عام','teacher'=>'معلم'][$r] ?? $r)->join('، ') . ')'
+                : '')
+                ])->values()->toArray();
+                @endphp
+
+                <x-searchable-select
+                    name="teacher_id"
+                    placeholder="اختر المعلم..."
+                    search-placeholder="ابحث عن معلم..."
+                    :options="json_encode($teacherOptions)"
+                    :default-value="old('teacher_id', '')" />
+
+                <p class="text-xs text-gray-400 mt-1">يتم تسجيل الاشتراك باسم المعلم المختار...</p>
+                <x-input-error :messages="$errors->get('teacher_id')" class="mt-2" />
+            </div>
+            @else
+            {{-- ✅ لغير الأدمن: عرض اسم المستخدم الحالي فقط (hidden input) --}}
+            <div class="bg-gray-50 border border-gray-100 rounded-2xl p-4 flex items-center gap-3">
+                <div class="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-600">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                </div>
+                <div>
+                    <p class="text-xs text-gray-400 font-bold">المعلم / المسؤول</p>
+                    <p class="font-black text-gray-800">{{ $currentUser->name }}</p>
+                </div>
+            </div>
+            <input type="hidden" name="teacher_id" value="{{ $currentUser->id }}">
+            @endif
 
             <div class="grid md:grid-cols-2 gap-8 col-span-1 md:col-span-2">
 
-                <!-- Circle -->
+                {{-- Circle --}}
                 <div>
                     <label class="block text-gray-700 font-bold mb-2">الحلقة</label>
 
-                    <select name="circle_id" x-model="selectedCircle"
-                        @change="selectedStudent=''; updateDefaultAmount()"
-                        class="w-full bg-gray-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-emerald-500 font-bold">
+                    @php
+                    $circleOptions = $circles->map(fn($c) => [
+                    'value' => $c->id,
+                    'label' => $c->name,
+                    ])->values()->toArray();
+                    @endphp
 
-                        <option value="">اختر الحلقة...</option>
-
-                        @foreach ($circles as $circle)
-                        <option value="{{ $circle->id }}">
-                            {{ $circle->name }}
-                        </option>
-                        @endforeach
-
-                    </select>
-
+                    {{-- Circle --}}
+                    <x-searchable-select
+                        name="circle_id"
+                        placeholder="اختر الحلقة..."
+                        search-placeholder="ابحث عن حلقة..."
+                        :options="json_encode($circleOptions)"
+                        default-value="" />
                     <x-input-error :messages="$errors->get('circle_id')" class="mt-2" />
                 </div>
 
 
-                <!-- Student -->
+                {{-- Student --}}
                 <div>
                     <label class="block text-gray-700 font-bold mb-2">الطالب</label>
 
-                    <select name="student_id" x-model="selectedStudent" @change="updateDefaultAmount()"
-                        :disabled="!selectedCircle"
-                        class="w-full bg-gray-50 border-none rounded-2xl p-4
-focus:ring-2 focus:ring-emerald-500 font-bold
-disabled:opacity-40 disabled:cursor-not-allowed">
-
-                        <option value="">اختر الطالب...</option>
-
-                        <template x-for="student in filteredStudents" :key="student.id">
-                            <option :value="student.id" x-text="student.name"
-                                :selected="student.id == selectedStudent"></option>
-                        </template>
-
-                    </select>
+                    <x-searchable-select
+                        name="student_id"
+                        placeholder="اختر الطالب..."
+                        search-placeholder="ابحث عن طالب..."
+                        options="[]"
+                        default-value="" />
 
                     <p x-show="selectedCircle && filteredStudents.length === 0"
                         class="text-red-500 text-sm font-bold mt-2">
@@ -158,7 +127,6 @@ disabled:opacity-40 disabled:cursor-not-allowed">
                     </p>
 
                     <x-input-error :messages="$errors->get('student_id')" class="mt-2" />
-
                 </div>
             </div>
 
@@ -167,24 +135,29 @@ disabled:opacity-40 disabled:cursor-not-allowed">
                 <div>
                     <label class="block text-gray-700 font-bold mb-2">اشتراك شهر</label>
 
-                    <input type="month" name="month" x-model="selectedMonth"
-                        class="w-full bg-gray-50 border-none rounded-2xl p-4
-focus:ring-2 focus:ring-emerald-500 font-bold">
+                    <input type="month" name="month" x-model="selectedMonth" class="w-full bg-gray-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-emerald-500 font-bold">
 
                     <x-input-error :messages="$errors->get('month')" class="mt-2" />
 
                 </div>
 
-
-                <!-- Amount -->
+                {{-- ─── المبلغ (نسخة واحدة فقط) ─────────────────────── --}}
                 <div>
                     <label class="block text-gray-700 font-bold mb-2">المبلغ</label>
 
                     <div class="relative">
-
+                        {{--
+                            عنصر واحد فقط مفعّل (enabled) في كل لحظة، فيُرسل اسم
+                            "amount" مرة واحدة فقط مهما كانت حالة "status".
+                            - لما الحالة ليست "معفي": الحقل الرقمي مفعّل ويرسل القيمة الحقيقية.
+                            - لما الحالة "معفي": الحقل الرقمي مُعطّل (disabled لا يُرسل قيمته)،
+                              ويتولى الحقل المخفي إرسال 0 بدلاً منه.
+                        --}}
                         <input type="number" min="0" step="0.01" name="amount" x-model="amount"
                             :disabled="status === 'معفي'"
                             class="w-full bg-gray-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-emerald-500 font-black text-emerald-600 text-xl disabled:opacity-50 disabled:cursor-not-allowed">
+
+                        <input type="hidden" name="amount" value="0" :disabled="status !== 'معفي'">
 
                         <span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
                             ج.م
@@ -200,15 +173,14 @@ focus:ring-2 focus:ring-emerald-500 font-bold">
 
                 </div>
 
-
                 <!-- Payment -->
                 <div x-show="status !== 'معفي'">
                     <label class="block text-gray-700 font-bold mb-2">طريقة الدفع</label>
 
-                    <select name="payment_method"
+                    <select name="payment_method" :disabled="status === 'معفي'"
                         class="w-full bg-gray-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-emerald-500 font-bold">
 
-                        @php $paymentMethod = old('payment_method', $subscription->payment_method ?? null); @endphp
+                        @php $paymentMethod = old('payment_method'); @endphp
 
                         <option value="نقدي" {{ $paymentMethod == 'نقدي' ? 'selected' : '' }}>نقدي</option>
                         <option value="تحويل بنكي" {{ $paymentMethod == 'تحويل بنكي' ? 'selected' : '' }}>تحويل بنكي</option>
@@ -239,7 +211,7 @@ focus:ring-2 focus:ring-emerald-500 font-bold">
                 <label class="block text-gray-700 font-bold mb-2">ملاحظات</label>
 
                 <textarea name="notes" rows="3"
-                    class="w-full bg-gray-50 border-none rounded-3xl p-6 focus:ring-2 focus:ring-emerald-500">{{ old('notes', $subscription->notes ?? '') }}</textarea>
+                    class="w-full bg-gray-50 border-none rounded-3xl p-6 focus:ring-2 focus:ring-emerald-500">{{ old('notes') }}</textarea>
 
             </div>
 
@@ -260,8 +232,7 @@ disabled:opacity-60">
                         fill="none" />
                 </svg>
 
-                <span x-text="isSubmitting ? 'جاري الحفظ...' : '{{ isset($subscription) ? 'تحديث الاشتراك' : 'تأكيد وتسجيل الاشتراك' }}'"></span>
-
+                <span x-text="isSubmitting ? 'جاري الحفظ...' : 'تأكيد وتسجيل الاشتراك'"></span>
             </button>
 
         </form>

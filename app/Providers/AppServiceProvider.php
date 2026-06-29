@@ -5,8 +5,10 @@ namespace App\Providers;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\URL;
-use Illuminate\Support\Facades\Vite; 
+use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Auth\Events\Login;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -33,6 +35,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        \Carbon\Carbon::setLocale('ar');
+
+
         // 1. تسجيل الـ Policies الخاصة بالـ Gates والصلاحيات
         foreach ($this->policies as $model => $policy) {
             Gate::policy($model, $policy);
@@ -52,10 +57,20 @@ class AppServiceProvider extends ServiceProvider
             // تعيين مسار الـ Assets ليتطابق مع رابط ngrok المباشر للزائر
             config(['app.asset_url' => 'https://' . request()->headers->get('host')]);
         }
+        $this->app->booted(function () {
+            $host = request()->headers->get('host', '');
+
+            if (str_contains($host, 'ngrok-free.dev')) {
+                URL::forceScheme('https');
+                Vite::useScriptTagAttributes(['crossorigin' => 'anonymous']);
+                config(['app.asset_url' => 'https://' . $host]);
+            }
+        });
 
         // 3. تسجيل آخر وقت دخول للمستخدم (last_login_at)
         Event::listen(Login::class, function ($event) {
             $event->user->forceFill(['last_login_at' => now()])->save();
         });
+
     }
 }
