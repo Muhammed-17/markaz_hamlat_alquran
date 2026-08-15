@@ -17,7 +17,7 @@ class UpdateAttendanceRequest extends FormRequest
         return [
             'status' => 'required|in:present,absent,late,excused',
             'notes' => 'nullable|string|max:500',
-            'date' => 'required|date',  // ✅ دائماً مطلوب
+            'date' => 'required|date|before_or_equal:today',
         ];
     }
 

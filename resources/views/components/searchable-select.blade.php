@@ -1,126 +1,252 @@
 @props([
 'name',
+'options' => [],
 'placeholder' => 'اختر...',
-'searchPlaceholder' => 'بحث...',
-'defaultOption' => null,
+'searchPlaceholder' => 'ابحث...',
 'defaultValue' => '',
-'options' => '[]',
 ])
 
-@php
-$optionsArray = is_string($options) ? json_decode($options, true) ?? [] : $options;
-$optionsJson = json_encode($optionsArray);
-@endphp
 
-<div x-data="{
-    open: false,
-    search: '',
-    selectedVal: '{{ $defaultValue }}',
-    selectedLabel: '{{ $placeholder }}',
-    allOptions: {{ $optionsJson }},
+<div
+    x-data="searchableSelect('{{ $name }}', @js($options), @js($defaultValue), @js($placeholder), @js($searchPlaceholder))"
+    class="relative w-full"
+    @click.away="close()">
+    <!-- Trigger -->
+    <!-- Trigger -->
+    <div
+        x-ref="trigger"
+        @click="toggle()"
+        class="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm bg-white cursor-pointer flex items-center justify-between transition-colors hover:border-gray-300"
+        :class="{ 'border-orange-500 ring-2 ring-orange-100': open }">
+        <span
+            x-text="selectedLabel || placeholder"
+            :class="selectedLabel ? 'text-gray-800' : 'text-gray-400'"></span>
+        <div class="flex items-center gap-2">
+            <i
+                x-show="selectedVal"
+                @click.stop="clearSelection()"
+                class="fas fa-times text-gray-400 hover:text-red-500 text-xs transition-colors"
+                style="display: none;"></i>
+            <i
+                class="fas fa-chevron-down text-gray-400 text-xs transition-transform duration-200"
+                :class="{ 'rotate-180': open }"></i>
+        </div>
+    </div>
 
-    init() {
-        this.updateLabel();
-    },
+    <!-- Dropdown (Teleported to body to escape any overflow-hidden ancestor) -->
+    <template x-teleport="body">
+        <div
+            x-show="open"
+            x-transition:enter="transition ease-out duration-100"
+            x-transition:enter-start="opacity-0 scale-95"
+            x-transition:enter-end="opacity-100 scale-100"
+            x-transition:leave="transition ease-in duration-75"
+            x-transition:leave-start="opacity-100 scale-100"
+            x-transition:leave-end="opacity-0 scale-95"
+            @click.away="close()"
+            :style="dropdownStyle"
+            class="absolute z-[9999] bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-hidden flex flex-col"
+            style="display: none;">
+            <!-- Search -->
+            <div class="p-2 border-b border-gray-100 sticky top-0 bg-white">
+                <div class="relative">
+                    <i class="fas fa-search absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
+                    <input
+                        type="text"
+                        x-ref="searchInput"
+                        x-model="search"
+                        @input="filter()"
+                        :placeholder="searchPlaceholder"
+                        class="w-full border border-gray-200 rounded-lg pr-8 pl-3 py-2 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none"
+                        @click.stop />
+                </div>
+            </div>
 
-    updateLabel() {
-        if (this.selectedVal) {
-            const found = this.allOptions.find(o => String(o.value) === String(this.selectedVal));
-            this.selectedLabel = found ? found.label : '{{ $placeholder }}';
-        } else {
-            this.selectedLabel = '{{ $placeholder }}';
-        }
-    },
+            <!-- Options -->
+            <div class="overflow-y-auto flex-1 py-1">
+                <template x-if="filteredOptions.length === 0">
+                    <div class="px-4 py-3 text-gray-400 text-sm text-center">
+                        <i class="fas fa-inbox mb-1 block"></i>
+                        <span>لا توجد نتائج</span>
+                    </div>
+                </template>
 
-    get filtered() {
-        if (!this.search) return this.allOptions;
-        const q = this.search.toLowerCase().trim();
-        return this.allOptions.filter(o => o.label.toLowerCase().includes(q));
-    },
-select(val, label) {
-    this.selectedVal = val;
-    this.selectedLabel = label || '{{ $placeholder }}';
-    this.open = false;
-    this.search = '';
-    window.dispatchEvent(new CustomEvent('searchable-change', {
-        detail: { name: '{{ $name }}', value: val }
-    }));
-    },
+                <template x-for="option in filteredOptions" :key="option.value">
+                    <div
+                        @click="select(option)"
+                        class="px-4 py-2.5 text-sm cursor-pointer flex items-center justify-between transition-colors"
+                        :class="isSelected(option) ? 'bg-orange-50 text-orange-600' : 'text-gray-700 hover:bg-gray-50'">
+                        <span x-text="option.label"></span>
+                        <i
+                            x-show="isSelected(option)"
+                            class="fas fa-check text-orange-500 text-xs"></i>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </template>
 
-    clear() {
-        this.select('', '{{ $placeholder }}');
-    },
+    <!-- Hidden Input -->
+    <input type="hidden" :name="name" :value="selectedVal" />
+</div>
 
-    updateOptions(newOptions) {
-        this.allOptions = newOptions;
-        const found = this.allOptions.find(o => String(o.value) === String(this.selectedVal));
-        if (!found) {
-            this.selectedVal = '';
-            this.selectedLabel = '{{ $placeholder }}';
+@pushOnce('scripts')
+<script>
+    function searchableSelect(name, options, defaultValue, placeholder, searchPlaceholder) {
+        return {
+            name: name,
+            allOptions: options,
+            filteredOptions: [...options],
+            selectedVal: defaultValue || '',
+            selectedLabel: '',
+            search: '',
+            open: false,
+            dropdownStyle: '',
+            placeholder: placeholder,
+            searchPlaceholder: searchPlaceholder,
+
+            updateDropdownPosition() {
+                const rect = this.$refs.trigger.getBoundingClientRect();
+                this.dropdownStyle = `top: ${rect.bottom + window.scrollY + 4}px; left: ${rect.left + window.scrollX}px; width: ${rect.width}px;`;
+            },
+
+            handleReposition() {
+                if (this.open) {
+                    this.updateDropdownPosition();
+                }
+            },
+
+            init() {
+                this.updateLabel();
+                this.filter();
+
+                // ✅ إعادة حساب موقع الـ dropdown أثناء التمرير أو تغيير حجم النافذة
+                // وهو مفتوح، عشان يفضل ملتصق بالـ trigger بدل ما "يطير" بعيد عنه.
+                window.addEventListener('scroll', () => this.handleReposition(), true);
+                window.addEventListener('resize', () => this.handleReposition());
+
+                // ✅ تحديث الخيارات من الخارج - مع دعم preserveSelection
+                window.addEventListener('update-options', (e) => {
+                    if (e.detail.name === this.name) {
+                        this.updateOptions(e.detail.options, e.detail.preserveSelection || false);
+                    }
+                });
+
+                // ✅ تحديث القيمة من الخارج
+                window.addEventListener('update-value', (e) => {
+                    if (e.detail.name === this.name) {
+                        this.selectedVal = String(e.detail.value);
+                        this.updateLabel();
+                    }
+                });
+
+                // ✅ مسح الاختيار من الخارج
+                window.addEventListener('clear-selection', (e) => {
+                    if (e.detail.name === this.name) {
+                        this.selectedVal = '';
+                        this.selectedLabel = this.placeholder;
+                    }
+                });
+            },
+
+            // ✅ تحديث الخيارات مع دعم الحفاظ على الاختيار
+            updateOptions(newOptions, preserveSelection = false) {
+                this.allOptions = newOptions;
+
+                // إذا كان preserveSelection = true، لا تمسح الاختيار
+                if (preserveSelection) {
+                    this.filter();
+                    this.updateLabel();
+                    return;
+                }
+
+                // السلوك الأصلي: مسح الاختيار إذا لم يُعثر عليه
+                const found = this.allOptions.find(o => String(o.value) === String(this.selectedVal));
+                if (!found && this.selectedVal) {
+                    this.selectedVal = '';
+                    this.selectedLabel = this.placeholder;
+                }
+
+                this.filter();
+            },
+
+            updateLabel() {
+                const found = this.allOptions.find(o => String(o.value) === String(this.selectedVal));
+                this.selectedLabel = found ? found.label : '';
+            },
+
+            filter() {
+                if (!this.search) {
+                    this.filteredOptions = [...this.allOptions];
+                    return;
+                }
+                const term = this.search.toLowerCase();
+                this.filteredOptions = this.allOptions.filter(opt =>
+                    opt.label.toLowerCase().includes(term)
+                );
+            },
+
+            toggle() {
+                this.open = !this.open;
+                if (this.open) {
+                    this.updateDropdownPosition();
+                    this.$nextTick(() => this.$refs.searchInput?.focus());
+                }
+            },
+
+            close() {
+                this.open = false;
+                this.search = '';
+                this.filter();
+            },
+
+            select(option) {
+                this.selectedVal = String(option.value);
+                this.selectedLabel = option.label;
+                this.close();
+
+                // ✅ بث حدث "input" أصلي على العنصر نفسه عشان x-model يشتغل صح
+                // Alpine's x-model على العناصر غير الأصلية (مش input/select/textarea)
+                // بيستنى حدث "input" على نفس العنصر ($el) ياخد قيمته من event.detail
+                this.$el.dispatchEvent(new CustomEvent('input', {
+                    detail: this.selectedVal,
+                    bubbles: false
+                }));
+
+                // ✅ إرسال حدث التغيير العام (يفضل موجود لأي استخدامات تانية)
+                window.dispatchEvent(new CustomEvent('searchable-change', {
+                    detail: {
+                        name: this.name,
+                        value: this.selectedVal,
+                        label: this.selectedLabel
+                    }
+                }));
+            },
+
+            clearSelection() {
+                this.selectedVal = '';
+                this.selectedLabel = '';
+                this.search = '';
+                this.filter();
+
+                this.$el.dispatchEvent(new CustomEvent('input', {
+                    detail: this.selectedVal,
+                    bubbles: false
+                }));
+
+                window.dispatchEvent(new CustomEvent('searchable-change', {
+                    detail: {
+                        name: this.name,
+                        value: '',
+                        label: ''
+                    }
+                }));
+            },
+
+            isSelected(option) {
+                return String(this.selectedVal) === String(option.value);
+            }
         }
     }
-}"
-    x-on:click.outside="open = false; search = ''"
-    x-on:update-options.window="if ($event.detail.name === '{{ $name }}') updateOptions($event.detail.options)"
-    class="relative w-full">
-
-    {{-- Hidden input --}}
-    <input type="hidden" name="{{ $name }}" :value="selectedVal">
-
-    {{-- Trigger --}}
-    <button type="button" @click="open = !open"
-        class="w-full h-11 px-3 rounded-xl border border-gray-200 bg-white text-sm text-right flex items-center justify-between gap-2 hover:border-gray-300 focus:outline-none focus:border-[#0b3d2c] focus:ring-1 focus:ring-[#0b3d2c] transition-all">
-        <span x-text="selectedLabel" class="truncate" :class="selectedVal ? 'text-gray-800' : 'text-gray-400'"></span>
-        <div class="flex items-center gap-1 shrink-0">
-            <span x-show="selectedVal" @click.stop="clear()" class="w-5 h-5 rounded-full bg-gray-100 hover:bg-red-100 text-gray-400 hover:text-red-500 flex items-center justify-center cursor-pointer transition">
-                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-            </span>
-            <svg class="w-4 h-4 text-gray-400 transition-transform" :class="open ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-            </svg>
-        </div>
-    </button>
-
-    {{-- Dropdown --}}
-    <div x-show="open"
-        x-transition
-        class="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden"
-        style="display: none;">
-
-        <div class="p-2 border-b border-gray-100">
-            <input type="text"
-                x-model="search"
-                placeholder="{{ $searchPlaceholder }}"
-                class="w-full h-9 px-3 text-sm rounded-lg border border-gray-200 focus:outline-none focus:border-[#0b3d2c] focus:ring-1 focus:ring-[#0b3d2c]">
-        </div>
-
-        <ul class="max-h-48 overflow-y-auto py-1">
-            @if($defaultOption)
-            <li>
-                <button type="button" @click="select('', '{{ $defaultOption }}')"
-                    class="w-full text-right px-3 py-2 text-sm"
-                    :class="selectedVal === '' ? 'text-[#0b3d2c] font-semibold bg-emerald-50' : 'text-gray-700 hover:bg-gray-50'">
-                    {{ $defaultOption }}
-                </button>
-            </li>
-            @endif
-
-            <template x-for="option in filtered" :key="option.value">
-                <li>
-                    <button type="button" @click="select(option.value, option.label)"
-                        class="w-full text-right px-3 py-2 text-sm flex items-center gap-2"
-                        :class="String(selectedVal) === String(option.value) ? 'text-[#0b3d2c] font-semibold bg-emerald-50' : 'text-gray-700 hover:bg-gray-50'">
-                        <svg x-show="String(selectedVal) === String(option.value)" class="w-4 h-4 text-emerald-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                        </svg>
-                        <span x-text="option.label"></span>
-                    </button>
-                </li>
-            </template>
-
-            <li x-show="filtered.length === 0" class="px-3 py-4 text-sm text-gray-400 text-center">لا توجد نتائج</li>
-        </ul>
-    </div>
-</div>
+</script>
+@endPushOnce

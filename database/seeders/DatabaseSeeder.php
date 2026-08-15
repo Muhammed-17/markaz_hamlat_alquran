@@ -18,6 +18,9 @@ class DatabaseSeeder extends Seeder
             StudentSeeder::class,
             SubscriptionSeeder::class,
             LateStudentsSeeder::class,
+            SurahSeeder::class,
+            RecommendationTemplateSeeder::class,
+            AverageLevelsSeeder::class,
         ]);
     }
 }

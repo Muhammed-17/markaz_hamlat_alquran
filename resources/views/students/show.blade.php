@@ -235,6 +235,12 @@
                     <button @click="activeTab = 'care'"
                         :class="activeTab === 'care' ? 'text-emerald-600 border-b-2 border-emerald-600' : 'text-gray-400 hover:text-gray-600'"
                         class="pb-4 font-bold transition-all px-2 whitespace-nowrap">الرعاية والسلوك</button>
+                    <button @click="activeTab = 'weekly'"
+                        :class="activeTab === 'weekly' ? 'text-emerald-600 border-b-2 border-emerald-600' : 'text-gray-400 hover:text-gray-600'"
+                        class="pb-4 font-bold transition-all px-2 whitespace-nowrap">المتابعة الأسبوعية</button>
+                    <button @click="activeTab = 'surah_tests'"
+                        :class="activeTab === 'surah_tests' ? 'text-emerald-600 border-b-2 border-emerald-600' : 'text-gray-400 hover:text-gray-600'"
+                        class="pb-4 font-bold transition-all px-2 whitespace-nowrap">اختبارات السور</button>
                 </div>
             </div>
 
@@ -414,7 +420,7 @@
                                 </div>
                                 السورة الحالية
                             </h2>
-                            <span class="text-2xl font-black text-emerald-600">{{ $student->constructionDetail?->current_surah ?? '—' }}</span>
+                            <span class="text-2xl font-black text-emerald-600">{{ $student->constructionDetail?->effective_current_surah?->name_arabic ?? '—' }}</span>
                         </div>
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div class="bg-gray-50 rounded-2xl p-4">
@@ -427,7 +433,7 @@
                             </div>
                             <div class="bg-gray-50 rounded-2xl p-4">
                                 <span class="block text-gray-500 font-bold text-xs mb-1">النظام المتبع</span>
-                                <span class="font-black text-gray-800">{{ $student->constructionDetail?->study_system ?? '—' }}</span>
+                                <span class="font-black text-gray-800">{{ $student->constructionDetail?->study_system === 'group' ? 'جماعي' : ($student->constructionDetail?->study_system === 'individual' ? 'فردي' : '—') }}</span>
                             </div>
                         </div>
                     </div>
@@ -442,7 +448,7 @@
                             </div>
                             <div class="bg-gray-50 rounded-2xl p-4">
                                 <span class="text-gray-500 block font-bold text-xs mb-1">مقدم الطلب</span>
-                                <span class="font-black text-gray-800">{{ $student->applicant ?? '—' }}{{ $student->applicant === 'أخرى' ? ' — ' . $student->applicant_other : '' }}</span>
+                                <span class="font-black text-gray-800">{{ $student->applicant ?? '—' }}</span>
                             </div>
                             <div class="bg-gray-50 rounded-2xl p-4">
                                 <span class="text-gray-500 block font-bold text-xs mb-1">المشرف المسجّل</span>
@@ -580,7 +586,7 @@
                         </div>
                         <div class="flex justify-between items-center py-2">
                             <span class="text-gray-500 text-sm font-bold">مقدم الطلب</span>
-                            <span class="font-black text-gray-800 text-sm">{{ $student->applicant === 'أخرى' ? $student->applicant_other : ($student->applicant ?? '—') }}</span>
+                            <span class="font-black text-gray-800 text-sm">{{ $student->applicant ?? '—' }}</span>
                         </div>
                     </div>
                 </div>
@@ -590,11 +596,10 @@
                     <h3 class="font-black text-[#0a5c36] text-lg flex items-center gap-2"><span class="text-xl">💚</span> الرعاية والسمات</h3>
                     @php
                     $careFields = [
-                    ['label' => 'الحالة الصحية', 'value' => $student->health_status === 'أخرى' ? $student->health_status_other : $student->health_status],
-                    ['label' => 'صعوبات التعلم', 'value' => $student->learning_difficulties === 'أخرى' ? $student->learning_difficulties_other : $student->learning_difficulties],
-                    ['label' => 'السمات الشخصية', 'value' => $student->personal_traits === 'أخرى' ? $student->personal_traits_other : $student->personal_traits],
+                    ['label' => 'الحالة الصحية', 'value' => $student->health_status],
+                    ['label' => 'صعوبات التعلم', 'value' => $student->learning_difficulties],
+                    ['label' => 'السمات الشخصية', 'value' => $student->personal_traits],
                     ['label' => 'خروج الطالب', 'value' => $student->student_exit_status],
-                    ['label' => 'تفاصيل الخروج', 'value' => $student->exit_details],
                     ];
                     @endphp
                     @foreach($careFields as $field)
@@ -611,13 +616,8 @@
                         <span class="text-gray-500 text-sm font-bold block mb-2">الهوايات</span>
                         <div class="flex flex-wrap gap-2">
                             @foreach($hobbies as $hobby)
-                            @if($hobby !== 'أخرى')
                             <span class="px-3 py-1 bg-emerald-50 text-emerald-700 rounded-full text-xs font-bold border border-emerald-100">{{ $hobby }}</span>
-                            @endif
                             @endforeach
-                            @if(in_array('أخرى', $hobbies) && $student->hobby_other)
-                            <span class="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-bold">{{ $student->hobby_other }}</span>
-                            @endif
                         </div>
                     </div>
                     @endif
@@ -644,20 +644,29 @@
                         </div>
                         <div class="bg-gray-50 rounded-2xl p-5 text-center">
                             <span class="block text-gray-500 text-xs font-bold mb-1">السورة الحالية</span>
-                            <span class="font-black text-gray-900 text-lg">{{ $student->constructionDetail?->current_surah ?? '—' }}</span>
+                            <span class="font-black text-gray-900 text-lg">{{ $student->constructionDetail?->effective_current_surah?->name_arabic ?? '—' }}</span>
                         </div>
                     </div>
 
                     @if($student->center_entry_level === 'construction' && $student->constructionDetail)
                     <div class="border border-emerald-100 rounded-2xl p-6 bg-emerald-50/30 space-y-4">
                         <h3 class="font-black text-emerald-700">🌱 تفاصيل مستوى البناء</h3>
+
+                        @if($student->constructionDetail->study_system === 'group')
+                        <div class="bg-blue-50 border border-blue-100 rounded-xl p-3 text-xs text-blue-700 font-bold">
+                            📌 هذا الطالب في نظام جماعي — الخطة معروضة من خطة الحلقة المشتركة
+                        </div>
+                        @endif
+
                         <div class="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
                             @foreach([
-                            ['label' => 'الحلقة', 'value' => $student->constructionDetail->group_name],
-                            ['label' => 'النظام المتبع', 'value' => $student->constructionDetail->study_system],
-                            ['label' => 'مستوى الحفظ', 'value' => $student->constructionDetail->placement_evaluation],
-                            ['label' => 'خطة الحفظ الجديد', 'value' => $student->constructionDetail->new_memorization_plan],
-                            ['label' => 'خطة المراجعة', 'value' => $student->constructionDetail->old_memorization_plan === 'أخرى' ? $student->constructionDetail->old_memorization_plan_other : $student->constructionDetail->old_memorization_plan],
+                            ['label' => 'الحلقة', 'value' => $student->circle?->name],
+                            ['label' => 'النظام المتبع', 'value' => $student->constructionDetail->study_system === 'group' ? 'جماعي' : ($student->constructionDetail->study_system === 'individual' ? 'فردي' : null)],
+                            ['label' => 'السورة الحالية', 'value' => $student->constructionDetail->effective_current_surah?->name_arabic],
+                            ['label' => 'خطة الحفظ الجديد', 'value' => $student->constructionDetail->effective_new_memorization_plan],
+                            ['label' => 'خطة المراجعة', 'value' => $student->constructionDetail->effective_revision_plan],
+                            ['label' => 'خطة الحفظ القديم', 'value' => $student->constructionDetail->effective_old_memorization_plan],
+                            ['label' => 'تقييم التسكين', 'value' => $student->constructionDetail->placement_evaluation],
                             ] as $f)
                             @if($f['value'])
                             <div class="bg-white rounded-xl p-3 border border-emerald-50">
@@ -679,7 +688,7 @@
                             ['label' => 'عدد الختمات', 'value' => $student->itqanDetail->previous_khatamat_count],
                             ['label' => 'مقدار المراجعة', 'value' => $student->itqanDetail->current_review_amount],
                             ['label' => 'التقييم الذاتي', 'value' => $student->itqanDetail->self_evaluation ? $student->itqanDetail->self_evaluation . '/10' : null],
-                            ['label' => 'متن التجويد', 'value' => $student->itqanDetail->tajweed_matn === 'أخرى' ? $student->itqanDetail->tajweed_matn_other : $student->itqanDetail->tajweed_matn],
+                            ['label' => 'متن التجويد', 'value' => $student->itqanDetail->tajweed_matn],
                             ['label' => 'المسار المرغوب', 'value' => $student->itqanDetail->desired_path],
                             ] as $f)
                             @if($f['value'])
@@ -725,6 +734,45 @@
             {{-- Tab: الحضور والغياب                                    --}}
             {{-- ═══════════════════════════════════════════════════════ --}}
             <div x-show="activeTab === 'attendance'" x-cloak>
+                {{-- تحليل الأداء --}}
+                <div class="bg-white rounded-[2rem] p-6 shadow-sm border border-gray-100">
+                    <div class="flex items-center gap-3 mb-6">
+                        <div class="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center text-amber-600">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                            </svg>
+                        </div>
+                        <h3 class="font-black text-gray-900">تحليل الأداء</h3>
+                    </div>
+                    <div class="space-y-4">
+                        <div class="flex items-center justify-between text-sm mb-1">
+                            <span class="text-gray-500 font-medium">نسبة الالتزام</span>
+                            <span class="text-emerald-600 font-black">{{ $attendanceRate }}%</span>
+                        </div>
+                        <div class="relative w-full h-3 bg-gray-100 rounded-full overflow-hidden">
+                            <div class="absolute top-0 left-0 h-full bg-emerald-500 rounded-full transition-all duration-1000"
+                                style="width:{{ $attendanceRate }}%"></div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3 mt-4">
+                            <div class="bg-gray-50 rounded-2xl p-4 text-center">
+                                <span class="block text-2xl font-black text-emerald-600">{{ $presentCount }}</span>
+                                <span class="text-xs text-gray-500 font-bold">يوم حضور</span>
+                            </div>
+                            <div class="bg-gray-50 rounded-2xl p-4 text-center">
+                                <span class="block text-2xl font-black text-rose-500">{{ $absentCount }}</span>
+                                <span class="text-xs text-gray-500 font-bold">يوم غياب</span>
+                            </div>
+                            <div class="bg-gray-50 rounded-2xl p-4 text-center">
+                                <span class="block text-2xl font-black text-amber-500">{{ $lateCount }}</span>
+                                <span class="text-xs text-gray-500 font-bold">يوم تأخير</span>
+                            </div>
+                            <div class="bg-gray-50 rounded-2xl p-4 text-center">
+                                <span class="block text-2xl font-black text-sky-500">{{ $excusedCount }}</span>
+                                <span class="text-xs text-gray-500 font-bold">يوم بعذر</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 <div class="bg-white rounded-[2.5rem] shadow-sm border border-gray-100 overflow-hidden">
                     <div class="p-6 lg:p-8 border-b border-gray-50 flex flex-wrap items-center justify-between gap-4">
                         <h3 class="text-[#0a5c36] font-black text-xl">سجل الحضور والغياب</h3>
@@ -875,10 +923,256 @@
             {{-- Tab: الرعاية والسلوك                                   --}}
             {{-- ═══════════════════════════════════════════════════════ --}}
             <div x-show="activeTab === 'care'" x-cloak class="space-y-6">
-                <div class="bg-white rounded-[2.5rem] shadow-sm border border-gray-100 p-8">
-                    <h3 class="text-[#0a5c36] font-black text-xl mb-6">الملاحظات السلوكية والتأديبية</h3>
+                <div class="bg-white rounded-[2.5rem] shadow-sm border border-gray-100 overflow-hidden">
+                    <div class="p-6 lg:p-8 border-b border-gray-50 flex flex-wrap items-center justify-between gap-4">
+                        <h3 class="text-[#0a5c36] font-black text-xl">الملاحظات السلوكية والتأديبية</h3>
+                        @can('create', \App\Models\BehavioralNote::class)
+                        <a href="{{ route('behavioral-notes.create', ['student_id' => $student->id]) }}"
+                            class="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 rounded-xl text-white font-bold transition-all flex items-center gap-2 text-sm shadow-lg shadow-emerald-900/20">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                            </svg>
+                            ملاحظة جديدة
+                        </a>
+                        @endcan
+                    </div>
+
+                    @if($student->behavioralNotes->count() > 0)
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-right">
+                            <thead class="bg-gray-50 font-black text-gray-400 text-xs uppercase">
+                                <tr>
+                                    <th class="px-6 py-5">السلوك</th>
+                                    <th class="px-6 py-5">التاريخ</th>
+                                    <th class="px-6 py-5">الحالة</th>
+                                    <th class="px-6 py-5">الإجراءات</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-50">
+                                @php
+                                $noteStatusColors = [
+                                \App\Models\BehavioralNote::STATUS_PENDING => 'bg-amber-50 text-amber-700',
+                                \App\Models\BehavioralNote::STATUS_UNDER_REVIEW => 'bg-sky-50 text-sky-700',
+                                \App\Models\BehavioralNote::STATUS_ACTION_TAKEN => 'bg-green-50 text-green-700',
+                                ];
+                                @endphp
+                                @foreach($student->behavioralNotes->sortByDesc('incident_at') as $note)
+                                @php
+                                $noteStatusLabel = \App\Models\BehavioralNote::STATUSES[$note->status] ?? $note->status;
+                                $noteStatusClass = $noteStatusColors[$note->status] ?? 'bg-gray-50 text-gray-700';
+                                @endphp
+                                <tr class="hover:bg-emerald-50/30 transition-all">
+                                    <td class="px-6 py-5 text-gray-700 font-medium">{{ Str::limit($note->behavior, 60) }}</td>
+                                    <td class="px-6 py-5 text-gray-500 text-sm">{{ $note->incident_at?->format('Y-m-d H:i') }}</td>
+                                    <td class="px-6 py-5">
+                                        <span class="{{ $noteStatusClass }} px-2.5 py-1 rounded-full text-xs font-bold">{{ $noteStatusLabel }}</span>
+                                    </td>
+                                    <td class="px-6 py-5">
+                                        <div class="flex items-center gap-1.5">
+                                            @can('view', $note)
+                                            <a href="{{ route('behavioral-notes.show', $note) }}" class="w-7 h-7 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center"><i class="fas fa-eye text-xs"></i></a>
+                                            @endcan
+                                            @can('update', $note)
+                                            <a href="{{ route('behavioral-notes.edit', $note) }}" class="w-7 h-7 bg-amber-50 hover:bg-amber-100 text-amber-600 rounded-lg flex items-center justify-center"><i class="fas fa-edit text-xs"></i></a>
+                                            @endcan
+                                            @can('recordAction', $note)
+                                            <a href="{{ route('behavioral-notes.edit-action', $note) }}" class="w-7 h-7 bg-sky-50 hover:bg-sky-100 text-sky-600 rounded-lg flex items-center justify-center" title="تسجيل الإجراء"><i class="fas fa-clipboard-check text-xs"></i></a>
+                                            @endcan
+                                        </div>
+                                    </td>
+                                </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                    @else
+                    <div class="text-center py-16">
+                        <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3"><i class="fas fa-clipboard-check text-2xl text-gray-300"></i></div>
+                        <h4 class="text-gray-500 font-medium">لا توجد ملاحظات سلوكية</h4>
+                        <p class="text-gray-400 text-sm">لم يتم تسجيل أي ملاحظة سلوكية لهذا الطالب</p>
+                    </div>
+                    @endif
                 </div>
             </div>
+            {{-- ═══════════════════════════════════════════════════════ --}}
+            {{-- Tab: المتابعة الأسبوعية                                --}}
+            {{-- ═══════════════════════════════════════════════════════ --}}
+            <div x-show="activeTab === 'weekly'" x-cloak class="space-y-6">
+                <div class="bg-white rounded-[2.5rem] shadow-sm border border-gray-100 overflow-hidden">
+                    <div class="p-6 lg:p-8 border-b border-gray-50 flex flex-wrap items-center justify-between gap-4">
+                        <h3 class="text-[#0a5c36] font-black text-xl">المتابعة الأسبوعية</h3>
+                        @can('create', \App\Models\StudentWeeklyFollowup::class)
+                        <a href="{{ route('student-weekly-followups.create-individual', ['student_id' => $student->id]) }}"
+                            class="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 rounded-xl text-white font-bold transition-all flex items-center gap-2 text-sm shadow-lg shadow-emerald-900/20">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                            </svg>
+                            متابعة جديدة
+                        </a>
+                        @endcan
+                    </div>
+
+                    @if($student->weeklyFollowups->count() > 0)
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-right">
+                            <thead class="bg-gray-50 font-black text-gray-400 text-xs uppercase">
+                                <tr>
+                                    <th class="px-6 py-5">الأسبوع</th>
+                                    <th class="px-6 py-5">النوع</th>
+                                    <th class="px-6 py-5">المعلم</th>
+                                    <th class="px-6 py-5">الحفظ الجديد (إلى)</th>
+                                    <th class="px-6 py-5">المراجعة (إلى)</th>
+                                    <th class="px-6 py-5">الإجراءات</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-50">
+                                @foreach($student->weeklyFollowups->sortByDesc('week_start') as $followup)
+                                <tr class="hover:bg-emerald-50/30 transition-all">
+                                    <td class="px-6 py-5 font-medium text-gray-800">
+                                        {{ $followup->week_start?->format('Y-m-d') }} — {{ $followup->week_end?->format('Y-m-d') }}
+                                    </td>
+                                    <td class="px-6 py-5">
+                                        @if($followup->plan_type === 'group')
+                                        <span class="px-2.5 py-1 bg-indigo-50 text-indigo-700 rounded-full text-xs font-bold">جماعي</span>
+                                        @else
+                                        <span class="px-2.5 py-1 bg-emerald-50 text-emerald-700 rounded-full text-xs font-bold">فردي</span>
+                                        @endif
+                                    </td>
+                                    <td class="px-6 py-5 text-gray-600">{{ $followup->teacher?->user?->name ?? '-' }}</td>
+                                    <td class="px-6 py-5 text-gray-600 text-sm">
+                                        {{ $followup->newMemorizations?->toSurah?->name_arabic ?? '—' }}
+                                    </td>
+                                    <td class="px-6 py-5 text-gray-600 text-sm">
+                                        {{ $followup->revisions?->toSurah?->name_arabic ?? '—' }}
+                                    </td>
+                                    <td class="px-6 py-5">
+                                        <div class="flex items-center gap-1.5">
+                                            @can('view', $followup)
+                                            <a href="{{ route('student-weekly-followups.show', $followup) }}" class="w-7 h-7 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center"><i class="fas fa-eye text-xs"></i></a>
+                                            @endcan
+
+                                            @can('update', $followup)
+                                            <a href="{{ route('student-weekly-followups.edit', $followup) }}" class="w-7 h-7 bg-amber-50 hover:bg-amber-100 text-amber-600 rounded-lg flex items-center justify-center"><i class="fas fa-edit text-xs"></i></a>
+                                            @endcan
+
+                                            @can('delete', $followup)
+                                            @if($followup->plan_type === 'group')
+                                            <form action="{{ route('student-weekly-followups.destroy-group', $followup->batch_id) }}" method="POST" class="inline" id="delete-followup-{{ $followup->id }}">
+                                                @csrf @method('DELETE')
+                                                <button type="button"
+                                                    onclick="confirmDelete(event, { name: '{{ $followup->week_start?->format('Y-m-d') }}', type: 'المتابعة الأسبوعية', form: document.getElementById('delete-followup-{{ $followup->id }}') })"
+                                                    class="w-7 h-7 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg flex items-center justify-center">
+                                                    <i class="fas fa-trash text-xs"></i>
+                                                </button>
+                                            </form>
+                                            @else
+                                            <form action="{{ route('student-weekly-followups.destroy', $followup) }}" method="POST" class="inline" id="delete-followup-{{ $followup->id }}">
+                                                @csrf @method('DELETE')
+                                                <button type="button"
+                                                    onclick="confirmDelete(event, { name: '{{ $followup->week_start?->format('Y-m-d') }}', type: 'المتابعة الأسبوعية', form: document.getElementById('delete-followup-{{ $followup->id }}') })"
+                                                    class="w-7 h-7 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg flex items-center justify-center">
+                                                    <i class="fas fa-trash text-xs"></i>
+                                                </button>
+                                            </form>
+                                            @endif
+                                            @endcan
+                                        </div>
+                                    </td>
+                                </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                    @else
+                    <div class="text-center py-16">
+                        <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3"><i class="fas fa-calendar-check text-2xl text-gray-300"></i></div>
+                        <h4 class="text-gray-500 font-medium">لا توجد متابعات أسبوعية</h4>
+                        <p class="text-gray-400 text-sm">لم يتم تسجيل أي متابعة أسبوعية فردية لهذا الطالب</p>
+                    </div>
+                    @endif
+                </div>
+            </div>
+
+            {{-- ═══════════════════════════════════════════════════════ --}}
+            {{-- Tab: اختبارات السور                                    --}}
+            {{-- ═══════════════════════════════════════════════════════ --}}
+            <div x-show="activeTab === 'surah_tests'" x-cloak class="space-y-6">
+                <div class="bg-white rounded-[2.5rem] shadow-sm border border-gray-100 overflow-hidden">
+                    <div class="p-6 lg:p-8 border-b border-gray-50 flex flex-wrap items-center justify-between gap-4">
+                        <h3 class="text-[#0a5c36] font-black text-xl">اختبارات السور</h3>
+                        @can('create', \App\Models\SurahTest::class)
+                        <a href="{{ route('surah-tests.create', ['type' => 'individual']) }}"
+                            class="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 rounded-xl text-white font-bold transition-all flex items-center gap-2 text-sm shadow-lg shadow-emerald-900/20">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                            </svg>
+                            اختبار جديد
+                        </a>
+                        @endcan
+                    </div>
+
+                    @if($surahTestResults->count() > 0)
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-right">
+                            <thead class="bg-gray-50 font-black text-gray-400 text-xs uppercase">
+                                <tr>
+                                    <th class="px-6 py-5">السورة</th>
+                                    <th class="px-6 py-5">النوع</th>
+                                    <th class="px-6 py-5">التاريخ</th>
+                                    <th class="px-6 py-5">المعلم</th>
+                                    <th class="px-6 py-5">أخطاء الفتح</th>
+                                    <th class="px-6 py-5">أخطاء التشكيل</th>
+                                    <th class="px-6 py-5">النسبة</th>
+                                    <th class="px-6 py-5">التقدير</th>
+                                    <th class="px-6 py-5">الإجراءات</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-50">
+                                @foreach($surahTestResults as $result)
+                                @php($test = $result->surahTest)
+                                <tr class="hover:bg-emerald-50/30 transition-all">
+                                    <td class="px-6 py-5 font-medium text-gray-800">{{ $test->surah?->name_arabic ?? '—' }}</td>
+                                    <td class="px-6 py-5">
+                                        @if($test->test_type === 'group')
+                                        <span class="px-2.5 py-1 bg-indigo-50 text-indigo-700 rounded-full text-xs font-bold">جماعي</span>
+                                        @else
+                                        <span class="px-2.5 py-1 bg-emerald-50 text-emerald-700 rounded-full text-xs font-bold">فردي</span>
+                                        @endif
+                                    </td>
+                                    <td class="px-6 py-5 text-gray-500 text-sm">{{ $test->test_date?->format('Y-m-d') ?? '—' }}</td>
+                                    <td class="px-6 py-5 text-gray-600">{{ $test->teacher?->user?->name ?? $test->teacher?->name ?? '—' }}</td>
+                                    <td class="px-6 py-5 text-gray-600 text-center">{{ $result->prompt_errors }}</td>
+                                    <td class="px-6 py-5 text-gray-600 text-center">{{ $result->tashkeel_errors }}</td>
+                                    <td class="px-6 py-5 font-black text-emerald-600 text-center">{{ $result->percentage }}%</td>
+                                    <td class="px-6 py-5">
+                                        @if($result->level)
+                                        <span class="px-2.5 py-1 bg-amber-50 text-amber-700 rounded-full text-xs font-bold">{{ $result->level }}</span>
+                                        @else
+                                        <span class="text-gray-300">—</span>
+                                        @endif
+                                    </td>
+                                    <td class="px-6 py-5">
+                                        @can('view', $test)
+                                        <a href="{{ route('surah-tests.show', ['surah_test' => $test, 'student_id' => $student->id]) }}"
+                                            class="w-7 h-7 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center inline-flex"><i class="fas fa-eye text-xs"></i></a>
+                                        @endcan
+                                    </td>
+                                </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                    @else
+                    <div class="text-center py-16">
+                        <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3"><i class="fas fa-book-quran text-2xl text-gray-300"></i></div>
+                        <h4 class="text-gray-500 font-medium">لا توجد اختبارات سور</h4>
+                        <p class="text-gray-400 text-sm">لم يتم تسجيل أي اختبار سورة لهذا الطالب</p>
+                    </div>
+                    @endif
+                </div>
+            </div>
+
+        </div>
 
         </div>
 

@@ -1,14 +1,24 @@
 @php
 $groupLabels = [
-    'system'        => '⚙️ النظام العام',
-    'users'         => '👥 المستخدمون والأدوار',
-    'guardians'     => '👨‍👩 أولياء الأمور',
-    'centers'       => '🏢 الفروع والمراكز',
-    'teachers'      => '👨‍🏫 المعلمون',
-    'circles'       => '📚 الحلقات',
-    'students'      => '🎓 الطلاب',
-    'attendance'    => '📋 الحضور والغياب',
-    'subscriptions' => '💳 الاشتراكات والأسعار',
+'system' => '⚙️ النظام العام',
+'users' => '👥 المستخدمون والأدوار',
+'guardians' => '👨‍👩 أولياء الأمور',
+'centers' => '🏢 الفروع والمراكز',
+'teachers' => '👨‍🏫 المعلمون',
+'circles' => '📚 الحلقات',
+'students' => '🎓 الطلاب',
+'attendance' => '📋 الحضور والغياب',
+'subscriptions' => '💳 الاشتراكات والأسعار',
+'collection rounds' => '💰 التحصيل',
+'group session plans' => '🗓️ خطط الحصص الجماعية',
+'student weekly followups' => '📅 المتابعة الأسبوعية للطلاب',
+'behavioral notes' => '📝 الملاحظات السلوكية',
+'surah tests' => '📖 اختبارات السور',
+'competitions' => '🏆 المسابقات',
+'levels' => '📊 المستويات',
+'examiners' => '🧪 المختبرون',
+'external participants' => '👥 المشاركون الخارجون'
+
 ];
 
 $protectedRoles = ['admin', 'general_manager', 'manager', 'supervisor', 'teacher', 'guardian'];
@@ -16,7 +26,7 @@ $protectedRoles = ['admin', 'general_manager', 'manager', 'supervisor', 'teacher
 
 <x-layouts.markaz-layout>
     <div class="max-w-7xl mx-auto space-y-8">
-
+<!-- 
         {{-- ──────────────────────────────────────── --}}
         {{-- Section A: Create New Role               --}}
         {{-- ──────────────────────────────────────── --}}
@@ -41,14 +51,14 @@ $protectedRoles = ['admin', 'general_manager', 'manager', 'supervisor', 'teacher
                             value="{{ old('name') }}"
                             dir="ltr"
                             autocomplete="off"
-                            class="w-full rounded-2xl border border-gray-200 p-3 text-sm focus:outline-none focus:ring-1
-                                   focus:ring-[#0a5c36] focus:border-[#0a5c36] transition-all
-                                   @error('name') border-red-400 bg-red-50 @enderror"
+                            class="w-full rounded-2xl border p-3 text-sm focus:outline-none focus:ring-1
+                                focus:ring-[#0a5c36] focus:border-[#0a5c36] transition-all
+                                @error('name') border-red-400 bg-red-50 @enderror"
                             placeholder="مثال: accountant, coordinator">
                         @error('name')
-                            <p class="text-red-500 text-xs mt-1 flex items-center gap-1">
-                                <span>⚠</span> {{ $message }}
-                            </p>
+                        <p class="text-red-500 text-xs mt-1 flex items-center gap-1">
+                            <span>⚠</span> {{ $message }}
+                        </p>
                         @enderror
                     </div>
 
@@ -64,13 +74,13 @@ $protectedRoles = ['admin', 'general_manager', 'manager', 'supervisor', 'teacher
                             value="{{ old('display_name') }}"
                             autocomplete="off"
                             class="w-full rounded-2xl border border-gray-200 p-3 text-sm focus:outline-none focus:ring-1
-                                   focus:ring-[#0a5c36] focus:border-[#0a5c36] transition-all
-                                   @error('display_name') border-red-400 bg-red-50 @enderror"
+                                focus:ring-[#0a5c36] focus:border-[#0a5c36] transition-all
+                                @error('display_name') bg-red-50 @enderror"
                             placeholder="مثال: محاسب، منسق">
                         @error('display_name')
-                            <p class="text-red-500 text-xs mt-1 flex items-center gap-1">
-                                <span>⚠</span> {{ $message }}
-                            </p>
+                        <p class="text-red-500 text-xs mt-1 flex items-center gap-1">
+                            <span>⚠</span> {{ $message }}
+                        </p>
                         @enderror
                     </div>
                 </div>
@@ -122,6 +132,7 @@ $protectedRoles = ['admin', 'general_manager', 'manager', 'supervisor', 'teacher
                 </button>
             </form>
         </div>
+        -->
 
         {{-- ──────────────────────────────────────── --}}
         {{-- Section B: Existing Roles               --}}
@@ -139,7 +150,7 @@ $protectedRoles = ['admin', 'general_manager', 'manager', 'supervisor', 'teacher
                         صلاحيات دور:
                         <span class="text-emerald-600">{{ $role->display_name ?? $role->name }}</span>
                         @if($role->display_name && $role->display_name !== $role->name)
-                            <span class="text-xs text-gray-400 font-normal ml-1">({{ $role->name }})</span>
+                        <span class="text-xs text-gray-400 font-normal ml-1">({{ $role->name }})</span>
                         @endif
                     </h3>
 
@@ -148,9 +159,9 @@ $protectedRoles = ['admin', 'general_manager', 'manager', 'supervisor', 'teacher
                             {{ $role->permissions->count() }} صلاحية نشطة
                         </span>
                         @if($isProtected)
-                            <span class="text-xs bg-amber-50 text-amber-600 border border-amber-200 px-3 py-1 rounded-full font-bold">
-                                🔒 دور أساسي
-                            </span>
+                        <span class="text-xs bg-amber-50 text-amber-600 border border-amber-200 px-3 py-1 rounded-full font-bold">
+                            🔒 دور أساسي
+                        </span>
                         @endif
                     </div>
                 </div>
@@ -180,31 +191,31 @@ $protectedRoles = ['admin', 'general_manager', 'manager', 'supervisor', 'teacher
                             <div id="role-{{ $role->id }}-{{ $group }}" class="grid grid-cols-2 md:grid-cols-4 gap-3">
                                 @foreach($groupPermissions as $permission)
                                 @php
-                                    $isLocked = ($permission->name === 'manage roles' && $role->name === 'admin');
-                                    $isChecked = in_array($permission->id, $role->permissions->pluck('id')->toArray());
+                                $isLocked = ($permission->name === 'manage roles' && $role->name === 'admin');
+                                $isChecked = in_array($permission->id, $role->permissions->pluck('id')->toArray());
                                 @endphp
 
                                 @if($isLocked)
-                                    {{-- صلاحية مقفلة — تُرسَل دائماً ولا تظهر كـ checkbox --}}
-                                    <input type="hidden" name="permissions[]" value="{{ $permission->id }}">
-                                    <div class="flex items-center gap-3 p-3 bg-amber-50 rounded-xl border border-amber-100 opacity-75 cursor-not-allowed select-none">
-                                        <span class="text-amber-400 text-xs">🔒</span>
-                                        <span class="text-sm text-amber-700 font-medium">
-                                            {{ $permission->display_name ?? $permission->name }}
-                                        </span>
-                                    </div>
+                                {{-- صلاحية مقفلة — تُرسَل دائماً ولا تظهر كـ checkbox --}}
+                                <input type="hidden" name="permissions[]" value="{{ $permission->id }}">
+                                <div class="flex items-center gap-3 p-3 bg-amber-50 rounded-xl border border-amber-100 opacity-75 cursor-not-allowed select-none">
+                                    <span class="text-amber-400 text-xs">🔒</span>
+                                    <span class="text-sm text-amber-700 font-medium">
+                                        {{ $permission->display_name ?? $permission->name }}
+                                    </span>
+                                </div>
                                 @else
-                                    <label class="flex items-center gap-3 p-3 bg-gray-50 hover:bg-emerald-50/50 rounded-xl cursor-pointer transition-all select-none border border-transparent hover:border-emerald-100">
-                                        <input
-                                            type="checkbox"
-                                            name="permissions[]"
-                                            value="{{ $permission->id }}"
-                                            @checked($isChecked)
-                                            class="w-4 h-4 text-emerald-600 focus:ring-emerald-500 border-gray-300 rounded-lg">
-                                        <span class="text-sm text-gray-700 font-medium">
-                                            {{ $permission->display_name ?? $permission->name }}
-                                        </span>
-                                    </label>
+                                <label class="flex items-center gap-3 p-3 bg-gray-50 hover:bg-emerald-50/50 rounded-xl cursor-pointer transition-all select-none border border-transparent hover:border-emerald-100">
+                                    <input
+                                        type="checkbox"
+                                        name="permissions[]"
+                                        value="{{ $permission->id }}"
+                                        @checked($isChecked)
+                                        class="w-4 h-4 text-emerald-600 focus:ring-emerald-500 border-gray-300 rounded-lg">
+                                    <span class="text-sm text-gray-700 font-medium">
+                                        {{ $permission->display_name ?? $permission->name }}
+                                    </span>
+                                </label>
                                 @endif
 
                                 @endforeach
@@ -226,16 +237,16 @@ $protectedRoles = ['admin', 'general_manager', 'manager', 'supervisor', 'teacher
 
                         {{-- زر الحذف أو علامة الحماية --}}
                         @if($isProtected)
-                            <span class="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-400 rounded-xl text-xs font-bold">
-                                🔒 دور أساسي محمي — لا يمكن حذفه
-                            </span>
+                        <span class="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-400 rounded-xl text-xs font-bold">
+                            🔒 دور أساسي محمي — لا يمكن حذفه
+                        </span>
                         @else
-                            <button
-                                type="button"
-                                onclick="confirmDelete({{ $role->id }}, '{{ e($role->display_name ?? $role->name) }}')"
-                                class="flex items-center gap-2 px-6 py-2.5 bg-red-50 hover:bg-red-500 text-red-600 hover:text-white border border-red-200 hover:border-red-500 font-bold rounded-xl transition-all text-xs">
-                                🗑 حذف الدور
-                            </button>
+                        <button
+                            type="button"
+                            onclick="confirmDelete({{ $role->id }}, '{{ e($role->display_name ?? $role->name) }}')"
+                            class="flex items-center gap-2 px-6 py-2.5 bg-red-50 hover:bg-red-500 text-red-600 hover:text-white border border-red-200 hover:border-red-500 font-bold rounded-xl transition-all text-xs">
+                            🗑 حذف الدور
+                        </button>
                         @endif
 
                     </div>
@@ -266,7 +277,6 @@ $protectedRoles = ['admin', 'general_manager', 'manager', 'supervisor', 'teacher
     </div>
 
     @push('scripts')
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
         // ─── حذف الدور ───────────────────────────────
         function confirmDelete(roleId, roleName) {
@@ -303,37 +313,6 @@ $protectedRoles = ['admin', 'general_manager', 'manager', 'supervisor', 'teacher
             checkboxes.forEach(cb => cb.checked = !allChecked);
             btn.textContent = allChecked ? 'تحديد الكل' : 'إلغاء التحديد';
         }
-
-        // ─── Flash messages ───────────────────────────
-        @if(session('success'))
-        Swal.fire({
-            icon: 'success',
-            title: 'تم بنجاح',
-            text: @json(session('success')),
-            confirmButtonColor: '#0a5c36',
-            confirmButtonText: 'حسناً',
-            timer: 3000,
-            timerProgressBar: true,
-            customClass: {
-                popup: 'rounded-3xl font-bold',
-                confirmButton: 'rounded-xl px-6 py-2.5 text-sm'
-            }
-        });
-        @endif
-
-        @if(session('error'))
-        Swal.fire({
-            icon: 'error',
-            title: 'خطأ',
-            text: @json(session('error')),
-            confirmButtonColor: '#dc2626',
-            confirmButtonText: 'حسناً',
-            customClass: {
-                popup: 'rounded-3xl font-bold',
-                confirmButton: 'rounded-xl px-6 py-2.5 text-sm'
-            }
-        });
-        @endif
     </script>
     @endpush
 </x-layouts.markaz-layout>

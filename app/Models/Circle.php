@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Collection;
 
 class Circle extends Model
 {
@@ -19,6 +21,18 @@ class Circle extends Model
         'center_id',
     ];
 
+    // ─── العلاقات الجديدة ───
+    public function groupSessionPlans(): HasMany
+    {
+        return $this->hasMany(GroupSessionPlan::class);
+    }
+
+    public function studentConstructionDetails(): HasMany
+    {
+        return $this->hasMany(StudentConstructionDetail::class);
+    }
+
+    // ─── العلاقات الموجودة ───
     public function teachers(): BelongsToMany
     {
         return $this->belongsToMany(Teacher::class, 'circle_teacher')
@@ -60,7 +74,6 @@ class Circle extends Model
             ->withTimestamps();
     }
 
-    // ✅ accessors للقراءة فقط (snake_case في Blade)
     public function getMainTeacherAttribute(): ?Teacher
     {
         return $this->mainTeachers->first();
@@ -93,5 +106,23 @@ class Circle extends Model
             'individual' => 'فردية',
             default      => $this->type,
         };
+    }
+
+    public static function circleIdsForTeacher(int $teacherId, array $roles): Collection
+    {
+        return DB::table('circle_teacher')
+            ->where('teacher_id', $teacherId)
+            ->whereIn('role', $roles)
+            ->pluck('circle_id');
+    }
+
+    public function surahTests(): HasMany
+    {
+        return $this->hasMany(SurahTest::class);
+    }
+
+    public function competitionParticipants(): HasMany
+    {
+        return $this->hasMany(CompetitionParticipant::class);
     }
 }

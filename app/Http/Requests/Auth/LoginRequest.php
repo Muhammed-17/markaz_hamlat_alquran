@@ -36,8 +36,7 @@ class LoginRequest extends FormRequest
         $user = null;
 
         if ($isNumeric) {
-            $user = User::where('mobile', $loginValue)->first()
-                ?? User::where('email', $loginValue)->first();
+            $user = User::where('email', $loginValue)->first();
         } else {
             $user = User::where('email', $loginValue)->first();
         }

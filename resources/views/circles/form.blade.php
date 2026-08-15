@@ -3,17 +3,6 @@ $isEdit = isset($circle) && $circle->exists;
 $canManageAll = auth()->user()->hasRole(['admin', 'general_manager']);
 @endphp
 
-@if ($errors->any())
-<div class="p-4 mb-4 text-sm text-red-800 rounded-2xl bg-red-50 border border-red-100">
-    <strong class="font-bold block mb-2">🚨 يرجى تصحيح الأخطاء التالية:</strong>
-    <ul class="list-disc list-inside space-y-1 text-xs">
-        @foreach ($errors->all() as $error)
-        <li>{{ $error }}</li>
-        @endforeach
-    </ul>
-</div>
-@endif
-
 <div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-8 space-y-6">
     <div class="flex items-center gap-3 mb-6 border-b border-gray-50 pb-4">
         <div class="p-2 bg-emerald-50 rounded-xl text-[#0a5c36]">
@@ -86,7 +75,6 @@ $canManageAll = auth()->user()->hasRole(['admin', 'general_manager']);
 
         @if(!$defaultCenterId)
         <div class="md:col-span-2 bg-red-50 border border-red-200 p-4 rounded-2xl text-red-700 font-bold">
-            ⚠️ لا يوجد فرع مرتبط بحسابك. لا يمكن إنشاء/تعديل حلقة.
         </div>
         @else
         <input type="hidden" name="center_id" value="{{ $defaultCenterId }}">

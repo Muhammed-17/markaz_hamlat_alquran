@@ -25,12 +25,20 @@ class LateStudentsSeeder extends Seeder
         ];
 
         foreach ($students as $index => $student) {
+            $newJoinDate = $joinDates[$index] ?? '2025-01-01';
+
             $student->update([
-                'join_date' => $joinDates[$index] ?? '2025-01-01',
+                'join_date' => $newJoinDate,
             ]);
+
+            // ✅ لازم نحدّث from_date في سجل الانتساب كمان، وإلا الحساب هيفضل يعتمد على تاريخ التسجيل الأصلي
+            \App\Models\CircleAssignmentHistory::where('student_id', $student->id)
+                ->whereNull('to_date')
+                ->update(['from_date' => $newJoinDate]);
         }
 
-        $this->command->info('✅ تم تحديث join_date للطلاب');
+        $this->command->info('✅ تم تحديث join_date وسجل الانتساب للطلاب');
+
 
         // ✅ احذف الاشتراكات الموجودة وأنشئ جديدة ببعض الشهور بس
         // عشان يظهر تعثر حقيقي

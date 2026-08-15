@@ -22,6 +22,7 @@ class StoreSubscriptionRequest extends FormRequest
             'status'         => 'required|in:مدفوع,غير مدفوع,معفي',
             'amount'         => 'required_if:status,مدفوع|nullable|numeric|min:0',
             'payment_method' => 'required_if:status,مدفوع|nullable|in:نقدي,تحويل بنكي,أخرى',
+            'collected_by'   => 'nullable|exists:users,id',
             'notes'          => 'nullable|string|max:1000',
         ];
     }
@@ -46,6 +47,7 @@ class StoreSubscriptionRequest extends FormRequest
             'amount.required_if'         => 'المبلغ مطلوب عند حالة مدفوع',
             'amount.required'            => 'المبلغ مطلوب',
             'payment_method.required_if' => 'طريقة الدفع مطلوبة عند حالة مدفوع',
+            'collected_by.exists'        => 'الموظف المحدد الذي قام بالتحصيل غير مسجل في النظام.',
         ];
     }
 }

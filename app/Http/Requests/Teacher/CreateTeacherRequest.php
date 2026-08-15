@@ -32,7 +32,6 @@ class CreateTeacherRequest extends FormRequest
             'center_id'         => ['required', 'integer', Rule::in($accessibleCenterIds)],
             'roles'             => 'required|array|size:1',
             'roles.*'           => ['string', Rule::in($allowedRoles)],
-            'is_administrative' => 'nullable|boolean',
         ];
     }
 

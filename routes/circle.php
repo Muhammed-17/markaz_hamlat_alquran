@@ -12,6 +12,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::middleware('permission:view circles')->group(function () {
         Route::get('/circles', [CircleController::class, 'index'])->name('circles.index');
+        Route::get('/circles/{circle}/group-plan', [CircleController::class, 'groupPlan'])->name('circles.group-plan');
         Route::get('/circles/{circle}', [CircleController::class, 'show'])->name('circles.show');
     });
 
@@ -22,10 +23,5 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::middleware('permission:delete circles')->group(function () {
         Route::delete('/circles/{circle}', [CircleController::class, 'destroy'])->name('circles.destroy');
-    });
-
-    Route::middleware('permission:manage circle teachers')->group(function () {
-        Route::post('/circles/{circle}/teachers', [CircleController::class, 'assignTeacher'])->name('circles.teachers.assign');
-        Route::delete('/circles/{circle}/teachers/{teacher}', [CircleController::class, 'removeTeacher'])->name('circles.teachers.remove');
     });
 });

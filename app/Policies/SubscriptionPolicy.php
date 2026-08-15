@@ -12,8 +12,7 @@ class SubscriptionPolicy
 
     public function viewAny(User $user): bool
     {
-        return $user->can('view subscriptions')
-            || $user->can('view own subscriptions');
+        return $user->can('view subscriptions');
     }
 
     public function view(User $user, Subscription $subscription): bool

@@ -19,7 +19,6 @@ class TeacherSeeder extends Seeder
                 'email'             => '03232345678@markaz.com',
                 'role'              => 'supervisor',
                 'password'          => '32345678',
-                'is_administrative' => 3,
                 'center_id'         => 2, // فرع العواسجة
             ],
             [
@@ -27,7 +26,6 @@ class TeacherSeeder extends Seeder
                 'email'             => '03350375090@markaz.com',
                 'role'              => 'teacher',
                 'password'          => '32345678',
-                'is_administrative' => 0,
                 'center_id'         => 2, // فرع العواسجة
             ],
             [
@@ -35,8 +33,7 @@ class TeacherSeeder extends Seeder
                 'email'             => 'adbelbadea@markaz.com',
                 'role'              => 'supervisor',
                 'password'          => '32345678',
-                'is_administrative' => 3,
-                'center_id'         => 3, // الفرع الرئيسي
+                'center_id'         => 1, // الفرع الرئيسي
             ],
 
             // --- الموظفون المضافون حديثاً لفرع العواسجة (Center ID: 2) ---
@@ -45,7 +42,6 @@ class TeacherSeeder extends Seeder
                 'email'             => 'mohamed.gamal@markaz.com',
                 'role'              => 'teacher',
                 'password'          => '32345678',
-                'is_administrative' => 0,
                 'center_id'         => 2,
             ],
             [
@@ -53,7 +49,6 @@ class TeacherSeeder extends Seeder
                 'email'             => 'ahmed.refaei@markaz.com',
                 'role'              => 'teacher',
                 'password'          => '32345678',
-                'is_administrative' => 0,
                 'center_id'         => 2,
             ],
             [
@@ -61,7 +56,6 @@ class TeacherSeeder extends Seeder
                 'email'             => 'khaled.sharbini@markaz.com',
                 'role'              => 'teacher',
                 'password'          => '32345678',
-                'is_administrative' => 0,
                 'center_id'         => 2,
             ],
             [
@@ -69,7 +63,6 @@ class TeacherSeeder extends Seeder
                 'email'             => 'mahmoud.ghanem@markaz.com',
                 'role'              => 'supervisor',
                 'password'          => '32345678',
-                'is_administrative' => 3,
                 'center_id'         => 2,
             ],
             [
@@ -77,7 +70,6 @@ class TeacherSeeder extends Seeder
                 'email'             => 'mostafa.qadi@markaz.com',
                 'role'              => 'teacher',
                 'password'          => '32345678',
-                'is_administrative' => 0,
                 'center_id'         => 2,
             ],
 
@@ -87,48 +79,42 @@ class TeacherSeeder extends Seeder
                 'email'             => 'ibrahim.desouky@markaz.com',
                 'role'              => 'teacher',
                 'password'          => '32345678',
-                'is_administrative' => 0,
-                'center_id'         => 3,
+                'center_id'         => 1,
             ],
             [
                 'name'              => 'حسن بيومي المتولي',
                 'email'             => 'hasan.metwally@markaz.com',
                 'role'              => 'teacher',
                 'password'          => '32345678',
-                'is_administrative' => 0,
-                'center_id'         => 3,
+                'center_id'         => 1,
             ],
             [
                 'name'              => 'صلاح الدين الأيوبي جاد',
                 'email'             => 'salah.gad@markaz.com',
                 'role'              => 'supervisor',
                 'password'          => '32345678',
-                'is_administrative' => 3,
-                'center_id'         => 3,
+                'center_id'         => 1,
             ],
             [
                 'name'              => 'عبد الرحمن محمد الشافعي',
                 'email'             => 'shafei@markaz.com',
                 'role'              => 'teacher',
                 'password'          => '32345678',
-                'is_administrative' => 0,
-                'center_id'         => 3,
+                'center_id'         => 1,
             ],
             [
                 'name'              => 'يوسف طارق الباز',
                 'email'             => 'youssef.baz@markaz.com',
                 'role'              => 'teacher',
                 'password'          => '32345678',
-                'is_administrative' => 0,
-                'center_id'         => 3,
+                'center_id'         => 1,
             ],
             [
                 'name'              => 'بلال عوض القرشي',
                 'email'             => 'belal.qurashi@markaz.com',
                 'role'              => 'teacher',
                 'password'          => '32345678',
-                'is_administrative' => 0,
-                'center_id'         => 3,
+                'center_id'         => 1,
             ]
         ];
 
@@ -153,7 +139,6 @@ class TeacherSeeder extends Seeder
                 [
                     'name'              => $user->name,
                     'center_id'         => $member['center_id'],
-                    'is_administrative' => $member['is_administrative'],
                 ]
             );
         }

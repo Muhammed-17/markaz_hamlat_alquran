@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\Center;
 use App\Models\Circle;
+use App\Models\CircleAssignmentHistory;   // ← جديد
 use App\Models\Student;
 use App\Models\User;
 use Illuminate\Database\Seeder;
@@ -59,7 +60,7 @@ class StudentSeeder extends Seeder
         foreach ($students as $index => $data) {
             $studentCode = 'STU-' . now()->year . '-' . str_pad($index + 1, 5, '0', STR_PAD_LEFT);
 
-            Student::updateOrCreate(
+            $student = Student::updateOrCreate(
                 ['name' => $data['name'], 'guardian_id' => $guardian->id],
                 [
                     'gender' => $data['gender'],
@@ -75,7 +76,7 @@ class StudentSeeder extends Seeder
                     'join_date' => now()->toDateString(),
                     'student_code' => $studentCode,
                     'decision' => 'تحت الاختبار',
-                    'center_id' => $center->id, // هنا تم الربط بالفرع المجلوب بأمان
+                    'center_id' => $center->id,
                     'supervisor_id' => null,
                     'applicant' => 'الطالب',
                     'health_status' => 'طبيعية',
@@ -84,8 +85,17 @@ class StudentSeeder extends Seeder
                     'reading' => 'مبتدئ',
                 ]
             );
+
+            // ✅ التأكد من وجود سجل انتساب فعّال لهذه الحلقة (بدون تكرار عند إعادة تشغيل الـ Seeder)
+            $hasActiveAssignment = CircleAssignmentHistory::where('student_id', $student->id)
+                ->where('circle_id', $circle->id)
+                ->whereNull('to_date')
+                ->exists();
+
+            if (!$hasActiveAssignment) {
+                CircleAssignmentHistory::openNewFor($student->id, $circle->id, $student->join_date);
+            }
         }
 
-        $this->command->info('✅ تم ربط الطلاب بفرعهم الصحيح دون تكرار إنشاء فروع جديدة.');
     }
 }

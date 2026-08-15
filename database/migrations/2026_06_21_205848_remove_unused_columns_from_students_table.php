@@ -16,7 +16,6 @@ return new class extends Migration
                 'description',
                 'age',
                 'phone',
-                'is_guardian_contacted',
                 'circle_name',
                 'supervisor_name',
                 'enrollment_date',
@@ -57,9 +56,6 @@ return new class extends Migration
                 'current_surah'
             ]);
         });
-        Schema::table('student_construction_details', function (Blueprint $table) {
-            $table->string('current_surah')->nullable()->after('study_system');
-        });
     }
 
     /**
@@ -71,7 +67,6 @@ return new class extends Migration
             $table->text('description')->nullable();
             $table->integer('age')->nullable();
             $table->string('phone')->nullable();
-            $table->boolean('is_guardian_contacted')->default(false);
             $table->string('circle_name')->nullable();
             $table->string('supervisor_name')->nullable();
             $table->date('enrollment_date')->nullable();
@@ -110,9 +105,6 @@ return new class extends Migration
             $table->string('password')->nullable();
             $table->text('recommendations')->nullable();
             $table->string('current_surah')->nullable();
-        });
-        Schema::table('student_construction_details', function (Blueprint $table) {
-            $table->dropColumn('current_surah');
         });
     }
 };

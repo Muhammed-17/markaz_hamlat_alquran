@@ -49,6 +49,86 @@ class CenterController extends Controller
         return redirect()->route('centers.index')->with('success', $msg);
     }
 
+    public function show(Center $center)
+    {
+        $circles = $center->circles()
+            ->with(['mainTeachers.user', 'assistantTeachers.user', 'students'])
+            ->orderBy('name')
+            ->get();
+
+        $totalStudents = $circles->sum(fn($circle) => $circle->students->count());
+
+        $lessons = \App\Models\EducationalLesson::withoutGlobalScope(\App\Models\Scopes\CenterScope::class)
+            ->where('center_id', $center->id)
+            ->latest()
+            ->get();
+
+        $activeLesson = $lessons->first();
+        $lessonsHistory = $lessons->slice(1);
+
+        return view('centers.show', compact(
+            'center',
+            'circles',
+            'totalStudents',
+            'activeLesson',
+            'lessonsHistory'
+        ));
+    }
+
+    public function storeEducationalLesson(Request $request, Center $center)
+    {
+        $validated = $request->validate([
+            'title'       => 'required|string|max:255',
+            'description' => 'nullable|string',
+        ], [
+            'title.required' => 'حقل عنوان الدرس مطلوب.',
+        ]);
+
+        \App\Models\EducationalLesson::create([
+            'center_id'   => $center->id,
+            'title'       => $validated['title'],
+            'description' => $validated['description'] ?? null,
+            'created_by'  => auth()->id(),
+        ]);
+
+        return redirect()->route('centers.show', $center)
+            ->with('success', 'تم إضافة الدرس التربوي الجديد وأصبح هو النشط.');
+    }
+
+    public function updateEducationalLesson(Request $request, \App\Models\EducationalLesson $educationalLesson)
+    {
+        $validated = $request->validate([
+            'title'       => 'required|string|max:255',
+            'description' => 'nullable|string',
+        ], [
+            'title.required' => 'حقل عنوان الدرس مطلوب.',
+        ]);
+
+        $educationalLesson->update([
+            'title'       => $validated['title'],
+            'description' => $validated['description'] ?? null,
+        ]);
+
+        return redirect()->route('centers.show', $educationalLesson->center_id)
+            ->with('success', 'تم تحديث الدرس التربوي بنجاح.');
+    }
+
+    public function destroyEducationalLesson(\App\Models\EducationalLesson $educationalLesson)
+    {
+        $centerId = $educationalLesson->center_id;
+
+        $usageCount = \App\Models\StudentWeeklyEducationalLesson::where('educational_lesson_id', $educationalLesson->id)->count();
+
+        if ($usageCount > 0) {
+            return redirect()->route('centers.show', $centerId)
+                ->with('error', 'لا يمكن حذف هذا الدرس لأنه مستخدم في ' . $usageCount . ' متابعة أسبوعية.');
+        }
+
+        $educationalLesson->delete();
+
+        return redirect()->route('centers.show', $centerId)
+            ->with('success', 'تم حذف الدرس التربوي بنجاح.');
+    }
     public function destroy(Center $center)
     {
         // ✅ استخدم center_id بدل center

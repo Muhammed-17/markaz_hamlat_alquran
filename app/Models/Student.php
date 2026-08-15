@@ -2,77 +2,20 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use App\Models\User;
-use App\Models\Circle;
-use App\Models\Center;
-use App\Models\Attendance;
-use App\Models\Subscription;
-use App\Models\StudentConstructionDetail;
-use App\Models\StudentItqanDetail;
-use App\Models\StudentIbdaDetail;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Collection;
 use App\Models\Scopes\CenterScope;
 
-/**
- * @property int $id
- * @property string $name
- * @property \Illuminate\Support\Carbon|null $date_of_birth
- * @property string $gender
- * @property string|null $second_phone
- * @property string|null $address
- * @property int|null $guardian_id
- * @property string $status
- * @property \Illuminate\Support\Carbon|null $suspended_at
- * @property int|null $circle_id
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
- * @property string|null $student_code
- * @property string|null $education_type
- * @property string|null $educational_stage
- * @property string|null $school_grade
- * @property string|null $previous_school
- * @property string|null $center_entry_level
- * @property \Illuminate\Support\Carbon|null $join_date
- * @property string|null $whatsapp_number
- * @property string|null $health_status
- * @property string|null $health_status_other
- * @property string|null $notes
- * @property int|null $supervisor_id
- * @property string|null $applicant
- * @property string|null $applicant_other
- * @property int|null $center_id
- * @property string|null $whatsapp_owner
- * @property string|null $whatsapp_owner_other
- * @property string|null $additional_contact_owner
- * @property string|null $additional_contact_owner_other
- * @property string|null $learning_difficulties
- * @property string|null $learning_difficulties_other
- * @property string|null $personal_traits
- * @property string|null $personal_traits_other
- * @property array<array-key, mixed>|null $hobbies
- * @property string|null $hobby_other
- * @property string|null $reading
- * @property string|null $exit_details
- * @property string|null $student_exit_status
- * @property string|null $decision
- * @property float|null $subscription_fees
- * @property string|null $received_tools
- * @property-read \Illuminate\Database\Eloquent\Collection<int, Attendance> $attendances
- * @property-read int|null $attendances_count
- * @property-read \App\Models\Center|null $center
- * @property-read Circle|null $circle
- * @property-read StudentConstructionDetail|null $constructionDetail
- * @property-read int $overdue_months_count
- * @property-read float $suspended_past_debt
- * @property-read User|null $guardian
- * @property-read StudentIbdaDetail|null $ibdaDetail
- * @property-read StudentItqanDetail|null $itqanDetail
- * @property-read \Illuminate\Database\Eloquent\Collection<int, Subscription> $subscriptions
- * @property-read int|null $subscriptions_count
- * @mixin \Eloquent
- */
 class Student extends Model
 {
+    use HasFactory;
+
     protected $fillable = [
         'name',
         'date_of_birth',
@@ -92,24 +35,16 @@ class Student extends Model
         'join_date',
         'whatsapp_number',
         'health_status',
-        'health_status_other',
         'notes',
         'supervisor_id',
         'applicant',
-        'applicant_other',
         'center_id',
         'whatsapp_owner',
-        'whatsapp_owner_other',
         'additional_contact_owner',
-        'additional_contact_owner_other',
         'learning_difficulties',
-        'learning_difficulties_other',
         'personal_traits',
-        'personal_traits_other',
         'hobbies',
-        'hobby_other',
         'reading',
-        'exit_details',
         'student_exit_status',
         'decision',
         'subscription_fees',
@@ -139,69 +74,93 @@ class Student extends Model
     }
 
     // ==========================================
-    // العلاقات (Relationships)
+    // Relationships
     // ==========================================
 
-    public function guardian()
+    public function guardian(): BelongsTo
     {
         return $this->belongsTo(User::class, 'guardian_id');
     }
 
-    public function circle()
+    public function circle(): BelongsTo
     {
         return $this->belongsTo(Circle::class);
     }
 
-    public function center()
+    public function center(): BelongsTo
     {
         return $this->belongsTo(Center::class);
     }
 
-    public function supervisor()
+    public function supervisor(): BelongsTo
     {
         return $this->belongsTo(Teacher::class, 'supervisor_id')
             ->withoutGlobalScope(CenterScope::class);
     }
 
-    public function attendances()
+    public function attendances(): HasMany
     {
         return $this->hasMany(Attendance::class);
     }
 
-    public function subscriptions()
+    public function subscriptions(): HasMany
     {
         return $this->hasMany(Subscription::class);
     }
 
-    public function constructionDetail()
+    public function constructionDetail(): HasOne
     {
         return $this->hasOne(StudentConstructionDetail::class, 'student_id');
     }
 
-    public function itqanDetail()
+    public function itqanDetail(): HasOne
     {
         return $this->hasOne(StudentItqanDetail::class, 'student_id');
     }
 
-    public function ibdaDetail()
+    public function ibdaDetail(): HasOne
     {
         return $this->hasOne(StudentIbdaDetail::class, 'student_id');
     }
 
-    // ==========================================
-    // خصائص مساعدة (Helpers)
-    // ==========================================
+    /**
+     * All weekly plans linked directly via student_id.
+     */
+
+    public function unpaidMonths(): HasOne
+    {
+        return $this->hasOne(StudentUnpaidMonths::class);
+    }
+
+    public function weeklyFollowups(): HasMany
+    {
+        return $this->hasMany(StudentWeeklyFollowup::class, 'student_id');
+    }
 
     /**
-     * المعلم الرئيسي للحلقة (أول معلم رئيسي)
+     * Surah test results.
      */
+    public function surahTestResults(): HasMany
+    {
+        return $this->hasMany(StudentSurahTestResult::class, 'student_id');
+    }
+
+    public function behavioralNotes(): HasMany
+    {
+        return $this->hasMany(BehavioralNote::class);
+    }
+
+    // ==========================================
+    // Helpers
+    // ==========================================
+
     public function mainTeacher(): ?Teacher
     {
         return $this->circle?->mainTeachers?->first();
     }
 
     // ==========================================
-    // الخصائص الديناميكية (Accessors)
+    // Accessors
     // ==========================================
 
     public function getOverdueMonthsCountAttribute(): int
@@ -245,5 +204,10 @@ class Student extends Model
             ->where('status', '!=', 'مدفوع')
             ->where('month', '<=', $this->suspended_at)
             ->sum('amount');
+    }
+
+    public function competitionParticipants(): HasMany
+    {
+        return $this->hasMany(CompetitionParticipant::class);
     }
 }

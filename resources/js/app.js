@@ -10,3 +10,10 @@ window.Chart = Chart;
 
 
 Alpine.start();
+
+// ✅ إغلاق أي SweetAlert عالق في كل صفحات الموقع لو رجعت من bfcache بزر الرجوع
+window.addEventListener('pageshow', function (event) {
+    if (event.persisted) {
+        window.location.reload();
+    }
+});

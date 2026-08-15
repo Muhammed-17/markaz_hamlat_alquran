@@ -4,51 +4,116 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use App\Models\Scopes\CenterScope;
 
 /**
- * @property int $id
- * @property int $student_id
- * @property string|null $current_surah
- * @property string|null $study_system
- * @property string|null $group_name
- * @property string|null $new_memorization_plan
- * @property string|null $placement_evaluation
- * @property string|null $old_memorization_plan
- * @property string|null $old_memorization_plan_other
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
- * @property-read \App\Models\Student $student
- * @method static \Illuminate\Database\Eloquent\Builder<static>|StudentConstructionDetail newModelQuery()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|StudentConstructionDetail newQuery()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|StudentConstructionDetail query()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|StudentConstructionDetail whereCreatedAt($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|StudentConstructionDetail whereCurrentSurah($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|StudentConstructionDetail whereGroupName($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|StudentConstructionDetail whereId($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|StudentConstructionDetail whereNewMemorizationPlan($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|StudentConstructionDetail whereOldMemorizationPlan($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|StudentConstructionDetail whereOldMemorizationPlanOther($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|StudentConstructionDetail wherePlacementEvaluation($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|StudentConstructionDetail whereStudentId($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|StudentConstructionDetail whereStudySystem($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|StudentConstructionDetail whereUpdatedAt($value)
- * @mixin \Eloquent
+ * Class StudentConstructionDetail
+ * 
+ * Represents the current Quranic construction data for a student.
  */
 class StudentConstructionDetail extends Model
 {
+    /**
+     * The table associated with the model.
+     */
+    protected $table = 'student_construction_details';
+
+    /**
+     * The attributes that are mass assignable.
+     */
     protected $fillable = [
         'student_id',
-        'current_surah',
+        'circle_id',
         'study_system',
-        'group_name',
+        'current_surah_id',
         'new_memorization_plan',
-        'placement_evaluation',
+        'revision_plan',
         'old_memorization_plan',
-        'old_memorization_plan_other',
+        'placement_evaluation',
     ];
 
+    protected $casts = [
+        'new_memorization_plan' => 'string',
+        'revision_plan' => 'string',
+        'old_memorization_plan' => 'string',
+    ];
+
+    // ==========================================
+    // Boot - Apply CenterScope
+    // ==========================================
+    protected static function booted(): void
+    {
+        static::addGlobalScope(new CenterScope());
+    }
+
+    // ==========================================
+    // Relationships
+    // ==========================================
+
+    /**
+     * Get the student that owns this construction detail.
+     */
     public function student(): BelongsTo
     {
-        return $this->belongsTo(Student::class);
+        return $this->belongsTo(Student::class, 'student_id');
+    }
+
+    public function circle(): BelongsTo
+    {
+        return $this->belongsTo(Circle::class, 'circle_id');
+    }
+
+    /**
+     * Get the current surah the student is memorizing.
+     */
+    public function currentSurah(): BelongsTo
+    {
+        return $this->belongsTo(Surah::class, 'current_surah_id');
+    }
+
+    // ==========================================
+    // Accessors - قراءة بيانات الخطة الجماعية من سجل الحلقة الرئيسي
+    // ==========================================
+
+    protected function groupMasterPlan()
+    {
+        if ($this->study_system !== 'group' || !$this->circle_id) {
+            return null;
+        }
+
+        return static::withoutGlobalScope(\App\Models\Scopes\CenterScope::class)
+            ->where('circle_id', $this->circle_id)
+            ->whereNull('student_id')
+            ->latest('updated_at')
+            ->first();
+    }
+
+    public function getEffectiveCurrentSurahIdAttribute()
+    {
+        return $this->current_surah_id ?? $this->groupMasterPlan()?->current_surah_id;
+    }
+
+    public function getEffectiveCurrentSurahAttribute()
+    {
+        if ($this->current_surah_id) {
+            return $this->currentSurah;
+        }
+
+        return $this->groupMasterPlan()?->currentSurah;
+    }
+
+    public function getEffectiveNewMemorizationPlanAttribute()
+    {
+        return $this->new_memorization_plan ?? $this->groupMasterPlan()?->new_memorization_plan;
+    }
+
+    public function getEffectiveRevisionPlanAttribute()
+    {
+        return $this->revision_plan ?? $this->groupMasterPlan()?->revision_plan;
+    }
+
+    public function getEffectiveOldMemorizationPlanAttribute()
+    {
+        return $this->old_memorization_plan ?? $this->groupMasterPlan()?->old_memorization_plan;
     }
 }

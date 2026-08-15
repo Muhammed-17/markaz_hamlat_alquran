@@ -22,6 +22,7 @@ class UpdateSubscriptionRequest extends FormRequest
             'month'          => 'required|date_format:Y-m',
             'status'         => 'required|in:مدفوع,غير مدفوع,معفي',
             'payment_method' => 'required_if:status,مدفوع|nullable|in:نقدي,تحويل بنكي,أخرى',
+            'collected_by'   => 'nullable|exists:users,id',
             'notes'          => 'nullable|string|max:1000',
         ];
     }
@@ -44,6 +45,7 @@ class UpdateSubscriptionRequest extends FormRequest
             'status.in'                  => 'حالة السداد غير صحيحة',
             'payment_method.required_if' => 'طريقة الدفع مطلوبة عند حالة مدفوع',
             'payment_method.in'          => 'طريقة الدفع غير صحيحة',
+            'collected_by.exists'        => 'الموظف المحدد الذي قام بالتحصيل غير مسجل في النظام.',
         ];
     }
 }

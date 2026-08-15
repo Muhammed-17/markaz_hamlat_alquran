@@ -4,11 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Student\EditStudentRequest;
-use App\Http\Requests\Student\StoreStudentRegistrationRequest;
+use App\Http\Requests\Student\CreateStudentRequest;
 use App\Models\Student;
 use App\Models\Circle;
-use App\Models\Center;
-use App\Models\Teacher;
 use App\Models\User;
 use App\Models\Scopes\CenterScope;
 use Illuminate\Http\Request;
@@ -17,19 +15,19 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use App\Traits\ResolvesUserScope;
-
+use \App\Services\EducationStageExclusionService;
 class StudentController extends Controller
 {
     use ResolvesUserScope;
 
     private array $constructionFields = [
-        'current_surah',
+        'circle_id',
         'study_system',
-        'group_name',
+        'current_surah_id',
         'new_memorization_plan',
-        'placement_evaluation',
+        'revision_plan',
         'old_memorization_plan',
-        'old_memorization_plan_other',
+        'placement_evaluation',
     ];
 
     private array $itqanFields = [
@@ -38,7 +36,6 @@ class StudentController extends Controller
         'current_review_amount',
         'self_evaluation',
         'tajweed_matn',
-        'tajweed_matn_other',
         'desired_path',
         'preferred_time',
         'teacher_name',
@@ -74,25 +71,18 @@ class StudentController extends Controller
         'notes',
         'supervisor_id',
         'applicant',
-        'applicant_other',
         'center_id',
         'whatsapp_owner',
-        'whatsapp_owner_other',
         'additional_contact_owner',
-        'additional_contact_owner_other',
         'learning_difficulties',
         'personal_traits',
         'hobbies',
         'reading',
-        'exit_details',
         'student_exit_status',
         'decision',
-        'health_status_other',
-        'learning_difficulties_other',
-        'personal_traits_other',
-        'hobby_other',
         'subscription_fees',
         'received_tools',
+        'student_code',
     ];
 
     // ─────────────────────────────────────────
@@ -169,6 +159,38 @@ class StudentController extends Controller
 
         return view('students.index', compact('students', 'circles', 'centers'));
     }
+
+    // ─────────────────────────────────────────
+    public function export(Request $request)
+    {
+        $this->authorize('viewAny', Student::class);
+
+        $filters = $request->only([
+            'q', 'status', 'circle_id', 'center_id',
+            'educational_stage', 'school_grade', 'decision',
+            'age_min', 'age_max',
+        ]);
+
+        $fileName = 'الطلاب-' . now()->format('Y-m-d') . '.xlsx';
+
+        return \Maatwebsite\Excel\Facades\Excel::download(
+            new \App\Exports\StudentsExport($filters),
+            $fileName
+        );
+    }
+    // ─────────────────────────────────────────
+
+    public function excludedReview(EducationStageExclusionService $exclusionService)
+    {
+        $this->authorize('viewAny', Student::class);
+
+        $excluded = $exclusionService->getExcludedStudents();
+
+        return view('students.excluded_review', [
+            'excluded' => $excluded,
+        ]);
+    }
+
     // ─────────────────────────────────────────
     public function create()
     {
@@ -178,19 +200,18 @@ class StudentController extends Controller
         $teacher = $this->getTeacherRecord($user);
 
         return view('students.create', [
-            'student'            => new Student(), // ← أضف هذا السطر
+            'student'            => new Student(),
             'circles'            => $this->getAccessibleCircles($user),
             'centers'            => $this->getAccessibleCenters($user),
             'teachers'           => $this->getAccessibleTeachers($user, $teacher),
             'supervisors'        => $this->getAccessibleSupervisors($user, $teacher),
             'guardians'          => User::role('guardian')->get(),
             'subscriptionPrices' => DB::table('subscription_prices')->get(),
-            'generatedCode'      => $this->generateStudentCode(),
+            'surahs'             => \App\Models\Surah::orderBy('number')->get(),
         ]);
     }
-
     // ─────────────────────────────────────────
-    public function store(StoreStudentRegistrationRequest $request)
+    public function store(CreateStudentRequest $request)
     {
         $this->authorize('create', Student::class);
 
@@ -204,12 +225,11 @@ class StudentController extends Controller
                 $data['guardian_name'] ?? null,
                 $data['parent_email'] ?? null,
                 $data['password'] ?? null,
-                $data['whatsapp_number'] ?? null,
                 $existingUser,
             );
 
-            $studentData                 = array_intersect_key($data, array_flip($this->studentColumns));
-            $studentData['student_code'] = $this->generateStudentCode();
+            $studentData = array_intersect_key($data, array_flip($this->studentColumns));
+
 
             if (($studentData['status'] ?? '') === 'متوقف') {
                 $studentData['suspended_at'] = now();
@@ -266,8 +286,8 @@ class StudentController extends Controller
         $this->authorizeStudentCenter($student);
 
         $student->load([
-            'circle.mainTeachers',        // ✅ صحيح: العلاقة BelongsToMany
-            'circle.assistantTeachers',   // ✅ إذا كنت تحتاجها
+            'circle.mainTeachers',
+            'circle.assistantTeachers',
             'guardian',
             'attendances',
             'subscriptions',
@@ -275,6 +295,10 @@ class StudentController extends Controller
             'itqanDetail',
             'ibdaDetail',
             'supervisor.user',
+            'behavioralNotes.teacher.user',
+            'weeklyFollowups.teacher.user',
+            'weeklyFollowups.newMemorizations.toSurah',
+            'weeklyFollowups.revisions.toSurah',
         ]);
 
         $totalAttendance = $student->attendances->count();
@@ -308,6 +332,12 @@ class StudentController extends Controller
             $checkDate->addMonth();
         }
 
+        $surahTestResults = \App\Models\StudentSurahTestResult::where('student_id', $student->id)
+            ->with(['surahTest.surah', 'surahTest.circle', 'surahTest.teacher.user'])
+            ->whereHas('surahTest')
+            ->get()
+            ->sortByDesc(fn($result) => $result->surahTest->test_date);
+
         return view('students.show', [
             'student'           => $student,
             'attendanceRate'    => $attendanceRate,
@@ -320,6 +350,7 @@ class StudentController extends Controller
             'totalPaidAmount'   => $student->subscriptions->where('status', 'مدفوع')->sum('amount'),
             'feeTimeline'       => $feeTimeline->sortByDesc('month'),
             'suspendedPastDebt' => $student->suspended_past_debt,
+            'surahTestResults'  => $surahTestResults,
         ]);
     }
 
@@ -335,18 +366,29 @@ class StudentController extends Controller
 
         $student->load(['guardian', 'constructionDetail', 'itqanDetail', 'ibdaDetail', 'circle']);
 
+        $circles = $this->getAccessibleCircles($user);
+
+        // ✅ تأكد أن حلقة الطالب الحالية موجودة ضمن القائمة حتى لو خارج نطاق المستخدم
+        $currentCircleId = $student->constructionDetail->circle_id ?? $student->circle_id ?? null;
+        if ($currentCircleId && !$circles->contains('id', $currentCircleId)) {
+            $studentCircle = Circle::find($currentCircleId);
+            if ($studentCircle) {
+                $circles = $circles->push($studentCircle);
+            }
+        }
+
         return view('students.edit', [
             'student'            => $student,
-            'circles'            => $this->getAccessibleCircles($user),
+            'circles'            => $circles,
             'centers'            => $this->getAccessibleCenters($user),
             'teachers'           => $this->getAccessibleTeachers($user, $teacher),
             'supervisors'        => $this->getAccessibleSupervisors($user, $teacher),
             'guardians'          => User::role('guardian')->get(),
             'subscriptionPrices' => DB::table('subscription_prices')->get(),
-            'generatedCode'      => null,
             'construction'       => $student->constructionDetail,
             'itqan'              => $student->itqanDetail,
             'ibda'               => $student->ibdaDetail,
+            'surahs'             => \App\Models\Surah::orderBy('number')->get(),
         ]);
     }
 
@@ -367,12 +409,10 @@ class StudentController extends Controller
                 $data['guardian_name'] ?? null,
                 $data['parent_email'] ?? null,
                 $data['password'] ?? null,
-                $data['whatsapp_number'] ?? null,
                 $existingUser,
             );
 
             $studentData = array_intersect_key($data, array_flip($this->studentColumns));
-            unset($studentData['student_code']);
 
             // ✅ صلاحية تغيير الحالة والقرار
             if (isset($studentData['status']) || isset($studentData['decision'])) {
@@ -406,7 +446,14 @@ class StudentController extends Controller
                 \App\Models\CircleAssignmentHistory::openNewFor($student->id, $studentData['circle_id']);
             }
 
-            $this->syncDetailRecord($student, $data, 'update');
+            // ✅ لو المستخدم مالوش صلاحية تغيير الحلقة، امنع تحديثها في تفاصيل البناء كمان
+            // عشان نضمن تطابق circle_id بين جدول students وجدول student_construction_details
+            $syncData = $data;
+            if (!auth()->user()->can('assign student to circle')) {
+                $syncData['circle_id'] = $student->circle_id; // ارجعها للقيمة الحالية المحفوظة فعليًا
+            }
+
+            $this->syncDetailRecord($student, $syncData, 'update');
 
             // ✅ مزامنة حالة ولي الأمر
             $this->syncGuardianStatus($student->fresh()->guardian_id);
@@ -470,7 +517,6 @@ class StudentController extends Controller
         ?string $guardianName,
         ?string $parentEmail,
         ?string $password,
-        ?string $whatsapp,
         ?User   &$existingUser,
     ): int|null {
 
@@ -486,33 +532,22 @@ class StudentController extends Controller
                     ->first();
             }
 
-            if (!$existingUser && !empty($whatsapp)) {
-                $existingUser = User::role('guardian')
-                    ->where('mobile', $whatsapp)
-                    ->first();
-            }
-
             if ($existingUser) {
                 return $existingUser->id;
             }
 
-            $mobileExists = !empty($whatsapp) && User::where('mobile', $whatsapp)->exists();
-            $emailToUse   = !empty($parentEmail)
+            $emailToUse = !empty($parentEmail)
                 ? $parentEmail
                 : 'guardian_' . uniqid() . '@temp.local';
 
             $guardian = User::create([
                 'name'     => $guardianName,
                 'email'    => $emailToUse,
-                'mobile'   => $mobileExists ? null : ($whatsapp ?: null),
                 'password' => Hash::make($password ?? Str::random(16)),
                 'status'   => 'active',
-                // ⚠️ ضروري بالأخص هنا: emailToUse قد يكون عنواناً مؤقتاً
-                // وهمياً (@temp.local) لا يمكن إرسال بريد تفعيل حقيقي إليه
-                // أصلاً، فبدون هذا السطر سيبقى الحساب محجوباً عن
-                // guardian.dashboard بشكل دائم لا حل له.
                 'email_verified_at' => now(),
             ]);
+
             $guardian->assignRole('guardian');
 
             return $guardian->id;
@@ -531,25 +566,11 @@ class StudentController extends Controller
 
         return $guardian->id;
     }
-
-    private function generateStudentCode(): string
-    {
-        $prefix = 'MHQ-' . now()->format('Ymd') . '-';
-
-        return DB::transaction(function () use ($prefix) {
-            $last = Student::where('student_code', 'like', $prefix . '%')
-                ->lockForUpdate()
-                ->orderBy('student_code', 'desc')
-                ->value('student_code');
-
-            $next = $last ? (int) substr($last, -5) + 1 : 1;
-
-            return $prefix . str_pad($next, 5, '0', STR_PAD_LEFT);
-        });
-    }
-
     private function syncDetailRecord(Student $student, array $data, string $mode): void
     {
+        if (isset($data['current_surah']) && !isset($data['current_surah_id'])) {
+            $data['current_surah_id'] = $data['current_surah'];
+        }
         $entryLevel = $data['center_entry_level'] ?? $student->center_entry_level;
 
         $map = [
@@ -576,11 +597,24 @@ class StudentController extends Controller
         $relation = $config['relation'];
         $fields   = array_intersect_key($data, array_flip($config['fields']));
 
-        if ($entryLevel === 'construction' && !empty($data['group_name'])) {
-            $circle = Circle::where('name', $data['group_name'])->first();
-            if ($circle && auth()->user()->can('assign student to circle') && $student->circle_id != $circle->id) {
-                $student->update(['circle_id' => $circle->id]);
-                \App\Models\CircleAssignmentHistory::openNewFor($student->id, $circle->id);
+        if ($entryLevel === 'construction') {
+            $studySystem = $fields['study_system'] ?? 'group';
+            $circleId    = $fields['circle_id'] ?? null;
+
+            if ($studySystem === 'group' && $circleId) {
+                // ✅ لا تُنسخ قيم الخطة الجماعية أبدًا — تُقرأ دائمًا من سجل الحلقة الرئيسي وقت العرض
+                // هذا يمنع تضارب البيانات لو تم تعديل خطة الحلقة لاحقًا
+                $fields['current_surah_id']      = null;
+                $fields['new_memorization_plan']  = null;
+                $fields['revision_plan']          = null;
+                $fields['old_memorization_plan']  = null;
+                $fields['placement_evaluation']  = $fields['placement_evaluation'] ?? null;
+            } else {
+                // ✅ الفردي: خطة خاصة بالطالب، لازم تتملى من الفورم
+                $fields['study_system']          = $studySystem;
+                $fields['new_memorization_plan'] = $fields['new_memorization_plan'] ?? '';
+                $fields['revision_plan']         = $fields['revision_plan'] ?? '';
+                $fields['old_memorization_plan'] = $fields['old_memorization_plan'] ?? '';
             }
         }
 

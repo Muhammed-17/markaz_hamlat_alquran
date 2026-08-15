@@ -12,7 +12,16 @@
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@200..1000&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <link href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+
+    <style>
+        [x-cloak] {
+            display: none !important;
+        }
+    </style>
 </head>
 
 <body class="font-[Cairo] bg-gray-50">
@@ -46,15 +55,27 @@
 
             <nav class="space-y-2 text-sm">
 
+                <!-- ═══════════════════════════════════════════════════════════════ -->
+                <!-- ═══════════════ قسم ولي الأمر (Guardian) ═════════════════════ -->
+                <!-- ═══════════════════════════════════════════════════════════════ -->
                 @if (Auth::user()->hasRole('guardian'))
-                <a href="{{ route('guardian.dashboard') }}"
+                <a href="{{ route('guardian.dashboard.own') }}"
                     class="block px-4 py-2 rounded-lg {{ request()->routeIs('guardian.dashboard') ? 'bg-[#0d7a48]' : 'hover:bg-[#0d7a48]' }}">
                     المنصة العامة
                 </a>
-                <a href="{{ route('students.index') }}"
-                    class="block px-4 py-2 rounded-lg {{ request()->routeIs('students.*') ? 'bg-[#0d7a48]' : 'hover:bg-[#0d7a48]' }}">
-                    الطلاب
+                @can('view own attendance')
+                <a href="{{ route('guardian.attendance.own') }}"
+                    class="block px-4 py-2 rounded-lg {{ request()->routeIs('guardian.attendance.own') ? 'bg-[#0d7a48]' : 'hover:bg-[#0d7a48]' }}">
+                    سجل الحضور
                 </a>
+                @endcan
+                @can('view own subscriptions')
+                <a href="{{ route('guardian.subscription.own') }}"
+                    class="block px-4 py-2 rounded-lg {{ request()->routeIs('guardian.subscription.own') ? 'bg-[#0d7a48]' : 'hover:bg-[#0d7a48]' }}">
+                    الاشتراكات
+                </a>
+                @endcan
+                @can('view notifications')
                 <a href="{{ route('guardian.notifications.index') }}"
                     class="block px-4 py-2 rounded-lg {{ request()->routeIs('guardian.notifications.*') ? 'bg-[#0d7a48]' : 'hover:bg-[#0d7a48]' }}">
                     <div class="flex items-center justify-between">
@@ -65,14 +86,26 @@
                         @endif
                     </div>
                 </a>
+                @endcan
+                @can('edit profile')
+                <a href="{{ route('profile.edit') }}"
+                    class="block px-4 py-2 rounded-lg {{ request()->routeIs('profile.*') ? 'bg-[#0d7a48]' : 'hover:bg-[#0d7a48]' }}">
+                    الملف الشخصي
+                </a>
+                @endcan
 
                 @else
-                @can("view dashboard")
+                <!-- ═══════════════════════════════════════════════════════════════ -->
+                <!-- ═══════════════ القسم العام (Non-Guardian) ═════════════════════ -->
+                <!-- ═══════════════════════════════════════════════════════════════ -->
+
+                @can('view dashboard')
                 <a href="{{ route('dashboard') }}"
                     class="block px-4 py-2 rounded-lg {{ request()->routeIs('dashboard') ? 'bg-[#0d7a48]' : 'hover:bg-[#0d7a48]' }}">
                     لوحة التحكم
                 </a>
                 @endcan
+
                 @can('view students')
                 <a href="{{ route('students.index') }}"
                     class="block px-4 py-2 rounded-lg {{ request()->routeIs('students.*') ? 'bg-[#0d7a48]' : 'hover:bg-[#0d7a48]' }}">
@@ -94,7 +127,6 @@
                 </a>
                 @endcan
 
-
                 @can('view attendance')
                 <a href="{{ route('attendance.index') }}"
                     class="block px-4 py-2 rounded-lg {{ request()->routeIs('attendance.*') ? 'bg-[#0d7a48]' : 'hover:bg-[#0d7a48]' }}">
@@ -108,31 +140,179 @@
                     اشتراكات الطلاب
                 </a>
                 @endcan
-                <!-- @can('view subscription deliveries') -->
-                <a href="{{ route('subscription-deliveries.index') }}"
-                    class="block px-4 py-2 rounded-lg {{ request()->routeIs('subscription-deliveries.*') ? 'bg-[#0d7a48]' : 'hover:bg-[#0d7a48]' }}">
-                    <div class="flex items-center justify-between">
-                        <span>تسليم الاشتراكات</span>
-                        @php
-                        $pendingDeliveries = \App\Models\SubscriptionDelivery::where('confirmed_by_admin', false)
-                        ->whereNotNull('delivered_at') // تم التسليم فعلياً
-                        ->when(!auth()->user()->hasRole(['admin', 'general_manager']), function($q) {
-                        $q->whereHas('circle', function($cq) {
-                        $cq->whereHas('supervisors', fn($sq) => $sq->where('teacher_id', auth()->id()));
-                        });
-                        })
-                        ->count();
-                        @endphp
-                        @if ($pendingDeliveries > 0)
-                        <span class="bg-amber-500 text-white text-xs px-2 py-0.5 rounded-full">{{ $pendingDeliveries }}</span>
-                        @endif
-                    </div>
+
+                @can('view collection rounds')
+                <a href="{{ route('collection-rounds.index') }}"
+                    class="block px-4 py-2 rounded-lg {{ request()->routeIs('collection-rounds.*') ? 'bg-[#0d7a48]' : 'hover:bg-[#0d7a48]' }}">
+                    تحصيل الاشتراكات
                 </a>
-                <!-- @endcan -->
-                @canany(['view settings', 'manage roles', 'view centers', 'view subscription prices'])
-                <div x-data="{ open: {{ (request()->routeIs('subscription-prices.*') || request()->routeIs('centers.*') || request()->routeIs('profile.*') || request()->routeIs('admin.settings.*') || request()->routeIs('admin.roles.*')) ? 'true' : 'false' }} }" class="space-y-1">
+                @endcan
+
+                <!-- ═══════════════════════════════════════════════════════════════ -->
+                <!-- ═══════════════ قسم نتائج المسابقات (Admin) ══════════════════ -->
+                <!-- ═══════════════════════════════════════════════════════════════ -->
+                @can('view competitions')
+                <div x-data="{ open: {{ request()->routeIs(['admin.competition-results.*', 'admin.competitions.finalization.*']) ? 'true' : 'false' }} }" class="space-y-1">
                     <button @click="open = !open"
-                        class="w-full flex items-center justify-between px-4 py-2 rounded-lg hover:bg-[#0d7a48] transition-colors focus:outline-none {{ (request()->routeIs('subscription-prices.*') || request()->routeIs('centers.*') || request()->routeIs('profile.*')) ? 'bg-[#0d7a48]' : '' }}">
+                        class="w-full flex items-center justify-between px-4 py-2 rounded-lg hover:bg-[#0d7a48] transition-colors focus:outline-none {{ request()->routeIs(['admin.competition-results.*', 'admin.competitions.finalization.*']) ? 'bg-[#0d7a48]' : '' }}">
+                        <span class="flex items-center gap-2">
+                            <span>نتائج المسابقات</span>
+                        </span>
+                        <svg class="w-4 h-4 transition-transform duration-200" :class="open ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </button>
+
+                    <div x-show="open" x-cloak class="pr-3 space-y-1 border-r border-white/10 mr-1">
+                        <a href="{{ route('admin.competition-results.index') }}"
+                            class="block px-4 py-2 rounded-lg text-[13px] {{ request()->routeIs('admin.competition-results.*') ? 'bg-[#0d7a48] font-bold' : 'hover:bg-[#0d7a48]' }}">
+                            جميع النتائج
+                        </a>
+                    </div>
+                </div>
+                @endcan
+
+                <!-- ═══════════════════════════════════════════════════════════════ -->
+                <!-- ═══════════════ قسم المتابعة   (student-weekly-followups) ══════════════════ -->
+                <!-- ═══════════════════════════════════════════════════════════════ -->
+                {{-- قسم المتابعة --}}
+                @canany(['view student weekly followups', 'view behavioral notes'])
+                <div x-data="{ open: {{ request()->routeIs(['student-weekly-followups.*', 'group-session-plans.*', 'behavioral-notes.*']) ? 'true' : 'false' }} }" class="space-y-1">
+                    <button @click="open = !open"
+                        class="w-full flex items-center justify-between px-4 py-2 rounded-lg hover:bg-[#0d7a48] transition-colors focus:outline-none {{ request()->routeIs(['student-weekly-followups.*', 'group-session-plans.*', 'behavioral-notes.*']) ? 'bg-[#0d7a48]' : '' }}">
+                        <span class="flex items-center gap-2">
+                            <span>المتابعة</span>
+                        </span>
+                        <svg class="w-4 h-4 transition-transform duration-200" :class="open ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </button>
+
+                    <div x-show="open" x-cloak class="pr-3 space-y-1 border-r border-white/10 mr-1">
+                        @can('view student weekly followups')
+                        <a href="{{ route('student-weekly-followups.index-group') }}"
+                            class="block px-4 py-2 rounded-lg text-[13px] {{ request()->routeIs('student-weekly-followups.index-group') ? 'bg-[#0d7a48] font-bold' : 'hover:bg-[#0d7a48]' }}">
+                            المتابعة الجماعية
+                        </a>
+                        @endcan
+
+                        @can('view student weekly followups')
+                        <a href="{{ route('student-weekly-followups.index-individual') }}"
+                            class="block px-4 py-2 rounded-lg text-[13px] {{ request()->routeIs('student-weekly-followups.index-individual') ? 'bg-[#0d7a48] font-bold' : 'hover:bg-[#0d7a48]' }}">
+                            المتابعة الفردية
+                        </a>
+                        @endcan
+
+                        @can('view behavioral notes')
+                        <a href="{{ route('behavioral-notes.index') }}"
+                            class="block px-4 py-2 rounded-lg text-[13px] {{ request()->routeIs('behavioral-notes.*') ? 'bg-[#0d7a48] font-bold' : 'hover:bg-[#0d7a48]' }}">
+                            الملاحظات السلوكية
+                        </a>
+                        @endcan
+                    </div>
+                </div>
+                @endcanany
+
+                <!-- ═══════════════════════════════════════════════════════════════ -->
+
+                {{-- قسم اختبارات السورة --}}
+                @can('view surah tests')
+                <div x-data="{ open: {{ request()->routeIs('surah-tests.*') ? 'true' : 'false' }} }" class="space-y-1">
+                    <button @click="open = !open"
+                        class="w-full flex items-center justify-between px-4 py-2 rounded-lg hover:bg-[#0d7a48] transition-colors focus:outline-none {{ request()->routeIs('surah-tests.*') ? 'bg-[#0d7a48]' : '' }}">
+                        <span class="flex items-center gap-2">
+                            <span>اختبارات السورة</span>
+                        </span>
+                        <svg class="w-4 h-4 transition-transform duration-200" :class="open ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </button>
+
+                    <div x-show="open" x-cloak class="pr-3 space-y-1 border-r border-white/10 mr-1">
+                        <a href="{{ route('surah-tests.index.group') }}"
+                            class="block px-4 py-2 rounded-lg text-[13px] {{ request()->routeIs('surah-tests.index.group') ? 'bg-[#0d7a48] font-bold' : 'hover:bg-[#0d7a48]' }}">
+                            اختبار جماعي
+                        </a>
+
+                        <a href="{{ route('surah-tests.index.individual') }}"
+                            class="block px-4 py-2 rounded-lg text-[13px] {{ request()->routeIs('surah-tests.index.individual') ? 'bg-[#0d7a48] font-bold' : 'hover:bg-[#0d7a48]' }}">
+                            اختبار فردي
+                        </a>
+                    </div>
+                </div>
+                @endcan
+
+                @can('view competitions')
+                <div x-data="{ open: {{ request()->routeIs(['competitions.*', 'levels.*', 'examiners.*', 'External-participants.*']) ? 'true' : 'false' }} }" class="space-y-1">
+                    <button @click="open = !open"
+                        class="w-full flex items-center justify-between px-4 py-2 rounded-lg hover:bg-[#0d7a48] transition-colors focus:outline-none {{ request()->routeIs(['competitions.*', 'levels.*', 'examiners.*', 'External-participants.*']) ? 'bg-[#0d7a48]' : '' }}">
+                        <span class="flex items-center gap-2">
+                            <span>المسابقات</span>
+                        </span>
+                        <svg class="w-4 h-4 transition-transform duration-200" :class="open ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </button>
+
+                    <div x-show="open" x-cloak class="pr-3 space-y-1 border-r border-white/10 mr-1">
+
+                        <a href="{{ route('competitions.index') }}"
+                            class="block px-4 py-2 rounded-lg {{ request()->routeIs('competitions.*') ? 'bg-[#0d7a48]' : 'hover:bg-[#0d7a48]' }}">
+                            المسابقة
+                        </a>
+
+                        <a href="{{ route('levels.index') }}"
+                            class="block px-4 py-2 rounded-lg text-[13px] {{ request()->routeIs('levels.*') ? 'bg-[#0d7a48] font-bold' : 'hover:bg-[#0d7a48]' }}">
+                            المستويات
+                        </a>
+
+                        <a href="{{ route('examiners.index') }}"
+                            class="block px-4 py-2 rounded-lg text-[13px] {{ request()->routeIs('examiners.*') ? 'bg-[#0d7a48] font-bold' : 'hover:bg-[#0d7a48]' }}">
+                            المختبرون
+                        </a>
+
+                        <a href="{{ route('external-participants.index') }}"
+                            class="block px-4 py-2 rounded-lg text-[13px] {{ request()->routeIs('external-participants.*') ? 'bg-[#0d7a48] font-bold' : 'hover:bg-[#0d7a48]' }}">
+                            المشاركون الخارجيون
+                        </a>
+
+                        <a href="{{ route('tafsir-files.index') }}"
+                            class="block px-4 py-2 rounded-lg text-[13px] {{ request()->routeIs('tafsir-files.*') ? 'bg-[#0d7a48] font-bold' : 'hover:bg-[#0d7a48]' }}">
+                            ملفات التفسير
+                        </a>
+
+                    </div>
+                </div>
+                @endcan
+
+                <!-- ═══════════════════════════════════════════════════════════════ -->
+                <!-- ═══════════════ قسم لوحة المختبر (Examiner) ═════════════════════ -->
+                <!-- ═══════════════════════════════════════════════════════════════ -->
+                @if(Auth::user()->hasRole('examiner'))
+                <a href="{{ route('examiner.dashboard') }}"
+                    class="block px-4 py-2 rounded-lg {{ request()->routeIs('examiner.dashboard') ? 'bg-[#0d7a48]' : 'hover:bg-[#0d7a48]' }}">
+                    لوحة تحكم المختبر
+                </a>
+
+                <a href="{{ route('examiner.competitions.index') }}"
+                    class="block px-4 py-2 rounded-lg {{ request()->routeIs(['examiner.competitions.*', 'examiner.participants.*', 'examiner.exam.*']) ? 'bg-[#0d7a48]' : 'hover:bg-[#0d7a48]' }}">
+                    مسابقاتي
+                </a>
+                @endif
+
+                <!-- ═══════════════════════════════════════════════════════════════ -->
+                <!-- ═══════════════ قسم الإعدادات (Settings) ═════════════════════ -->
+                <!-- ═══════════════════════════════════════════════════════════════ -->
+                @canany([
+                'manage guardians',
+                'edit profile',
+                'view centers',
+                'view subscription prices',
+                'manage roles',
+                ])
+                <div x-data="{ open: {{ (request()->routeIs('guardians.*') || request()->routeIs('profile.*') || request()->routeIs('centers.*') || request()->routeIs('subscription-prices.*') || request()->routeIs('admin.roles.*')) ? 'true' : 'false' }} }" class="space-y-1">
+                    <button @click="open = !open"
+                        class="w-full flex items-center justify-between px-4 py-2 rounded-lg hover:bg-[#0d7a48] transition-colors focus:outline-none {{ (request()->routeIs('guardians.*') || request()->routeIs('profile.*') || request()->routeIs('centers.*') || request()->routeIs('subscription-prices.*') || request()->routeIs('admin.roles.*')) ? 'bg-[#0d7a48]' : '' }}">
                         <span>الإعدادات</span>
                         <svg class="w-4 h-4 transition-transform duration-200" :class="open ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
@@ -140,7 +320,7 @@
                     </button>
 
                     <div x-show="open" x-cloak class="pr-3 space-y-1 border-r border-white/10 mr-1">
-                        @can('edit profile')
+                        @can('manage guardians')
                         <a href="{{ route('guardians.index') }}"
                             class="block px-4 py-2 rounded-lg text-[13px] {{ request()->routeIs('guardians.*') ? 'bg-[#0d7a48] font-bold' : 'hover:bg-[#0d7a48]' }}">
                             حسابات أولياء الأمور
@@ -152,35 +332,18 @@
                             الملف الشخصي
                         </a>
                         @endcan
-
-                        @can('view settings')
-                        <a href="{{ route('admin.settings.index') }}"
-                            class="block px-4 py-2 rounded-lg text-[13px] {{ request()->routeIs('admin.settings.*') ? 'bg-[#0d7a48] font-bold' : 'hover:bg-[#0d7a48]' }}">
-                            إعدادات الإشعارات
-                        </a>
-                        @endcan
-
                         @can('view centers')
                         <a href="{{ route('centers.index') }}"
                             class="block px-4 py-2 rounded-lg text-[13px] {{ request()->routeIs('centers.*') ? 'bg-[#0d7a48] font-bold' : 'hover:bg-[#0d7a48]' }}">
                             الفروع
                         </a>
                         @endcan
-
                         @can('view subscription prices')
                         <a href="{{ route('subscription-prices.index') }}"
                             class="block px-4 py-2 rounded-lg text-[13px] {{ request()->routeIs('subscription-prices.*') ? 'bg-[#0d7a48] font-bold' : 'hover:bg-[#0d7a48]' }}">
                             أسعار الاشتراكات
                         </a>
                         @endcan
-
-                        @if(auth()->user()->hasRole('admin') || auth()->user()->is_administrative)
-                        <a href="{{ route('admin.roles.index') }}"
-                            class="block px-4 py-2 rounded-lg text-[13px] {{ request()->routeIs('admin.financials.*') ? 'bg-[#0d7a48] font-bold' : 'hover:bg-[#0d7a48]' }}">
-                            الماليات
-                        </a>
-                        @endif
-
                         @can('manage roles')
                         <a href="{{ route('admin.roles.index') }}"
                             class="block px-4 py-2 rounded-lg text-[13px] {{ request()->routeIs('admin.roles.*') ? 'bg-[#0d7a48] font-bold' : 'hover:bg-[#0d7a48]' }}">
@@ -240,11 +403,13 @@
         overlay.addEventListener('click', closeMenu);
     </script>
 
-    {{-- SweetAlert2 عام لكل الصفحات --}}
+    {{-- ✅ احتفظ به — يحمّل SweetAlert2 --}}
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
-    @vite(['resources/js/confirm-logout.js', 'resources/js/confirm-delete.js', 'resources/js/confirm-success.js'])
+    {{-- ✅ ملفاتك المخصصة --}}
+    @vite(['resources/js/confirm-logout.js', 'resources/js/confirm-delete.js', 'resources/js/confirm-success.js', 'resources/js/confirm-round.js'])
 
+    {{-- ✅ عرض رسائل الجلسة --}}
     <script>
         @if(session('success'))
         document.addEventListener('DOMContentLoaded', () => {
@@ -261,3 +426,5 @@
 
     @stack('scripts')
 </body>
+
+</html>

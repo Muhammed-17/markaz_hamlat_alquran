@@ -3,13 +3,14 @@
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Request;
 use Spatie\Permission\Middleware\RoleMiddleware;
 use Spatie\Permission\Middleware\PermissionMiddleware;
 use Spatie\Permission\Middleware\RoleOrPermissionMiddleware;
-use App\Http\Middleware\RefreshUserPermissions;
 use App\Http\Middleware\CheckUserStatus;
 use App\Http\Middleware\EnsureNotGuardian;
 use \App\Http\Middleware\UpdateLastSeen;
+use \App\Http\Middleware\PreventBackHistoryCache;
 
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -19,16 +20,25 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->trustProxies(at: '*');
+        $middleware->trustProxies(
+            at: '*',
+            headers: Request::HEADER_X_FORWARDED_FOR |
+                Request::HEADER_X_FORWARDED_HOST |
+                Request::HEADER_X_FORWARDED_PORT |
+                Request::HEADER_X_FORWARDED_PROTO
+        );
+
         $middleware->alias([
             'role'               => RoleMiddleware::class,
             'permission'         => PermissionMiddleware::class,
             'role_or_permission' => RoleOrPermissionMiddleware::class,
             'not.guardian'       => EnsureNotGuardian::class,
         ]);
-        $middleware->append(RefreshUserPermissions::class);
         $middleware->web(append: [
             CheckUserStatus::class,
             UpdateLastSeen::class,
+            PreventBackHistoryCache::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
@@ -60,8 +70,9 @@ return Application::configure(basePath: dirname(__DIR__))
                 $user->hasRole('admin')           => route('dashboard'),
                 $user->hasRole('general_manager') => route('dashboard'),
                 $user->hasRole('manager')         => route('dashboard'),
-                $user->hasRole('supervisor')      => route('dashboard'),
-                $user->hasRole('teacher')         => route('dashboard'),
+                $user->hasRole('supervisor')      => route('students.index'),
+                $user->hasRole('teacher')         => route('students.index'),
+                $user->hasRole('examiner')        => route('examiner.dashboard'), // ✅ أضف السطر ده
                 default                           => route('login'),
             };
 
@@ -92,6 +103,15 @@ return Application::configure(basePath: dirname(__DIR__))
         );
 
         // ================================================================
+        // ✅ 404 — صفحة/route غير موجودة (بما فيها Model Not Found)
+        // ================================================================
+        $exceptions->render(
+            function (\Symfony\Component\HttpKernel\Exception\NotFoundHttpException $e, $request) use ($handle403) {
+                return $handle403($request);
+            }
+        );
+
+        // ================================================================
         // ✅ 419 — انتهاء صلاحية الجلسة
         // ================================================================
         $exceptions->render(
@@ -102,10 +122,7 @@ return Application::configure(basePath: dirname(__DIR__))
                     ], 419);
                 }
 
-                return redirect()
-                    ->back()
-                    ->withInput($request->except('password', 'password_confirmation'))
-                    ->with('error', 'انتهت صلاحية الجلسة. يرجى إعادة المحاولة.');
+                return redirect()->route('login');
             }
         );
     })->create();

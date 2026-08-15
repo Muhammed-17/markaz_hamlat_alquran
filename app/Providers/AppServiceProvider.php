@@ -7,7 +7,6 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\Facades\Event;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Auth\Events\Login;
 
 class AppServiceProvider extends ServiceProvider
@@ -20,6 +19,20 @@ class AppServiceProvider extends ServiceProvider
         \App\Models\Circle::class => \App\Policies\CirclePolicy::class,
         \App\Models\User::class => \App\Policies\UserPolicy::class,
         \App\Models\SubscriptionPrice::class => \App\Policies\SubscriptionPricePolicy::class,
+        \App\Models\GroupSessionPlan::class => \App\Policies\GroupSessionPlanPolicy::class,
+        \App\Models\Teacher::class => \App\Policies\TeacherPolicy::class,
+        \App\Models\StudentWeeklyFollowup::class => \App\Policies\StudentWeeklyFollowupPolicy::class,
+        \App\Models\StudentConstructionDetail::class => \App\Policies\StudentConstructionDetailPolicy::class,
+        \App\Models\Recommendation::class => \App\Policies\RecommendationPolicy::class,
+        \App\Models\CollectionRound::class => \App\Policies\CollectionRoundPolicy::class,
+        \App\Models\Competition::class => \App\Policies\CompetitionPolicy::class,
+        \App\Models\CompetitionParticipant::class => \App\Policies\CompetitionParticipantPolicy::class,
+        \App\Models\Examiner::class => \App\Policies\ExaminerPolicy::class,
+        \App\Models\CompetitionAnswer::class => \App\Policies\CompetitionAnswerPolicy::class,
+        \App\Models\CompetitionResult::class => \App\Policies\CompetitionResultPolicy::class,
+        \App\Models\TafsirFile::class => \App\Policies\TafsirFilePolicy::class,
+        \App\Models\ExternalParticipant::class => \App\Policies\ExternalParticipantPolicy::class,
+
     ];
 
     /**
@@ -35,6 +48,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        
         \Carbon\Carbon::setLocale('ar');
 
 

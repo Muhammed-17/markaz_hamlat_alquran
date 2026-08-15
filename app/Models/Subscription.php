@@ -14,12 +14,14 @@ use Illuminate\Database\Eloquent\Model;
  * @property string $status
  * @property string|null $payment_method
  * @property \Illuminate\Support\Carbon|null $paid_at
+ * @property bool $is_collected
  * @property string|null $notes
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property-read \App\Models\Circle $circle
  * @property-read \App\Models\User|null $collectedBy
  * @property-read \App\Models\Student $student
+ * @property-read \App\Models\CollectionRoundItem|null $collectionRoundItem
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Subscription newModelQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Subscription newQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Subscription query()
@@ -48,6 +50,7 @@ class Subscription extends Model
         'status',
         'payment_method',
         'paid_at',
+        'is_collected',
         'notes'
     ];
 
@@ -55,6 +58,7 @@ class Subscription extends Model
         'month' => 'date:Y-m',
         'paid_at' => 'datetime',
         'amount' => 'decimal:2',
+        'is_collected' => 'boolean',
     ];
 
 
@@ -79,6 +83,18 @@ class Subscription extends Model
     public function collectedBy()
     {
         return $this->belongsTo(User::class, 'collected_by');
+    }
+
+    // علاقة: الاشتراك ← عنصر التحصيل التحصيل (إن وُجد)
+    public function collectionRoundItem()
+    {
+        return $this->hasOne(CollectionRoundItem::class);
+    }
+
+    // نطاق: الاشتراكات المدفوعة غير المرتبطة بأي التحصيل بعد
+    public function scopeUncollected($query)
+    {
+        return $query->where('is_collected', false)->where('status', 'مدفوع');
     }
 
     // دالة حساب المبلغ (تُستخدم عند الإنشاء)

@@ -10,8 +10,8 @@ class CenterSeeder extends Seeder
     public function run(): void
     {
         // تثبيت الـ IDs والأسماء المباشرة (العواسجة و الرئيسي)
+        Center::updateOrCreate(['id' => 1], ['name' => 'الرئيسي']);
         Center::updateOrCreate(['id' => 2], ['name' => 'العواسجة']);
-        Center::updateOrCreate(['id' => 3], ['name' => 'الرئيسي']);
 
         $this->command->info('✅ تم إدخال الفروع بنجاح (العواسجة + الرئيسي).');
     }

@@ -4,7 +4,6 @@ use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\WelcomeController;
 use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\Admin\RolePermissionController;
 use App\Http\Controllers\GuardianSearchController;
 
 // ================================================================
@@ -22,19 +21,9 @@ Route::get('/dashboard', [DashboardController::class, 'index'])
         'auth',
         'verified',
         'not.guardian',
-        'permission:view dashboard',  // ✅ فقط من لديه الصلاحية
+        'permission:view dashboard',
     ])
     ->name('dashboard');
-
-// ✅ guardian dashboard — مع role + permission
-Route::get('/guardian-dashboard', [DashboardController::class, 'guardianDashboard'])
-    ->middleware([
-        'auth',
-        'verified',
-        'role:guardian',
-        'permission:view own children', // ✅ تحقق إضافي
-    ])
-    ->name('guardian.dashboard');
 
 // ================================================================
 // Profile Routes
@@ -70,7 +59,18 @@ require __DIR__ . '/admin.php';
 require __DIR__ . '/attendance.php';
 require __DIR__ . '/teacher.php';
 require __DIR__ . '/subscription.php';
-require __DIR__ . '/subscription_delivery.php';
 require __DIR__ . '/center.php';
-require __DIR__ . '/guardian_accounts.php';
-require __DIR__ . '/guardian_notification.php';
+require __DIR__ . '/guardian_account.php';
+require __DIR__ . '/guardian.php';
+require __DIR__ . '/collection_round.php';
+require __DIR__ . '/group_session_plan.php';
+require __DIR__ . '/student_construction_detail.php';
+require __DIR__ . '/student_weekly_followup.php';
+require __DIR__ . '/behavioral_note.php';
+require __DIR__ . '/surah_test.php';
+require __DIR__ . '/competition.php';
+require __DIR__ . '/external_participant.php';
+require __DIR__ . '/examiner.php';
+require __DIR__ . '/level.php';
+require __DIR__ . '/examiner_account.php';
+require __DIR__ . '/tafsir_file.php';

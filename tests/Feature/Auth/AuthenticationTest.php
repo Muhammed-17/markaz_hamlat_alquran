@@ -1,41 +1,54 @@
 <?php
 
 use App\Models\User;
+use Spatie\Permission\Models\Role;
+use Spatie\Permission\Models\Permission;
+use function Pest\Laravel\actingAs;
+use function Pest\Laravel\get;
+use function Pest\Laravel\post;
+use function Pest\Laravel\assertGuest;
+
+uses(Tests\TestCase::class);
 
 test('login screen can be rendered', function () {
-    $response = $this->get('/login');
-
+    $response = get('/login');
     $response->assertStatus(200);
 });
 
 test('users can authenticate using the login screen', function () {
-    $user = User::factory()->create();
+    // Create role and permission
+    $role = Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web']);
+    Permission::firstOrCreate(['name' => 'view dashboard', 'guard_name' => 'web']);
+    $role->givePermissionTo('view dashboard');
 
-    $response = $this->post('/login', [
+    $user = User::factory()->create();
+    $user->assignRole('admin');
+
+    $response = post('/login', [
         'email' => $user->email,
         'password' => 'password',
     ]);
 
-    $this->assertAuthenticated();
+    $this->assertTrue(auth()->check());
     $response->assertRedirect(route('dashboard', absolute: false));
 });
 
 test('users can not authenticate with invalid password', function () {
     $user = User::factory()->create();
 
-    $this->post('/login', [
+    post('/login', [
         'email' => $user->email,
         'password' => 'wrong-password',
     ]);
 
-    $this->assertGuest();
+    $this->assertFalse(auth()->check());
 });
 
 test('users can logout', function () {
     $user = User::factory()->create();
 
-    $response = $this->actingAs($user)->post('/logout');
+    $response = actingAs($user)->post('/logout');
 
-    $this->assertGuest();
+    assertGuest();
     $response->assertRedirect('/');
 });

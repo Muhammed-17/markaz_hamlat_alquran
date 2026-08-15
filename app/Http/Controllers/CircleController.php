@@ -2,11 +2,12 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Requests\Circle\CreateCircleRequest;
-use App\Http\Requests\Circle\EditCircleRequest;
+use App\Http\Requests\Circle\StoreCircleRequest;
+use App\Http\Requests\Circle\UpdateCircleRequest;
 use App\Models\Circle;
 use App\Models\Teacher;
 use App\Traits\ResolvesUserScope;
+use App\Models\Scopes\CenterScope;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
@@ -25,8 +26,8 @@ class CircleController extends Controller
 
         $query = $this->getAccessibleCirclesQuery($user)
             ->with([
-                'mainTeachers' => fn($q) => $q->withoutGlobalScope(\App\Models\Scopes\CenterScope::class),
-                'assistantTeachers' => fn($q) => $q->withoutGlobalScope(\App\Models\Scopes\CenterScope::class),
+                'mainTeachers' => fn($q) => $q->withoutGlobalScope(CenterScope::class),
+                'assistantTeachers' => fn($q) => $q->withoutGlobalScope(CenterScope::class),
                 'supervisors.user',
                 'center',
             ])
@@ -106,7 +107,7 @@ class CircleController extends Controller
     }
 
     // ─────────────────────────────────────────
-    public function store(CreateCircleRequest $request)
+    public function store(StoreCircleRequest $request)
     {
         $this->authorize('create', Circle::class);
 
@@ -140,19 +141,19 @@ class CircleController extends Controller
         return redirect()->route('circles.index')->with('success', 'تم إنشاء الحلقة بنجاح');
     }
     // ─────────────────────────────────────────
-    // ✅ FIX: IDOR - جلب البيانات الآمن قبل التحقق
+
     public function show(string $id)
     {
         $user = Auth::user();
 
         $circleQuery = Circle::with([
-            'mainTeachers' => fn($q) => $q->withoutGlobalScope(\App\Models\Scopes\CenterScope::class),
-            'assistantTeachers' => fn($q) => $q->withoutGlobalScope(\App\Models\Scopes\CenterScope::class),
-            'supervisors' => fn($q) => $q->withoutGlobalScope(\App\Models\Scopes\CenterScope::class),
+            'mainTeachers' => fn($q) => $q->withoutGlobalScope(CenterScope::class),
+            'assistantTeachers' => fn($q) => $q->withoutGlobalScope(CenterScope::class),
+            'supervisors' => fn($q) => $q->withoutGlobalScope(CenterScope::class),
             'students',
+            'studentConstructionDetails' => fn($q) => $q->with('student')->latest(),
         ]);
 
-        // ✅ تطبيق فلترة الأمان يدوياً
         if (!$user->hasRole(['admin', 'general_manager'])) {
             $teacher = $this->getTeacherRecord($user);
             if ($teacher) {
@@ -169,6 +170,7 @@ class CircleController extends Controller
         }
 
         $circle = $circleQuery->findOrFail($id);
+
         $this->authorize('view', $circle);
 
         return view('circles.show', compact('circle'));
@@ -181,9 +183,9 @@ class CircleController extends Controller
         $user = Auth::user();
 
         $circleQuery = Circle::with([
-            'mainTeachers' => fn($q) => $q->withoutGlobalScope(\App\Models\Scopes\CenterScope::class),
-            'assistantTeachers' => fn($q) => $q->withoutGlobalScope(\App\Models\Scopes\CenterScope::class),
-            'supervisors' => fn($q) => $q->withoutGlobalScope(\App\Models\Scopes\CenterScope::class),
+            'mainTeachers' => fn($q) => $q->withoutGlobalScope(CenterScope::class),
+            'assistantTeachers' => fn($q) => $q->withoutGlobalScope(CenterScope::class),
+            'supervisors' => fn($q) => $q->withoutGlobalScope(CenterScope::class),
         ]);
 
         // ✅ تطبيق نفس فلترة الأمان
@@ -233,7 +235,7 @@ class CircleController extends Controller
 
     // ─────────────────────────────────────────
     // ✅ FIX: IDOR - نفس الإصلاح لـ update()
-    public function update(EditCircleRequest $request, string $id)
+    public function update(UpdateCircleRequest $request, string $id)
     {
         $user = Auth::user();
 
@@ -325,7 +327,7 @@ class CircleController extends Controller
     }
 
     // ─────────────────────────────────────────
-    // ✅ FIX: تحسين syncCircleStaff مع تحققات أمنية شاملة
+
     private function syncCircleStaff(Circle $circle, Request $request): void
     {
         $centerId = $circle->center_id;
@@ -440,5 +442,33 @@ class CircleController extends Controller
         if ($supervisorRows) {
             DB::table('circle_teacher')->insert($supervisorRows);
         }
+    }
+
+    // ─────────────────────────────────────────
+    public function groupPlan(Circle $circle)
+    {
+        $this->authorize('view', $circle);
+
+        if ($circle->type !== 'group') {
+            return response()->json(['found' => false]);
+        }
+
+        $latest = $circle->studentConstructionDetails()
+            ->with('currentSurah:id,number,name_arabic')
+            ->latest('updated_at')
+            ->first();
+
+        if (!$latest) {
+            return response()->json(['found' => false]);
+        }
+
+        return response()->json([
+            'found'                  => true,
+            'current_surah_id'       => $latest->current_surah_id,
+            'current_surah_name'     => $latest->currentSurah?->name_arabic,
+            'new_memorization_plan'  => $latest->new_memorization_plan,
+            'revision_plan'          => $latest->revision_plan,
+            'old_memorization_plan'  => $latest->old_memorization_plan,
+        ]);
     }
 }

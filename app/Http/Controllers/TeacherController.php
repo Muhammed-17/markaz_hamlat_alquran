@@ -11,9 +11,7 @@ use App\Traits\HasAllowedRoles;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\ValidationException;
 use Spatie\Permission\Models\Role;
-use App\Models\Center;
 use Illuminate\Support\Facades\DB;
 
 class TeacherController extends Controller
@@ -22,24 +20,22 @@ class TeacherController extends Controller
     use HasAllowedRoles;
 
     // ─────────────────────────────────────────
-    public function index(Request $request){
+    public function index(Request $request)
+    {
         $this->authorize('viewAny', Teacher::class);
 
         $user    = Auth::user();
         $teacher = $this->getTeacherRecord($user);
 
-        // ربط جدول المعلمين بجدول المستخدمين لتمكين الترتيب عبر حقول الـ User
         $query = Teacher::query()
             ->join('users', 'teachers.user_id', '=', 'users.id')
             ->select('teachers.*', 'users.email as user_email', 'users.status as user_status', 'users.last_seen_at')
             ->with(['user.roles', 'center']);
 
-        // 1. فلترة المعلمين النشطين للمتصفح العادي
         if (!$user->hasRole(['admin', 'general_manager'])) {
             $query->where('users.status', 'active');
         }
 
-        // 2. صلاحيات رؤية الفروع والفلترة
         if (!$user->hasRole(['admin', 'general_manager'])) {
             if ($teacher) {
                 $query->where(
@@ -53,60 +49,62 @@ class TeacherController extends Controller
             }
         }
 
-        // 3. بحث بالاسم
-        if ($request->filled('search')) {
-            $query->where('teachers.name', 'like', '%' . $request->search . '%');
+        // بحث بالاسم أو البريد
+        if ($request->filled('q')) {
+            $term = $request->q;
+            $query->where(function ($qq) use ($term) {
+                $qq->where('teachers.name', 'like', "%{$term}%")
+                    ->orWhere('users.email', 'like', "%{$term}%");
+            });
         }
 
-        // 4. فلتر الدور (Roles)
+        // فلتر الفرع (بالاسم زي ما الفرونت كان بيبعته)
+        if ($request->filled('center_id') && $user->hasRole(['admin', 'general_manager'])) {
+            $query->whereHas('center', fn($cq) => $cq->where('name', $request->center_id));
+        }
+
+        // فلتر الدور
         if ($request->filled('role') && $user->hasRole(['admin', 'general_manager', 'manager'])) {
             $query->whereHas('user.roles', fn($q) => $q->where('name', $request->role));
         }
 
-        // هنا يتم استقبال قيم الترتيب من الـ Request
+        // فلتر الحالة
+        if ($request->filled('status')) {
+            $query->where('users.status', $request->status);
+        }
+
         $sortBy    = $request->get('sort_by', 'id');
         $sortOrder = $request->get('sort_order', 'asc') === 'desc' ? 'desc' : 'asc';
 
-        // ==========================================
-        // جملة الـ switch المحدثة والمحمية بالكامل:
-        // ==========================================
         switch ($sortBy) {
             case 'status':
-                // الترتيب حسب الحالة (active / inactive)
                 $query->orderBy('users.status', $sortOrder);
                 break;
 
             case 'online':
-                // الترتيب حسب الاتصال (الأحدث ظهوراُ أولاُ) مع دفع الـ NULL للأسفل
                 $query->orderByRaw('users.last_seen_at IS NULL, users.last_seen_at ' . $sortOrder);
                 break;
 
             case 'role':
-                // الترتيب حسب اسم الدور العربي (display_name) أو الإنجليزي (name)
-                // تم استخدام التجميع الفرعي (Subquery) لمنع تكرار صفوف المعلمين نهائياً دون كسر الـ Strict Mode
                 $query->leftJoin('model_has_roles', function ($join) {
                     $join->on('users.id', '=', 'model_has_roles.model_id')
                         ->where('model_has_roles.model_type', '=', \App\Models\User::class);
                 })
                     ->leftJoin('roles', 'model_has_roles.role_id', '=', 'roles.id')
-                    ->orderBy('roles.display_name', $sortOrder); // رتبنا بالـ display_name العربي المضاف حديثاً
+                    ->orderBy('roles.display_name', $sortOrder);
                 break;
 
             case 'center':
-                // الترتيب حسب اسم الفرع (Center Name)
                 $query->leftJoin('centers', 'teachers.center_id', '=', 'centers.id')
                     ->orderBy('centers.name', $sortOrder);
                 break;
 
             default:
-                // الترتيب الافتراضي (حسب معرف المعلم الصريح)
                 $query->orderBy('teachers.id', $sortOrder);
                 break;
         }
-        // ==========================================
 
-        // جلب البيانات النهائية وإرسالها للـ View
-        $teachers = $query->get();
+        $teachers = $query->paginate(20)->withQueryString();
         $centers  = $this->getAccessibleCenters($user);
         $roles    = Role::orderBy('name')->get();
 
@@ -133,7 +131,7 @@ class TeacherController extends Controller
         $this->authorize('create', User::class);
 
         DB::transaction(function () use ($request) {
-            $isAdministrative = $request->input('is_administrative', 0);
+
 
             // إضافة الحقول الأمنية لضمان عدم حجب الحساب فور إنشائه
             $user = User::create([
@@ -141,7 +139,6 @@ class TeacherController extends Controller
                 'email'             => $request->email,
                 'password'          => Hash::make($request->password),
                 'center_id'         => $request->center_id,
-                'is_administrative' => $isAdministrative,
             ]);
 
             $user->syncRoles($request->roles ?? []);
@@ -150,7 +147,6 @@ class TeacherController extends Controller
                 'user_id'           => $user->id,
                 'name'              => $request->name,
                 'center_id'         => $request->center_id,
-                'is_administrative' => $isAdministrative,
             ]);
         });
 
@@ -219,13 +215,13 @@ class TeacherController extends Controller
         }
 
         DB::transaction(function () use ($request, $teacher) {
-            $isAdministrative = $request->boolean('is_administrative', false);
+
 
             // 1. تحديث بيانات المعلم
             $teacher->update([
                 'name'              => $request->name,
                 'center_id'         => $request->center_id,
-                'is_administrative' => $isAdministrative,
+
             ]);
 
             // 2. تجهيز بيانات المستخدم
@@ -233,7 +229,7 @@ class TeacherController extends Controller
                 'name'              => $request->name,
                 'email'             => $request->email,
                 'center_id'         => $request->center_id,
-                'is_administrative' => $isAdministrative,
+
             ];
 
             // ✅ تغيير كلمة المرور

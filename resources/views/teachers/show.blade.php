@@ -12,17 +12,6 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
                     </svg>
                 </a>
-                <div>
-                    <div class="flex items-center gap-2">
-                        <h1 class="text-2xl font-black text-gray-800">{{ $teacher->name }}</h1>
-                        @if($teacher->is_administrative)
-                        <span class="inline-flex items-center gap-1 px-2.5 py-0.5 bg-amber-50 text-amber-800 border border-amber-200 text-xs font-bold rounded-lg shadow-sm">
-                            👑 كادر إداري
-                        </span>
-                        @endif
-                    </div>
-                    <p class="text-xs text-gray-400 mt-0.5">بيانات ملف المعلم والكادر التعليمي</p>
-                </div>
             </div>
 
             {{-- أزرار الإجراءات --}}
@@ -154,14 +143,6 @@
                     <p class="text-xs font-bold text-gray-400">الفرع الرئيسي</p>
                     <p class="text-sm font-medium text-gray-700">
                         {{ $teacher->center?->name ?? '—' }}
-                    </p>
-                </div>
-
-                {{-- نوع الكادر --}}
-                <div class="space-y-1">
-                    <p class="text-xs font-bold text-gray-400">هل له صفة إدارية</p>
-                    <p class="text-sm font-bold {{ $teacher->is_administrative ? 'text-amber-700' : 'text-blue-700' }}">
-                        {{ $teacher->is_administrative ? 'له صفة إدارية' : 'ليس له' }}
                     </p>
                 </div>
 

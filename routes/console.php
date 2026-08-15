@@ -1,11 +1,16 @@
 <?php
 
-use App\Console\Commands\NotifySequentialAbsences;
-use App\Models\Setting;
+use App\Jobs\CalculateUnpaidMonths;
 use Illuminate\Support\Facades\Schedule;
+use Illuminate\Support\Facades\Bus;
 
-$notifyTime = Setting::getValue('notify_time', '17:30');
+Schedule::command('notify:sequential-absences')->dailyAt('17:30')->withoutOverlapping();
 
-Schedule::command('app:notify-sequential-absences')
-    ->dailyAt($notifyTime)
+Schedule::command('notify:unpaid-subscriptions')->dailyAt('09:00');
+
+Schedule::call(function () {
+    Bus::dispatchSync(new CalculateUnpaidMonths());
+})
+    ->name('calculate-unpaid-months')
+    ->dailyAt('02:00')
     ->withoutOverlapping();

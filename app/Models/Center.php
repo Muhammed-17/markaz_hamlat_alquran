@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use \Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * @property int $id
@@ -22,8 +23,17 @@ class Center extends Model
 {
     protected $fillable = ['name'];
 
-    public function circles(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function circles(): HasMany
     {
         return $this->hasMany(Circle::class);
+    }
+    public function educationalLessons(): HasMany
+    {
+        return $this->hasMany(EducationalLesson::class);
+    }
+
+    public function surahTests(): HasMany
+    {
+        return $this->hasMany(SurahTest::class);
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Center;
 use App\Models\Circle;
 use App\Models\Student;
 use App\Models\Teacher;
@@ -12,26 +13,39 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
 use Illuminate\Http\RedirectResponse;
+use Carbon\Carbon;
 
 class DashboardController extends Controller
 {
-    public function index(): View|RedirectResponse
+    public function index(Request $request): View|RedirectResponse
     {
         /** @var User $user */
         if (Auth::user()->hasRole('guardian')) {
             return redirect()->route('guardian.dashboard');
         }
+
         $user = Auth::user();
         $stats = [];
         $absentStudents = collect();
         $unpaidStudents = collect();
-        $chartData = ['labels' => [], 'data' => []];
+        $chartData = ['labels' => [], 'new_students' => [], 'stopped_students' => []];
         $statusChartData = ['labels' => [], 'data' => []];
 
+        // ─── فلتر الفرع ─────────────────────────────────────────────
+        $selectedCenterId = $request->input('center_id');
+        $centers = Center::orderBy('name')->get();
+
         // 1. Determine Scope for Students, Circles, and Subscriptions
-        $studentQuery = Student::where('status', '!=', 'متوقف');
+        $studentQuery = Student::query();
         $circleQuery = Circle::query();
         $subscriptionQuery = Subscription::query();
+
+        // تطبيق فلتر الفرع
+        if ($selectedCenterId) {
+            $studentQuery->whereHas('circle', fn($q) => $q->where('center_id', $selectedCenterId));
+            $circleQuery->where('center_id', $selectedCenterId);
+            $subscriptionQuery->whereHas('circle', fn($q) => $q->where('center_id', $selectedCenterId));
+        }
 
         if ($user->hasRole('supervisor') && $user->teacher) {
             $supervisorId = $user->teacher->id;
@@ -48,8 +62,10 @@ class DashboardController extends Controller
         // 2. Dashboard Stats & Alerts Calculation
         if ($user->hasAnyRole(['admin', 'supervisor', 'guardian'])) {
             if ($user->hasAnyRole(['admin', 'supervisor'])) {
-                $stats['students_count'] = (clone $studentQuery)->count();
-                $stats['teachers_count'] = Teacher::count();
+                $stats['students_count'] = (clone $studentQuery)->where('status', '!=', 'متوقف')->count();
+                $stats['teachers_count'] = $selectedCenterId
+                    ? Teacher::whereHas('circles', fn($q) => $q->where('center_id', $selectedCenterId))->count()
+                    : Teacher::count();
                 $stats['circles_count'] = (clone $circleQuery)->count();
 
                 $stats['monthly_revenue'] = (clone $subscriptionQuery)
@@ -64,25 +80,69 @@ class DashboardController extends Controller
                     ? round((($stats['monthly_revenue'] - $lastMonthRevenue) / $lastMonthRevenue) * 100, 1)
                     : 0;
 
-                $stats['attendance_rate'] = 92;
+                $studentIdsForAttendance = (clone $studentQuery)->pluck('id');
 
-                // Student Growth (Cumulative)
+                $attendanceQuery = Attendance::whereIn('student_id', $studentIdsForAttendance)
+                    ->whereBetween('date', [now()->subDays(30)->startOfDay(), now()->endOfDay()]);
+
+                $totalAttendanceRecords = (clone $attendanceQuery)->count();
+                $presentRecords         = (clone $attendanceQuery)->where('status', 'present')->count();
+
+                $stats['attendance_rate'] = $totalAttendanceRecords > 0
+                    ? round(($presentRecords / $totalAttendanceRecords) * 100, 1)
+                    : 0;
+
+                // ─── نمو الطلاب: جدد + متوقفين ─────────────────────
+                // ─── نمو الطلاب: جدد + متوقفين ─────────────────────
+                $rangeStart = now()->subMonths(5)->startOfMonth();
+                $rangeEnd   = now()->endOfMonth();
+
+                $newStudentsByMonth = (clone $studentQuery)
+                    ->where('status', '!=', 'متوقف')
+                    ->whereBetween('created_at', [$rangeStart, $rangeEnd])
+                    ->selectRaw("DATE_FORMAT(created_at, '%Y-%m') as month_label, COUNT(*) as cnt")
+                    ->groupBy('month_label')
+                    ->pluck('cnt', 'month_label');
+
+                $stoppedStudentsByMonth = (clone $studentQuery)
+                    ->where('status', 'متوقف')
+                    ->whereColumn('updated_at', '!=', 'created_at')
+                    ->whereBetween('updated_at', [$rangeStart, $rangeEnd])
+                    ->selectRaw("DATE_FORMAT(updated_at, '%Y-%m') as month_label, COUNT(*) as cnt")
+                    ->groupBy('month_label')
+                    ->pluck('cnt', 'month_label');
+
                 for ($i = 5; $i >= 0; $i--) {
-                    $date = now()->subMonths($i)->endOfMonth();
-                    $chartData['labels'][] = $date->locale('ar')->isoFormat('MMMM');
-                    $chartData['data'][] = (clone $studentQuery)->where('created_at', '<=', $date)->count();
+                    $date     = now()->subMonths($i);
+                    $monthKey = $date->format('Y-m');
+
+                    $chartData['labels'][]           = $date->locale('ar')->isoFormat('MMMM');
+                    $chartData['new_students'][]     = $newStudentsByMonth->get($monthKey, 0);
+                    $chartData['stopped_students'][] = $stoppedStudentsByMonth->get($monthKey, 0);
                 }
 
-                $startCount = $chartData['data'][0] > 0 ? $chartData['data'][0] : 1;
-                $growthPercentage = round(((end($chartData['data']) - $startCount) / $startCount) * 100, 1);
-                $stats['student_growth_percentage'] = $growthPercentage;
+                $totalNew = array_sum($chartData['new_students']);
+                $totalStopped = array_sum($chartData['stopped_students']);
+                $totalStudents = $stats['students_count'] > 0 ? $stats['students_count'] : 1;
+                $stats['student_growth_percentage'] = round((($totalNew - $totalStopped) / $totalStudents) * 100, 1);
 
                 // Status Distribution
+                $statusScope = $selectedCenterId
+                    ? Student::whereHas('circle', fn($q) => $q->where('center_id', $selectedCenterId))
+                    : Student::query();
+
                 if ($user->hasRole('admin')) {
-                    $rawStatusStats = Student::selectRaw('status, count(*) as count')->groupBy('status')->pluck('count', 'status')->toArray();
+                    $rawStatusStats = (clone $statusScope)
+                        ->selectRaw('status, count(*) as count')
+                        ->groupBy('status')
+                        ->pluck('count', 'status')
+                        ->toArray();
                 } elseif ($user->teacher) {
                     $rawStatusStats = Student::whereHas('circle.supervisors', fn($q) => $q->where('teachers.id', $user->teacher->id))
-                        ->selectRaw('status, count(*) as count')->groupBy('status')->pluck('count', 'status')->toArray();
+                        ->selectRaw('status, count(*) as count')
+                        ->groupBy('status')
+                        ->pluck('count', 'status')
+                        ->toArray();
                 } else {
                     $rawStatusStats = [];
                 }
@@ -93,9 +153,15 @@ class DashboardController extends Controller
                 ];
             }
 
-            // Calculation for Absent & Unpaid (Shared between Admin/Supervisor and Guardian)
-            // Determine students to check for alerts
+            // ═══════════════════════════════════════════════════════════
+            // ALERTS: Absent & Unpaid Students
+            // ═══════════════════════════════════════════════════════════
             $alertStudentsQuery = Student::where('status', '!=', 'متوقف');
+
+            if ($selectedCenterId) {
+                $alertStudentsQuery->whereHas('circle', fn($q) => $q->where('center_id', $selectedCenterId));
+            }
+
             if ($user->hasRole('supervisor') && $user->teacher) {
                 $alertStudentsQuery->whereHas('circle.supervisors', fn($q) => $q->where('teachers.id', $user->teacher->id));
             } elseif ($user->hasRole('guardian')) {
@@ -104,60 +170,11 @@ class DashboardController extends Controller
                 $alertStudentsQuery->whereIn('circle_id', $user->teacher->circles->pluck('id'));
             }
 
-            // Absent Students (Sequential Absence Patterns)
-            $absentStudents = (clone $alertStudentsQuery)->with(['attendances' => function ($q) {
-                $q->orderBy('date', 'desc')->take(30);
-            }, 'circle'])->get()->map(function ($student) {
-                $records = $student->attendances->sortBy('date')->values();
-                $statuses = $records->pluck('status')->toArray();
+            // ─── Absent Students (Sequential Absences) ─────────────
+            $absentStudents = $this->getAbsentStudents($alertStudentsQuery);
 
-                $hasPattern = false;
-
-                // Condition 1: two or more consecutive absences
-                for ($i = 0; $i < count($statuses) - 1; $i++) {
-                    if ($statuses[$i] === 'absent' && $statuses[$i + 1] === 'absent') {
-                        $hasPattern = true;
-                        break;
-                    }
-                }
-
-                // Condition 2: absent → (not absent) → absent pattern
-                if (!$hasPattern) {
-                    for ($i = 0; $i < count($statuses) - 2; $i++) {
-                        if ($statuses[$i] === 'absent' && $statuses[$i + 2] === 'absent') {
-                            $hasPattern = true;
-                            break;
-                        }
-                    }
-                }
-
-                $student->absence_days = collect($statuses)->filter(fn($s) => $s === 'absent')->count();
-                $student->has_sequential_absence = $hasPattern;
-                return $student;
-            })->filter(fn($s) => $s->has_sequential_absence)
-                ->sortByDesc('absence_days')
-                ->take(5);
-
-            // Unpaid Students
-            $unpaidStudents = (clone $alertStudentsQuery)->with(['subscriptions' => function ($q) {
-                $q->where('status', 'مدفوع');
-            }, 'circle'])->get()->map(function ($student) {
-                $startDate = $student->enrollment_date ? $student->enrollment_date->copy()->startOfMonth() : $student->created_at->copy()->startOfMonth();
-                $currentDate = now()->startOfMonth();
-                $paidMonths = $student->subscriptions->pluck('month')->map(fn($d) => $d->format('Y-m'))->unique()->toArray();
-                $unpaidCount = 0;
-                $checkDate = $startDate->copy();
-                while ($checkDate->lte($currentDate)) {
-                    if (!in_array($checkDate->format('Y-m'), $paidMonths)) {
-                        $unpaidCount++;
-                    }
-                    $checkDate->addMonth();
-                }
-                $student->unpaid_months_count = $unpaidCount;
-                return $student;
-            })->filter(fn($s) => $s->unpaid_months_count > 0)
-                ->sortByDesc('unpaid_months_count')
-                ->take(5);
+            // ─── Unpaid Students ─────────────────────────────────────
+            $unpaidStudents = $this->getUnpaidStudents($alertStudentsQuery);
         }
 
         // Additional Role-Specific Stats
@@ -170,24 +187,109 @@ class DashboardController extends Controller
             $stats['my_children_count'] = $user->students()->count();
         }
 
-        return view('dashboard', compact('stats', 'absentStudents', 'unpaidStudents', 'chartData', 'statusChartData'));
+        return view('dashboard', compact(
+            'stats',
+            'absentStudents',
+            'unpaidStudents',
+            'chartData',
+            'statusChartData',
+            'centers',
+            'selectedCenterId'
+        ));
     }
 
-    public function guardianDashboard(): View
+    /**
+     * Get students with sequential absences (2+ consecutive absences)
+     */
+    private function getAbsentStudents($query)
+    {
+        $students = (clone $query)->with(['circle'])->get();
+        $studentIds = $students->pluck('id');
+
+        // Query واحد لكل الطلاب بدل query لكل طالب
+        $attendancesByStudent = Attendance::whereIn('student_id', $studentIds)
+            ->orderBy('date', 'desc')
+            ->get(['student_id', 'status'])
+            ->groupBy('student_id');
+
+        return $students->map(function ($student) use ($attendancesByStudent) {
+            // آخر 30 سجل، مرتبة تصاعدياً (الأقدم أولاً) زي المنطق الأصلي
+            $attendances = ($attendancesByStudent->get($student->id) ?? collect())
+                ->take(30)
+                ->pluck('status')
+                ->reverse()
+                ->values()
+                ->toArray();
+
+            if (empty($attendances)) {
+                $student->absence_days = 0;
+                $student->has_sequential_absence = false;
+                return $student;
+            }
+
+            // Check for sequential absences (2+ consecutive)
+            $hasSequential = false;
+            $consecutiveCount = 0;
+            $maxConsecutive = 0;
+
+            foreach ($attendances as $status) {
+                if ($status === 'absent') {
+                    $consecutiveCount++;
+                    $maxConsecutive = max($maxConsecutive, $consecutiveCount);
+                    if ($consecutiveCount >= 2) {
+                        $hasSequential = true;
+                    }
+                } else {
+                    $consecutiveCount = 0;
+                }
+            }
+
+            // Count total absence days in last 30 records
+            $totalAbsences = collect($attendances)->filter(fn($s) => $s === 'absent')->count();
+
+            $student->absence_days = $totalAbsences;
+            $student->has_sequential_absence = $hasSequential || $totalAbsences >= 3;
+
+            return $student;
+        })->filter(fn($s) => $s->has_sequential_absence)
+            ->sortByDesc('absence_days')
+            ->take(5);
+    }
+
+    /**
+     * Get students with unpaid months
+     */
+    private function getUnpaidStudents($query)
+    {
+        $students   = (clone $query)->with(['circle'])->get();
+        $studentIds = $students->pluck('id');
+
+        // نفس المصدر اللي بتستخدمه صفحة lateAndUnpaid (جدول student_unpaid_months)
+        $unpaidCounts = \Illuminate\Support\Facades\DB::table('student_unpaid_months')
+            ->whereIn('student_id', $studentIds)
+            ->where('unpaid_months_count', '>', 0)
+            ->pluck('unpaid_months_count', 'student_id');
+
+        return $students->map(function ($student) use ($unpaidCounts) {
+            $student->unpaid_months_count = $unpaidCounts->get($student->id, 0);
+            return $student;
+        })->filter(fn($s) => $s->unpaid_months_count > 0)
+            ->sortByDesc('unpaid_months_count')
+            ->take(5);
+    }
+
+    public function myDashboard(): View
     {
         /** @var User $user */
         $user = Auth::user();
         $userId = $user->id;
 
-        // 1) Active children count
         $activeChildrenCount = Student::where('guardian_id', $userId)
             ->where('status', 'مقيد')
             ->count();
 
-        // 2) Total children count (all statuses)
         $totalChildrenCount = Student::where('guardian_id', $userId)->count();
 
-        // 3) Latest absences for guardian's children
         $latestAbsences = Attendance::whereHas('student', function ($q) use ($userId) {
             $q->where('guardian_id', $userId);
         })
@@ -197,56 +299,48 @@ class DashboardController extends Controller
             ->take(10)
             ->get();
 
-        // 4) Unpaid subscriptions for guardian's children
-        $unpaidSubscriptions = Subscription::whereHas('student', function ($q) use ($userId) {
-            $q->where('guardian_id', $userId);
-        })
-            ->where('status', '!=', 'مدفوع')
-            ->with(['student', 'circle'])
-            ->orderBy('month', 'desc')
+        $unpaidSubscriptions = \Illuminate\Support\Facades\DB::table('student_unpaid_months')
+            ->join('students', 'students.id', '=', 'student_unpaid_months.student_id')
+            ->leftJoin('circles', 'circles.id', '=', 'students.circle_id')
+            ->where('students.guardian_id', $userId)
+            ->where('student_unpaid_months.unpaid_months_count', '>', 0)
+            ->select(
+                'students.id as student_id',
+                'students.name as student_name',
+                'circles.name as circle_name',
+                'student_unpaid_months.unpaid_months_count'
+            )
+            ->orderByDesc('student_unpaid_months.unpaid_months_count')
             ->take(10)
             ->get();
 
-        // 5) Attendance rate for this month per child
-        $children = Student::where('guardian_id', $userId)->with(['attendances' => function ($q) {
-            $q->where('date', '>=', now()->startOfMonth());
-        }])->get();
+        $children = Student::where('guardian_id', $userId)
+            ->where('status', '!=', 'متوقف')
+            ->with(['attendances' => function ($q) {
+                $q->where('date', '>=', now()->startOfMonth());
+            }])->get();
 
         $attendanceStats = $children->map(function ($child) {
-            $total = $child->attendances->count();
+            $total   = $child->attendances->count();
             $present = $child->attendances->where('status', 'present')->count();
+            $late    = $child->attendances->where('status', 'late')->count();
+
             return [
-                'name' => $child->name,
-                'id' => $child->id,
-                'rate' => $total > 0 ? round(($present / $total) * 100) : 0,
-                'total' => $total,
+                'name'    => $child->name,
+                'id'      => $child->id,
+                'rate'    => $total > 0 ? round(($present + $late) / $total * 100, 1) : 0,
+                'total'   => $total,
                 'present' => $present,
             ];
         });
 
-        // 6) Unpaid months count for all children combined
-        $unpaidMonthsTotal = 0;
-        foreach (
-            Student::where('guardian_id', $userId)->with(['subscriptions' => function ($q) {
-                $q->where('status', 'مدفوع');
-            }])->get() as $student
-        ) {
-            $startDate = $student->enrollment_date
-                ? $student->enrollment_date->copy()->startOfMonth()
-                : $student->created_at->copy()->startOfMonth();
-            $currentDate = now()->startOfMonth();
-            $paidMonths = $student->subscriptions->pluck('month')
-                ->map(fn($d) => $d->format('Y-m'))->unique()->toArray();
-            $checkDate = $startDate->copy();
-            while ($checkDate->lte($currentDate)) {
-                if (!in_array($checkDate->format('Y-m'), $paidMonths)) {
-                    $unpaidMonthsTotal++;
-                }
-                $checkDate->addMonth();
-            }
-        }
+        $unpaidMonthsTotal = \Illuminate\Support\Facades\DB::table('student_unpaid_months')
+            ->join('students', 'students.id', '=', 'student_unpaid_months.student_id')
+            ->where('students.guardian_id', $userId)
+            ->sum('student_unpaid_months.unpaid_months_count');
 
-        return view('guardian.guardian_dashboard', compact(
+
+        return view('guardians.my_dashboard', compact(
             'activeChildrenCount',
             'totalChildrenCount',
             'latestAbsences',

@@ -3,7 +3,8 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Spatie\Permission\Traits\HasRoles;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use App\Models\SurahTest;
 
 /**
  * @property int $id
@@ -38,7 +39,6 @@ class Teacher extends Model
         'name',
         'user_id',
         'center_id',
-        'is_administrative'
     ];
 
     protected static function booted(): void
@@ -59,6 +59,11 @@ class Teacher extends Model
     // علاقة: المعلم ←→ حلقاته (Many-to-Many)
     public function circles()
     {
-        return $this->belongsToMany(Circle::class, 'circle_teacher');
+        return $this->belongsToMany(Circle::class, 'circle_teacher')->withPivot('role');
+    }
+
+    public function surahTests(): HasMany
+    {
+        return $this->hasMany(SurahTest::class);
     }
 }

@@ -2,12 +2,17 @@
 
 namespace App\Models\Scopes;
 
+use App\Models\Teacher;
+use App\Models\User;
+use App\Services\UserAccessService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Scope;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Collection;
 
+/**
+ * ✅ CenterScope — مسؤول فقط عن تحديد الدور الحالي وبناء where clauses.
+ * كل منطق الصلاحيات وتفاصيل الفلترة أصبح داخل UserAccessService.
+ */
 class CenterScope implements Scope
 {
     private const IGNORED_TABLES = [
@@ -19,9 +24,6 @@ class CenterScope implements Scope
         'role_has_permissions',
     ];
 
-    private static array $teacherCache   = [];
-    private static array $circleIdsCache = [];
-
     public function apply(Builder $builder, Model $model): void
     {
         if (in_array($model->getTable(), self::IGNORED_TABLES)) return;
@@ -32,7 +34,8 @@ class CenterScope implements Scope
         if ($user->hasRole(['admin', 'general_manager'])) return;
         if ($user->hasRole('guardian')) return;
 
-        $teacher = $this->getTeacher($user->id);
+        $access  = app(UserAccessService::class);
+        $teacher = $access->teacher($user);
 
         if (!$teacher) {
             $builder->whereRaw('1 = 0');
@@ -41,68 +44,51 @@ class CenterScope implements Scope
 
         $table = $model->getTable();
 
-        $builder->where(function ($nestedQuery) use ($table, $teacher, $user) {
-            $nestedQuery->where(function ($q) use ($table, $teacher, $user) {
+        $builder->where(function ($nestedQuery) use ($table, $teacher, $user, $access) {
+            $nestedQuery->where(function ($q) use ($table, $teacher, $user, $access) {
+                // Refactored: تمرير User لـ applyManagerScope + تمرير Teacher جاهز لـ applyTeacherScope
                 match (true) {
-                    $user->hasRole('manager')    => $this->applyManagerScope($q, $table, $teacher),
-                    $user->hasRole('teacher')    => $this->applyTeacherScope($q, $table, $teacher),
+                    $user->hasRole('manager')    => $this->applyManagerScope($q, $table, $teacher, $user, $access),
+                    $user->hasRole('teacher')    => $this->applyTeacherScope($q, $table, $user, $teacher, $access),
                     $user->hasRole('supervisor') => $this->applySupervisorTeachersScope($q, $table, $teacher),
                     default                      => $q->whereRaw('1 = 0'),
                 };
             });
 
-            $circleIds = $this->getSupervisorCircleIds($teacher);
+            $circleIds = $access->supervisorCircleIds($user);
             if (!$circleIds->isEmpty()) {
-                $nestedQuery->orWhere(function ($q) use ($table, $circleIds) {
-                    match ($table) {
-                        'circles'       => $q->whereIn('id', $circleIds),
-                        'students'      => $q->whereIn('circle_id', $circleIds),
-                        'subscriptions' => $q->whereIn('circle_id', $circleIds), // ✅
-                        'attendances'   => $q->whereIn('student_id', function ($sub) use ($circleIds) {
-                            $sub->select('id')->from('students')->whereIn('circle_id', $circleIds);
-                        }),
-                        default => null,
-                    };
+                $nestedQuery->orWhere(function ($q) use ($table, $circleIds, $access) {
+                    // Refactored: استدعاء عبر السيرفس بدل الدالة المحلية
+                    $access->applyScopeByCircleIds($q, $table, $circleIds);
                 });
             }
         });
     }
 
-    private function applyManagerScope(Builder $builder, string $table, object $teacher): void
+    // Refactored: تصحيح كامل — استقبال User وتمريره لـ managerCircleIds()، وتطبيق الفلترة فعليًا
+    private function applyManagerScope(Builder $builder, string $table, Teacher $teacher, User $user, UserAccessService $access): void
     {
         if (is_null($teacher->center_id)) {
             $builder->whereRaw('1 = 0');
             return;
         }
 
-        match ($table) {
-            'circles' => $builder->where(function ($q) use ($teacher) {
-                $q->where('circles.center_id', $teacher->center_id)
-                    ->orWhereIn('circles.id', function ($sub) use ($teacher) {
-                        $sub->select('circle_id')
-                            ->from('circle_teacher')
-                            ->where('teacher_id', $teacher->id)
-                            ->whereIn('role', ['main', 'assistant']);
-                    });
-            }),
+        if ($table === 'teachers') {
+            $builder->where('teachers.center_id', $teacher->center_id);
+            return;
+        }
 
-            'students', 'teachers' => $builder->where("{$table}.center_id", $teacher->center_id),
+        $managerCircleIds = $access->managerCircleIds($user);
 
-            // ✅ الاشتراكات بـ circle_id مباشرة
-            'subscriptions' => $builder->whereIn('circle_id', function ($sub) use ($teacher) {
-                $sub->select('id')->from('circles')->where('center_id', $teacher->center_id);
-            }),
+        if ($managerCircleIds->isEmpty()) {
+            $builder->whereRaw('1 = 0');
+            return;
+        }
 
-            // ✅ الحضور بـ student_id
-            'attendances' => $builder->whereIn('student_id', function ($sub) use ($teacher) {
-                $sub->select('id')->from('students')->where('center_id', $teacher->center_id);
-            }),
-
-            default => null,
-        };
+        $access->applyScopeByCircleIds($builder, $table, $managerCircleIds);
     }
 
-    private function applySupervisorTeachersScope(Builder $builder, string $table, object $teacher): void
+    private function applySupervisorTeachersScope(Builder $builder, string $table, Teacher $teacher): void
     {
         if ($table === 'teachers') {
             if (is_null($teacher->center_id)) {
@@ -115,9 +101,10 @@ class CenterScope implements Scope
         $builder->whereRaw('1 = 0');
     }
 
-    private function applyTeacherScope(Builder $builder, string $table, object $teacher): void
+    // Refactored: استقبال Teacher جاهز بدل استدعاء $access->teacher($user) مرة تانية
+    private function applyTeacherScope(Builder $builder, string $table, User $user, Teacher $teacher, UserAccessService $access): void
     {
-        $circleIds = $this->getTeacherCircleIds($teacher);
+        $circleIds = $access->teacherCircleIdsWithinCenter($user);
 
         if ($circleIds->isEmpty()) {
             $builder->whereRaw('1 = 0');
@@ -133,81 +120,18 @@ class CenterScope implements Scope
             return;
         }
 
-        // ✅ للاشتراكات نفلتر بـ circle_id مباشرة مش student_id
         if ($table === 'subscriptions') {
             $builder->whereIn('circle_id', $circleIds);
             return;
         }
 
-        $this->applyScopeByCircleIds($builder, $table, $circleIds);
+        $access->applyScopeByCircleIds($builder, $table, $circleIds);
     }
 
-    private function applyScopeByCircleIds(Builder $builder, string $table, Collection|array $circleIds): void
-    {
-        match ($table) {
-            'circles'       => $builder->whereIn('id', $circleIds),
-            'students'      => $builder->whereIn('circle_id', $circleIds),
-            'subscriptions' => $builder->whereIn('circle_id', $circleIds), // ✅
-            'attendances'   => $builder->whereIn('student_id', function ($sub) use ($circleIds) {
-                $sub->select('id')->from('students')->whereIn('circle_id', $circleIds);
-            }),
-            default => null,
-        };
-    }
-
-    private function getTeacher(int $userId): ?object
-    {
-        if (!isset(self::$teacherCache[$userId])) {
-            $teacher = DB::table('teachers')
-                ->where('user_id', $userId)
-                ->select(['id', 'center_id', 'user_id'])
-                ->first();
-
-            if ($teacher) {
-                self::$teacherCache[$userId] = $teacher;
-            } else {
-                return null;
-            }
-        }
-        return self::$teacherCache[$userId];
-    }
-
-    private function getSupervisorCircleIds(object $teacher)
-    {
-        $cacheKey = "supervisor_{$teacher->id}";
-        if (!isset(self::$circleIdsCache[$cacheKey])) {
-            self::$circleIdsCache[$cacheKey] = DB::table('circles')
-                ->whereIn('id', function ($sub) use ($teacher) {
-                    $sub->select('circle_id')
-                        ->from('circle_teacher')
-                        ->where('teacher_id', $teacher->id)
-                        ->where('role', 'supervisor');
-                })
-                ->pluck('id');
-        }
-        return self::$circleIdsCache[$cacheKey];
-    }
-
-    private function getTeacherCircleIds(object $teacher)
-    {
-        $cacheKey = "teacher_{$teacher->id}";
-        if (!isset(self::$circleIdsCache[$cacheKey])) {
-            self::$circleIdsCache[$cacheKey] = DB::table('circles')
-                ->whereIn('id', function ($sub) use ($teacher) {
-                    $sub->select('circle_id')
-                        ->from('circle_teacher')
-                        ->where('teacher_id', $teacher->id)
-                        ->whereIn('role', ['main', 'assistant']);
-                })
-                ->where('center_id', $teacher->center_id)
-                ->pluck('id');
-        }
-        return self::$circleIdsCache[$cacheKey];
-    }
+    // Refactored: حُذفت applyScopeByCircleIds المحلية بالكامل — انتقلت لـ UserAccessService
 
     public static function clearCache(): void
     {
-        self::$teacherCache   = [];
-        self::$circleIdsCache = [];
+        app(UserAccessService::class)->clearCache();
     }
 }

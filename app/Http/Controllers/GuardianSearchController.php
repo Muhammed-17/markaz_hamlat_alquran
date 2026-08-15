@@ -9,8 +9,9 @@ use Illuminate\Http\JsonResponse;
 
 class GuardianSearchController extends Controller
 {
+
     // ================================================================
-    // البحث عن ولي أمر موجود
+    // التحقق من وجود حساب بالإيميل
     // ================================================================
     public function search(Request $request): JsonResponse
     {
@@ -29,14 +30,12 @@ class GuardianSearchController extends Controller
             ->where(function ($query) use ($q, $user) {
                 // ✅ البحث بالـ ID لو المدخل رقم
                 if (is_numeric($q)) {
-                    $query->where('id', (int) $q)
-                        ->orWhere('mobile', 'like', "%{$q}%");
+                    $query->where('id', (int) $q);
                     return;
                 }
 
-                // ✅ البحث بالاسم والموبايل لكل الأدوار
-                $query->where('name',   'like', "%{$q}%")
-                    ->orWhere('mobile', 'like', "%{$q}%");
+                // ✅ البحث بالاسم لكل الأدوار
+                $query->where('name', 'like', "%{$q}%");
 
                 // ✅ البحث بالإيميل فقط للأدوار المخولة
                 if ($user->hasRole(['admin', 'general_manager', 'manager'])) {
@@ -58,34 +57,22 @@ class GuardianSearchController extends Controller
     {
         $this->authorizeAccess();
 
-        $user   = auth()->user();
-        $email  = trim($request->get('email', ''));
-        $mobile = trim($request->get('mobile', ''));
+        $user  = auth()->user();
+        $email = trim($request->get('email', ''));
 
         // ✅ supervisor لا يقدر يبحث بالإيميل
         if (!empty($email) && !$user->hasRole(['admin', 'general_manager', 'manager'])) {
             $email = '';
         }
 
-        if (empty($email) && empty($mobile)) {
+        if (empty($email)) {
             return response()->json(['exists' => false]);
         }
 
-        $query = User::role('guardian');
-
-        if (!empty($email) && !empty($mobile)) {
-            $query->where(
-                fn($q) => $q
-                    ->where('email', $email)
-                    ->orWhere('mobile', $mobile)
-            );
-        } elseif (!empty($email)) {
-            $query->where('email', $email);
-        } else {
-            $query->where('mobile', $mobile);
-        }
-
-        $guardian = $query->select($this->getAllowedFields($user))->first();
+        $guardian = User::role('guardian')
+            ->where('email', $email)
+            ->select($this->getAllowedFields($user))
+            ->first();
 
         if (!$guardian) {
             return response()->json(['exists' => false]);
@@ -124,7 +111,7 @@ class GuardianSearchController extends Controller
     private function getAllowedFields(User $user): array
     {
         // الحقول الأساسية لكل الأدوار
-        $fields = ['id', 'name', 'mobile', 'status'];
+        $fields = ['id', 'name', 'status'];
 
         // ✅ الإيميل فقط للأدوار الإدارية
         if ($user->hasRole(['admin', 'general_manager', 'manager'])) {
@@ -142,7 +129,6 @@ class GuardianSearchController extends Controller
         $data = [
             'id'        => $guardian->id,
             'name'      => $guardian->name,
-            'mobile'    => $guardian->mobile ?? '',
             'status'    => $guardian->status,
         ];
 

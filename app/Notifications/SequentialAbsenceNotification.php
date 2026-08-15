@@ -13,14 +13,16 @@ class SequentialAbsenceNotification extends Notification
     public Student $student;
     public int $absenceDays;
     public ?string $customMessage;
+    public bool $isFullMonth;
 
-    public function __construct(Student $student, int $absenceDays, ?string $customMessage = null)
+    public function __construct(Student $student, int $absenceDays, ?string $customMessage = null, bool $isFullMonth = false)
     {
         $this->student = $student;
         $this->absenceDays = $absenceDays;
         $this->customMessage = $customMessage;
+        $this->isFullMonth = $isFullMonth;
     }
-
+    
     public function via(object $notifiable): array
     {
         return ['database'];
@@ -34,8 +36,9 @@ class SequentialAbsenceNotification extends Notification
             'circle_name' => $this->student->circle?->name,
             'absence_days' => $this->absenceDays,
             'custom_message' => $this->customMessage,
-            'message_ar' => $this->customMessage ?? 'تم رصد غياب متتالٍ لابنكم ' . $this->student->name . ' لمدة ' . $this->absenceDays . ' أيام. يرجى التواصل مع المشرف.',
-            'message_en' => 'Sequential absences detected for ' . $this->student->name . ' (' . $this->absenceDays . ' days). Please contact the supervisor.',
+            'is_full_month' => $this->isFullMonth,
+            'message_ar' => $this->customMessage ?? 'تم رصد ' . $this->absenceDays . ' أيام غياب لابنكم ' . $this->student->name . ' خلال الشهر الحالي. يرجى التواصل مع إدارة.',
+            'message_en' => $this->student->name . ' has accumulated ' . $this->absenceDays . ' absence days this month. Please contact the supervisor.',
         ];
     }
 }

@@ -25,12 +25,10 @@ $isNextYearReg = ($regMonth >= 7 && $regMonth <= 9);
     $guardianData = [
     'id' => $student->guardian->id,
     'name' => $student->guardian->name,
-    'mobile' => $student->guardian->mobile ?? '',
     'email' => $student->guardian->email ?? '',
     'is_active' => ($student->guardian->status ?? '') === 'active',
     ];
     }
-
     $guardianQueryName = old(
     'guardian_name',
     optional(\App\Models\User::find(old('guardian_id', isset($student) ? $student->guardian_id : '')))->name ?? ''
@@ -129,35 +127,30 @@ $isNextYearReg = ($regMonth >= 7 && $regMonth <= 9);
 
                 <div class="space-y-2">
                     <label class="block text-sm font-bold text-gray-700">مقدم طلب التسجيل <span class="text-red-500">*</span></label>
-                    <div class="flex flex-wrap gap-4 p-4 bg-gray-50 rounded-2xl border border-gray-100">
-                        @foreach(['الأم', 'الأب', 'الطالب', 'أخرى'] as $applicantOption)
-                        <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer">
-                            <input type="radio" name="applicant" value="{{ $applicantOption }}" data-field="applicant"
-                                @checked(old('applicant', $student->applicant ?? '') == $applicantOption)
-                            class="rounded-full text-[#0a5c36] focus:ring-[#0a5c36]">
-                            <span>{{ $applicantOption === 'الطالب' ? 'الطالب نفسه' : $applicantOption }}</span>
-                        </label>
-                        @endforeach
-                    </div>
+                    <x-creatable-select
+                        name="applicant"
+                        :options="['الأم', 'الأب', 'الطالب نفسه']"
+                        :value="old('applicant', $student->applicant ?? '')"
+                        placeholder="اختر أو اكتب مقدم الطلب..." />
                     @error('applicant')
                     <span class="text-red-500 text-xs mt-1 block font-semibold">{{ $message }}</span>
                     @enderror
-                    <input type="text" name="applicant_other" data-field="applicant_other"
-                        value="{{ old('applicant_other', $student->applicant_other ?? '') }}"
-                        data-show-when="applicant=أخرى"
-                        placeholder="يرجى تحديد مقدم الطلب..."
-                        class="w-full mt-2 p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36] focus:ring-1 focus:ring-[#0a5c36] transition-all"
-                        style="display:none;">
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div class="space-y-2">
-                        <label class="block text-sm font-bold text-gray-700">كود الطالب</label>
+                        <label class="block text-sm font-bold text-gray-700">الرقم القومي</label>
                         <input type="text" name="student_code" data-field="student_code"
-                            value="{{ old('student_code', $student->student_code ?? $generatedCode ?? '') }}"
-                            placeholder="كود الطالب"
-                            readonly
-                            class="w-full p-3 bg-gray-100 border border-gray-200 rounded-2xl text-sm font-medium text-gray-500 cursor-not-allowed">
+                            value="{{ old('student_code', $student->student_code ?? '') }}"
+                            placeholder="14 رقم (اختياري)"
+                            inputmode="numeric"
+                            maxlength="14"
+                            pattern="[0-9]{14}"
+                            oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 14)"
+                            class="w-full p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36] focus:ring-1 focus:ring-[#0a5c36] transition-all">
+                        @error('student_code')
+                        <span class="text-red-500 text-xs mt-1 block font-semibold">{{ $message }}</span>
+                        @enderror
                     </div>
                     <div class="space-y-2">
                         <label class="block text-sm font-bold text-gray-700">اسم الطالب (رباعيًّا) <span class="text-red-500">*</span></label>
@@ -233,27 +226,48 @@ $isNextYearReg = ($regMonth >= 7 && $regMonth <= 9);
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div class="space-y-2">
                         <label class="block text-sm font-bold text-gray-700">رقم الواتساب للمتابعة</label>
-                        <input type="tel" name="whatsapp_number" data-field="whatsapp_number"
-                            value="{{ old('whatsapp_number', $student->whatsapp_number ?? '') }}"
-                            id="whatsappInput"
-                            placeholder="01xxxxxxxxx"
-                            inputmode="numeric"
-                            pattern="[0-9]*"
-                            oninput="this.value = this.value.replace(/[^0-9]/g, '')"
-                            class="w-full p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36] focus:ring-1 focus:ring-[#0a5c36] transition-all">
+                        <div class="flex gap-2">
+                            <input type="tel" name="whatsapp_number" data-field="whatsapp_number"
+                                value="{{ old('whatsapp_number', $student->whatsapp_number ?? '') }}"
+                                id="whatsappInput"
+                                placeholder="01xxxxxxxxx"
+                                inputmode="numeric"
+                                pattern="[0-9]*"
+                                oninput="this.value = this.value.replace(/[^0-9]/g, '')"
+                                class="flex-1 p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36] focus:ring-1 focus:ring-[#0a5c36] transition-all">
+                            <button type="button" onclick="checkWhatsappNumber('whatsappInput')"
+                                class="shrink-0 px-4 py-3 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-2xl text-sm font-bold transition-colors flex items-center gap-1.5">
+                                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z" />
+                                    <path d="M12.001 2C6.478 2 2 6.478 2 12c0 1.85.499 3.583 1.365 5.075L2 22l5.075-1.325A9.955 9.955 0 0012.001 22C17.523 22 22 17.523 22 12S17.523 2 12.001 2zm0 18.156a8.148 8.148 0 01-4.158-1.138l-.298-.177-3.095.808.826-3.02-.194-.31A8.146 8.146 0 013.844 12c0-4.5 3.657-8.156 8.157-8.156 4.5 0 8.156 3.656 8.156 8.156 0 4.5-3.656 8.156-8.156 8.156z" />
+                                </svg>
+                                تحقق
+                            </button>
+                        </div>
                         @error('whatsapp_number')
                         <span class="text-red-500 text-xs mt-1 block font-semibold">{{ $message }}</span>
                         @enderror
                     </div>
                     <div class="space-y-2">
                         <label class="block text-sm font-bold text-gray-700">رقم اتصال إضافي</label>
-                        <input type="tel" name="second_phone" data-field="second_phone"
-                            value="{{ old('second_phone', $student->second_phone ?? '') }}"
-                            placeholder="01xxxxxxxxx"
-                            inputmode="numeric"
-                            pattern="[0-9]*"
-                            oninput="this.value = this.value.replace(/[^0-9]/g, '')"
-                            class="w-full p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36] focus:ring-1 focus:ring-[#0a5c36] transition-all">
+                        <div class="flex gap-2">
+                            <input type="tel" name="second_phone" data-field="second_phone"
+                                value="{{ old('second_phone', $student->second_phone ?? '') }}"
+                                id="secondPhoneInput"
+                                placeholder="01xxxxxxxxx"
+                                inputmode="numeric"
+                                pattern="[0-9]*"
+                                oninput="this.value = this.value.replace(/[^0-9]/g, '')"
+                                class="flex-1 p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36] focus:ring-1 focus:ring-[#0a5c36] transition-all">
+                            <button type="button" onclick="checkWhatsappNumber('secondPhoneInput')"
+                                class="shrink-0 px-4 py-3 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-2xl text-sm font-bold transition-colors flex items-center gap-1.5">
+                                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z" />
+                                    <path d="M12.001 2C6.478 2 2 6.478 2 12c0 1.85.499 3.583 1.365 5.075L2 22l5.075-1.325A9.955 9.955 0 0012.001 22C17.523 22 22 17.523 22 12S17.523 2 12.001 2zm0 18.156a8.148 8.148 0 01-4.158-1.138l-.298-.177-3.095.808.826-3.02-.194-.31A8.146 8.146 0 013.844 12c0-4.5 3.657-8.156 8.157-8.156 4.5 0 8.156 3.656 8.156 8.156 0 4.5-3.656 8.156-8.156 8.156z" />
+                                </svg>
+                                تحقق
+                            </button>
+                        </div>
                         @error('second_phone')
                         <span class="text-red-500 text-xs mt-1 block font-semibold">{{ $message }}</span>
                         @enderror
@@ -261,31 +275,22 @@ $isNextYearReg = ($regMonth >= 7 && $regMonth <= 9);
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    @foreach([
-                    ['name' => 'whatsapp_owner', 'label' => 'صاحب رقم الواتساب', 'other_name' => 'whatsapp_owner_other'],
-                    ['name' => 'additional_contact_owner', 'label' => 'صاحب الرقم الإضافي', 'other_name' => 'additional_contact_owner_other'],
-                    ] as $ownerField)
                     <div class="space-y-2">
-                        <label class="block text-sm font-bold text-gray-700">{{ $ownerField['label'] }}</label>
-                        <div class="flex flex-wrap gap-4 p-3 bg-gray-50 rounded-2xl border border-gray-100">
-                            @foreach(['الأم', 'الأب', 'الطالب', 'أخرى'] as $ownerOption)
-                            <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer">
-                                <input type="radio" name="{{ $ownerField['name'] }}" value="{{ $ownerOption }}"
-                                    data-field="{{ $ownerField['name'] }}"
-                                    @checked(old($ownerField['name'], $student->{$ownerField['name']} ?? '') == $ownerOption)
-                                class="text-[#0a5c36] focus:ring-[#0a5c36]">
-                                <span>{{ $ownerOption }}</span>
-                            </label>
-                            @endforeach
-                        </div>
-                        <input type="text" name="{{ $ownerField['other_name'] }}"
-                            value="{{ old($ownerField['other_name'], $student->{$ownerField['other_name']} ?? '') }}"
-                            data-show-when="{{ $ownerField['name'] }}=أخرى"
-                            placeholder="يرجى التحديد..."
-                            class="w-full mt-2 p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36]"
-                            style="display:none;">
+                        <label class="block text-sm font-bold text-gray-700">صاحب رقم الواتساب</label>
+                        <x-creatable-select
+                            name="whatsapp_owner"
+                            :options="['الأم', 'الأب', 'الطالب نفسه']"
+                            :value="old('whatsapp_owner', $student->whatsapp_owner ?? '')"
+                            placeholder="اختر أو اكتب..." />
                     </div>
-                    @endforeach
+                    <div class="space-y-2">
+                        <label class="block text-sm font-bold text-gray-700">صاحب الرقم الإضافي</label>
+                        <x-creatable-select
+                            name="additional_contact_owner"
+                            :options="['الأم', 'الأب', 'الطالب نفسه']"
+                            :value="old('additional_contact_owner', $student->additional_contact_owner ?? '')"
+                            placeholder="اختر أو اكتب..." />
+                    </div>
                 </div>
 
                 {{-- ───── ولي الأمر ───── --}}
@@ -336,8 +341,6 @@ $isNextYearReg = ($regMonth >= 7 && $regMonth <= 9);
                                                     class="text-xs bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded-md font-medium shrink-0">غير نشط</span>
                                             </div>
                                             <div class="flex items-center gap-3 mt-0.5">
-                                                <span class="text-gray-500 text-xs" x-show="guardian.mobile"
-                                                    x-text="'📱 ' + guardian.mobile"></span>
                                                 <span class="text-gray-400 text-xs" x-show="guardian.email"
                                                     x-text="'✉️ ' + guardian.email"></span>
                                             </div>
@@ -378,11 +381,7 @@ $isNextYearReg = ($regMonth >= 7 && $regMonth <= 9);
                                     class="text-xs bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded-md font-medium">
                                     ⚠️ غير نشط
                                 </span>
-                                <template x-if="selected?.mobile">
-                                    <span class="text-emerald-500 text-xs font-medium"
-                                        x-text="'· 📱 ' + selected.mobile"></span>
-                                </template>
-                                <template x-if="selected?.email && !selected?.mobile">
+                                <template x-if="selected?.email">
                                     <span class="text-emerald-400 text-xs"
                                         x-text="'· 🔑 ' + selected.email"></span>
                                 </template>
@@ -418,7 +417,6 @@ $isNextYearReg = ($regMonth >= 7 && $regMonth <= 9);
                         {{-- ✅ تنبيه وجود حساب مطابق --}}
                         <div id="guardianExistsAlert" class="md:col-span-2 hidden">
                             <div class="p-3 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-700 font-medium">
-                                ⚠️ يوجد حساب مطابق لهذا الإيميل أو الهاتف —
                                 <button type="button" onclick="useExistingGuardian()"
                                     class="underline font-bold">استخدامه بدلاً من إنشاء جديد</button>
                             </div>
@@ -491,9 +489,9 @@ $isNextYearReg = ($regMonth >= 7 && $regMonth <= 9);
                 <div class="space-y-2">
                     <label class="block text-sm font-bold text-gray-700">نوع التعليم <span class="text-red-500">*</span></label>
                     <select name="education_type" data-field="education_type"
-                        class="w-full p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36] focus:ring-1 focus:ring-[#0a5c36] transition-all appearance-none"
-                        required>
+                        class="w-full p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36] focus:ring-1 focus:ring-[#0a5c36] transition-all appearance-none">
                         <option value="" @selected(in_array(old('education_type', $student->education_type ?? ''), ['', null, 'غير محدد']))>-- اختر النوع --</option>
+                        <option value="غير محدد" @selected(old('education_type', $student->education_type ?? '') == 'غير محدد')>غير محدد</option>
                         <option value="أزهري" @selected(old('education_type', $student->education_type ?? '') == 'أزهري')>أزهري</option>
                         <option value="عام (تربية وتعليم)" @selected(old('education_type', $student->education_type ?? '') == 'عام (تربية وتعليم)')>عام (تربية وتعليم)</option>
                     </select>
@@ -548,89 +546,73 @@ $isNextYearReg = ($regMonth >= 7 && $regMonth <= 9);
                 </div>
             </div>
 
-            @foreach([
-            ['field' => 'health_status', 'label' => 'الحالة الصحية للطالب', 'options' => [['value' => 'طبيعية', 'label' => 'طبيعية (الحمد لله)'], ['value' => 'أخرى', 'label' => 'أخرى']], 'other_field' => 'health_status_other', 'other_placeholder' => 'يرجى توضيح الحالة الصحية...'],
-            ['field' => 'learning_difficulties', 'label' => 'صعوبات التعلم', 'options' => [['value' => 'لا يوجد', 'label' => 'لا يوجد (الحمد لله)'], ['value' => 'أخرى', 'label' => 'أخرى']], 'other_field' => 'learning_difficulties_other', 'other_placeholder' => 'يرجى توضيح صعوبات التعلم...'],
-            ['field' => 'personal_traits', 'label' => 'السمات الشخصية', 'options' => [['value' => 'لا يوجد', 'label' => 'لا يوجد'], ['value' => 'أخرى', 'label' => 'أخرى']], 'other_field' => 'personal_traits_other', 'other_placeholder' => 'يرجى تحديد السمات البارزة (عنيد، خجول...)'],
-            ] as $radioGroup)
+
             <div class="space-y-2">
-                <label class="block text-sm font-bold text-gray-700">{{ $radioGroup['label'] }} <span class="text-red-500">*</span></label>
-                <div class="flex gap-6 p-3 bg-gray-50 rounded-2xl border border-gray-100">
-                    @foreach($radioGroup['options'] as $opt)
-                    <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer">
-                        <input type="radio" name="{{ $radioGroup['field'] }}" value="{{ $opt['value'] }}"
-                            data-field="{{ $radioGroup['field'] }}"
-                            @checked(old($radioGroup['field'], $student->{$radioGroup['field']} ?? '') == $opt['value'])
-                        required>
-                        <span>{{ $opt['label'] }}</span>
-                    </label>
-                    @endforeach
-                </div>
-                @error($radioGroup['field'])
+                <label class="block text-sm font-bold text-gray-700">الحالة الصحية للطالب <span class="text-red-500">*</span></label>
+                <x-creatable-select
+                    name="health_status"
+                    :options="['طبيعية (الحمد الله)']"
+                    :value="old('health_status', $student->health_status ?? '')"
+                    placeholder="اختر أو اكتب الحالة الصحية..." />
+                @error('health_status')
                 <span class="text-red-500 text-xs mt-1 block font-semibold">{{ $message }}</span>
                 @enderror
-                <input type="text" name="{{ $radioGroup['other_field'] }}"
-                    value="{{ old($radioGroup['other_field'], $student->{$radioGroup['other_field']} ?? '') }}"
-                    data-show-when="{{ $radioGroup['field'] }}=أخرى"
-                    placeholder="{{ $radioGroup['other_placeholder'] }}"
-                    class="w-full mt-2 p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36] focus:ring-1 focus:ring-[#0a5c36] transition-all"
-                    style="display:none;">
             </div>
-            @endforeach
+
+            <div class="space-y-2">
+                <label class="block text-sm font-bold text-gray-700">صعوبات التعلم <span class="text-red-500">*</span></label>
+                <x-creatable-select
+                    name="learning_difficulties"
+                    :options="['لا يوجد (الحمد الله)']"
+                    :value="old('learning_difficulties', $student->learning_difficulties ?? '')"
+                    placeholder="اختر أو اكتب صعوبات التعلم..." />
+                @error('learning_difficulties')
+                <span class="text-red-500 text-xs mt-1 block font-semibold">{{ $message }}</span>
+                @enderror
+            </div>
+
+            <div class="space-y-2">
+                <label class="block text-sm font-bold text-gray-700">السمات الشخصية <span class="text-red-500">*</span></label>
+                <x-creatable-select
+                    name="personal_traits"
+                    :options="['لا يوجد']"
+                    :value="old('personal_traits', $student->personal_traits ?? '')"
+                    placeholder="اختر أو اكتب السمات الشخصية..." />
+                @error('personal_traits')
+                <span class="text-red-500 text-xs mt-1 block font-semibold">{{ $message }}</span>
+                @enderror
+            </div>
 
             <div class="space-y-2">
                 <label class="block text-sm font-bold text-gray-700">الهواية المفضلة <span class="text-red-500">*</span></label>
-                <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 p-4 bg-gray-50 rounded-2xl border border-gray-100">
-                    @php
-                    $savedHobbies = old('hobbies', $student->hobbies ?? []);
-                    if (is_string($savedHobbies)) $savedHobbies = json_decode($savedHobbies, true) ?? [];
-                    $hobbiesList = ['كرة القدم', 'الكاراتيه', 'الرسم', 'البرمجة والألعاب الإلكترونية', 'الأشغال اليدوية', 'القراءة والإطلاع', 'أخرى'];
-                    @endphp
-                    @foreach($hobbiesList as $hobby)
-                    <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer">
-                        <input type="checkbox" name="hobbies[]" value="{{ $hobby }}"
-                            data-field="hobbies"
-                            @if($hobby==='أخرى' ) id="hobbyOtherCheckbox" @endif
-                            @checked(in_array($hobby, $savedHobbies))
-                            class="rounded text-[#0a5c36] focus:ring-[#0a5c36]">
-                        <span>{{ $hobby === 'البرمجة والألعاب الإلكترونية' ? 'البرمجة والألعاب' : ($hobby === 'القراءة والإطلاع' ? 'القراءة' : $hobby) }}</span>
-                    </label>
-                    @endforeach
-                </div>
-                <input type="text" name="hobby_other" data-field="hobby_other"
-                    value="{{ old('hobby_other', $student->hobby_other ?? '') }}"
-                    id="hobbyOtherInput"
-                    placeholder="يرجى ذكر الهواية الإضافية..."
-                    class="w-full mt-2 p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36] focus:ring-1 focus:ring-[#0a5c36] transition-all"
-                    style="display:none;">
+                @php
+                $savedHobbies = old('hobbies', $student->hobbies ?? []);
+                if (is_string($savedHobbies)) $savedHobbies = json_decode($savedHobbies, true) ?? [];
+                @endphp
+                <x-creatable-select
+                    name="hobbies"
+                    :multiple="true"
+                    :options="['كرة القدم', 'الكاراتيه', 'الرسم', 'البرمجة والألعاب الإلكترونية', 'الأشغال اليدوية', 'القراءة والإطلاع']"
+                    :value="$savedHobbies"
+                    placeholder="اختر أو اكتب هوايات..." />
+                @error('hobbies')
+                <span class="text-red-500 text-xs mt-1 block font-semibold">{{ $message }}</span>
+                @enderror
             </div>
 
             <div class="space-y-2">
                 <label class="block text-sm font-bold text-gray-700">حالة خروج الطالب من المركز <span class="text-red-500">*</span></label>
-                <div class="flex gap-6 p-3 bg-gray-50 rounded-2xl border border-gray-100">
-                    @foreach(['بمفرده', 'مع ولي الأمر أو أحد الأقارب'] as $exitOption)
-                    <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer">
-                        <input type="radio" name="student_exit_status" value="{{ $exitOption }}"
-                            data-field="student_exit_status"
-                            @checked(old('student_exit_status', $student->student_exit_status ?? '') == $exitOption)
-                        required>
-                        <span>{{ $exitOption }}</span>
-                    </label>
-                    @endforeach
-                </div>
+                <x-creatable-select
+                    name="student_exit_status"
+                    :options="['بمفرده', 'مع ولي الأمر أو أحد الأقارب']"
+                    :value="old('student_exit_status', $student->student_exit_status ?? '')"
+                    placeholder="اختر أو اكتب حالة الخروج..." />
                 @error('student_exit_status')
                 <span class="text-red-500 text-xs mt-1 block font-semibold">{{ $message }}</span>
                 @enderror
-                <input type="text" name="exit_details" data-field="exit_details"
-                    value="{{ old('exit_details', $student->exit_details ?? '') }}"
-                    data-show-when="student_exit_status=مع ولي الأمر أو أحد الأقارب"
-                    placeholder="يرجى توضيح مع من ستخرج..."
-                    class="w-full mt-2 p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36] focus:ring-1 focus:ring-[#0a5c36] transition-all"
-                    style="display:none;">
             </div>
 
-            <div x-data="{ selectedLevel: '{{ old('center_entry_level', $student->center_entry_level ?? 'construction') }}' }">
-
+            <div x-data="{ selectedLevel: '{{ old('center_entry_level', $student->center_entry_level ?? 'construction') }}', studySystem: '{{ old('study_system', $construction->study_system ?? 'group') }}' }">
                 <!-- ───────────────── تقييم التلاوة ───────────────── -->
                 <div id="step-5" class="bg-white rounded-3xl shadow-sm border border-gray-100 p-8 space-y-6">
                     <div class="flex items-center gap-3 mb-6 border-b border-gray-50 pb-4">
@@ -708,87 +690,103 @@ $isNextYearReg = ($regMonth >= 7 && $regMonth <= 9);
                         </div>
                     </div>
 
+                    {{-- نظام الدراسة --}}
                     <div class="space-y-2">
-                        <label class="block text-sm font-bold text-gray-700">سورة الالتحاق الحالية <span class="text-red-500">*</span></label>
-                        <select name="current_surah" id="currentSurah" data-field="current_surah"
-                            class="w-full p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36] focus:ring-1 focus:ring-[#0a5c36] transition-all">
-                            <option value="" @selected(old('current_surah', $construction->current_surah ?? '') == '')>-- اختر السورة أو حالة الالتحاق --</option>
-                            <option value="بداية" @selected(old('current_surah', $construction->current_surah ?? '') == 'بداية')>🟢 بداية (مبتدئ تماماً)</option>
-                            <option value="خاتم" @selected(old('current_surah', $construction->current_surah ?? '') == 'خاتم')>👑 خاتم (حفظ القرآن كاملاً)</option>
-                            @foreach(['الفاتحة','البقرة','آل عمران','النساء','المائدة','الأنعام','الأعراف','الأنفال','التوبة','يونس','هود','يوسف','الرعد','إبراهيم','الحجر','النحل','الإسراء','الكهف','مريم','طه','الأنبياء','الحج','المؤمنون','النور','الفرقان','الشعراء','النمل','القصص','العنكبوت','الروم','لقمان','السجدة','الأحزاب','سبأ','فاطر','يس','الصافات','ص','الزمر','غافر','فصلت','الشورى','الزخرف','الدخان','الجاثية','الأحقاف','محمد','الفتح','الحجرات','ق','الذاريات','الطور','النجم','القمر','الرحمن','الواقعة','الحديد','المعادلة','الحشر','الممتحنة','الصف','الجمعة','المنافقون','التغابن','الطلاق','التحريم','الملك','القلم','الحاقة','المعارج','نوح','الجن','المزمل','المدثر','القيامة','الإنسان','المرسلات','النبأ','النازعات','عبس','التكوير','الانفطار','المطففين','الانشقاق','البروج','الطارق','الأعلى','الغاشية','الفجر','البلد','الشمس','الليل','الضحى','الشرح','التين','العلق','القدر','البينة','الزلزلة','العاديات','القارعة','التكاثر','العصر','الهمزة','الفيل','قريش','الماعون','الكوثر','الكافرون','النصر','المسد','الإخلاص','الفلق','الناس'] as $idx => $surah)
-                            <option value="{{ $surah }}" @selected(old('current_surah', $construction->current_surah ?? '') == $surah)>
-                                {{ $idx + 1 }}. {{ $surah }}
+                        <label class="block text-sm font-bold text-gray-700">نظام الدراسة <span class="text-red-500">*</span></label>
+                        <div class="flex gap-6 p-3 bg-gray-50 rounded-2xl border border-gray-100">
+                            <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer">
+                                <input type="radio" name="study_system" value="group" x-model="studySystem" data-field="study_system" required
+                                    @checked(old('study_system', $construction->study_system ?? 'group') == 'group')>
+                                <span>جماعي</span>
+                            </label>
+                            <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer">
+                                <input type="radio" name="study_system" value="individual" x-model="studySystem" data-field="study_system" required
+                                    @checked(old('study_system', $construction->study_system ?? '') == 'individual')>
+                                <span>فردي</span>
+                            </label>
+                        </div>
+                        @error('study_system')
+                        <span class="text-red-500 text-xs mt-1 block font-semibold">{{ $message }}</span>
+                        @enderror
+                    </div>
+
+                    {{-- الحلقة --}}
+                    <div class="space-y-2">
+                        <label class="block text-sm font-bold text-gray-700">الحلقة <span class="text-red-500">*</span></label>
+                        <select name="circle_id" id="circleSelect" data-field="circle_id"
+                            class="w-full p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36] focus:ring-1 focus:ring-[#0a5c36] transition-all appearance-none">
+                            <option value="" @selected(old('circle_id', $construction->circle_id ?? '') == '')>-- اختر الحلقة --</option>
+                            @foreach($circles as $circle)
+                            <option value="{{ $circle->id }}" data-type="{{ $circle->type }}"
+                                @selected(old('circle_id', $construction->circle_id ?? '') == $circle->id)>
+                                {{ $circle->name }}
                             </option>
                             @endforeach
                         </select>
                     </div>
 
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {{-- بطاقة معلومات خطة الحلقة الجماعية (عرض فقط، تساعد المشرف على القرار) --}}
+                    <div id="groupPlanInfo" class="hidden bg-blue-50 border border-blue-100 rounded-2xl p-4 space-y-2">
+                        <p class="text-sm font-bold text-blue-700">📋 خطة الحفظ الحالية لهذه الحلقة:</p>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-blue-800">
+                            <p>السورة الحالية: <span id="groupPlanSurah" class="font-bold"></span></p>
+                            <p>خطة الحفظ الجديد: <span id="groupPlanNew" class="font-bold"></span></p>
+                            <p>خطة المراجعة: <span id="groupPlanRevision" class="font-bold"></span></p>
+                            <p>خطة الحفظ القديم: <span id="groupPlanOld" class="font-bold"></span></p>
+                        </div>
+                        <p class="text-xs text-blue-500 mt-1">تأكد من مناسبة مستوى الحلقة لمستوى الطالب قبل التسكين. سيتم ربط الطالب بهذه الخطة تلقائيًا.</p>
+                    </div>
+
+                    <div id="groupPlanEmpty" class="hidden bg-amber-50 border border-amber-100 rounded-2xl p-4 text-sm text-amber-700 font-semibold">
+                        ⚠️ لا توجد بيانات خطة مسجلة لهذه الحلقة بعد. سيتم إنشاء خطة الطالب كأول سجل للحلقة.
+                    </div>
+
+                    {{-- خطط الفردي فقط: السورة + الخطط الثلاثة (تظهر وتُملأ يدويًا) --}}
+                    <div x-show="studySystem === 'individual'" x-transition class="space-y-6">
                         <div class="space-y-2">
-                            <label class="block text-sm font-bold text-gray-700">اسم الحلقة <span class="text-red-500">*</span></label>
-                            <select name="group_name" data-field="group_name" id="circleSelect"
+                            <label class="block text-sm font-bold text-gray-700">السورة الحالية</label>
+                            <select name="current_surah_id" data-field="current_surah_id"
                                 class="w-full p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36] focus:ring-1 focus:ring-[#0a5c36] transition-all appearance-none">
-                                <option value="" data-type="" @selected(old('group_name', $construction->group_name ?? '') == '')>-- اختر الحلقة --</option>
-                                @foreach($circles as $circle)
-                                <option value="{{ $circle->name }}" data-type="{{ $circle->type ?? '' }}"
-                                    @selected(old('group_name', $construction->group_name ?? '') == $circle->name)>
-                                    {{ $circle->name }}
+                                <option value="" @selected(old('current_surah_id', $construction->current_surah_id ?? '') == '')>-- اختر السورة --</option>
+                                @foreach($surahs ?? [] as $surah)
+                                <option value="{{ $surah->id }}" @selected(old('current_surah_id', $construction->current_surah_id ?? '') == $surah->id)>
+                                    {{ $surah->number }}. {{ $surah->name_arabic }}
                                 </option>
                                 @endforeach
                             </select>
                         </div>
-                        <div class="space-y-2">
-                            <label class="block text-sm font-bold text-gray-700">النظام المتبع <span class="text-red-500">*</span></label>
-                            <div class="flex gap-6 p-3 bg-gray-50 rounded-2xl border border-gray-100" id="studySystemWrapper">
-                                @foreach(['فردي', 'جماعي'] as $system)
-                                <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer">
-                                    <input type="radio" name="study_system" value="{{ $system }}" data-field="study_system"
-                                        @checked(old('study_system', $construction->study_system ?? '') == $system)>
-                                    <span>{{ $system }}</span>
-                                </label>
-                                @endforeach
+
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div class="space-y-2">
+                                <label class="block text-sm font-bold text-gray-700">خطة الحفظ الجديد <span class="text-red-500">*</span></label>
+                                <input type="text" name="new_memorization_plan" data-field="new_memorization_plan"
+                                    value="{{ old('new_memorization_plan', $construction->new_memorization_plan ?? '') }}"
+                                    placeholder="مثال: 5 سطور يومياً"
+                                    class="w-full p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36] focus:ring-1 focus:ring-[#0a5c36] transition-all">
                             </div>
-                            <p id="studySystemHint" class="text-xs text-gray-400 hidden">يُحدَّد تلقائياً من نوع الحلقة المختارة</p>
+                            <div class="space-y-2">
+                                <label class="block text-sm font-bold text-gray-700">خطة المراجعة <span class="text-red-500">*</span></label>
+                                <input type="text" name="revision_plan" data-field="revision_plan"
+                                    value="{{ old('revision_plan', $construction->revision_plan ?? '') }}"
+                                    placeholder="مثال: وجه يومياً"
+                                    class="w-full p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36] focus:ring-1 focus:ring-[#0a5c36] transition-all">
+                            </div>
+                            <div class="space-y-2">
+                                <label class="block text-sm font-bold text-gray-700">خطة الحفظ القديم <span class="text-red-500">*</span></label>
+                                <input type="text" name="old_memorization_plan" data-field="old_memorization_plan"
+                                    value="{{ old('old_memorization_plan', $construction->old_memorization_plan ?? '') }}"
+                                    placeholder="مثال: حزب أسبوعياً"
+                                    class="w-full p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36] focus:ring-1 focus:ring-[#0a5c36] transition-all">
+                            </div>
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div class="space-y-2">
-                            <label class="block text-sm font-bold text-gray-700">خطة الحفظ الجديد <span class="text-red-500">*</span></label>
-                            <input type="text" name="new_memorization_plan" data-field="new_memorization_plan"
-                                value="{{ old('new_memorization_plan', $construction->new_memorization_plan ?? '') }}"
-                                placeholder="مثال: حفظ 5 سطور"
-                                class="w-full p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36] focus:ring-1 focus:ring-[#0a5c36] transition-all">
-                        </div>
-                        <div class="space-y-2">
-                            <label class="block text-sm font-bold text-gray-700">مستوى الحفظ بعد الاختبار <span class="text-red-500">*</span></label>
-                            <select name="placement_evaluation" data-field="placement_evaluation"
-                                class="w-full h-12 p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36] focus:ring-1 focus:ring-[#0a5c36] transition-all">
-                                <option value="" @selected(old('placement_evaluation', $construction->placement_evaluation ?? '') == '')>-- اختر التقييم --</option>
-                                @foreach(['ممتاز', 'جيد', 'تثبيت', 'تأسيس', 'إعادة حفظ'] as $eval)
-                                <option value="{{ $eval }}" @selected(old('placement_evaluation', $construction->placement_evaluation ?? '') == $eval)>{{ $eval }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                    </div>
-
+                    {{-- تقييم التسكين --}}
                     <div class="space-y-2">
-                        <label class="block text-sm font-bold text-gray-700">خطة الحفظ القديم (المراجعة) <span class="text-red-500">*</span></label>
-                        <div class="flex flex-wrap gap-4 p-3 bg-gray-50 rounded-2xl border border-gray-100">
-                            @foreach(['منتهي', 'فئة الماهر', 'فئة المرتل', 'ترديد', 'أخرى'] as $plan)
-                            <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer">
-                                <input type="radio" name="old_memorization_plan" value="{{ $plan }}" data-field="old_memorization_plan"
-                                    @checked(old('old_memorization_plan', $construction->old_memorization_plan ?? '') == $plan)>
-                                <span>{{ $plan }}</span>
-                            </label>
-                            @endforeach
-                        </div>
-                        <input type="text" name="old_memorization_plan_other" data-field="old_memorization_plan_other"
-                            value="{{ old('old_memorization_plan_other', $construction->old_memorization_plan_other ?? '') }}"
-                            data-show-when="old_memorization_plan=أخرى"
-                            placeholder="يرجى توضيح الخطة الإضافية..."
-                            class="w-full mt-2 p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36] focus:ring-1 focus:ring-[#0a5c36] transition-all"
-                            style="display:none;">
+                        <label class="block text-sm font-bold text-gray-700">تقييم التسكين</label>
+                        <textarea name="placement_evaluation" data-field="placement_evaluation" rows="3"
+                            placeholder="نتائج تقييم التسكين..."
+                            class="w-full p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36] focus:ring-1 focus:ring-[#0a5c36] transition-all">{{ old('placement_evaluation', $construction->placement_evaluation ?? '') }}</textarea>
                     </div>
                 </div>
 
@@ -841,21 +839,11 @@ $isNextYearReg = ($regMonth >= 7 && $regMonth <= 9);
 
                     <div class="space-y-2">
                         <label class="block text-sm font-bold text-gray-700">متون التجويد المحفوظة <span class="text-red-500">*</span></label>
-                        <div class="flex flex-wrap gap-4 p-3 bg-gray-50 rounded-2xl border border-gray-100">
-                            @foreach(['لا يوجد' => 'لا يوجد', 'التحفة' => 'تحفة الأطفال', 'الجزرية' => 'المقدمة الجزرية', 'أخرى' => 'أخرى'] as $val => $lbl)
-                            <label class="flex items-center gap-2 text-sm font-semibold text-gray-600 cursor-pointer">
-                                <input type="radio" name="tajweed_matn" value="{{ $val }}" data-field="tajweed_matn"
-                                    @checked(old('tajweed_matn', $itqan->tajweed_matn ?? '') == $val)>
-                                <span>{{ $lbl }}</span>
-                            </label>
-                            @endforeach
-                        </div>
-                        <input type="text" name="tajweed_matn_other"
-                            value="{{ old('tajweed_matn_other', $itqan->tajweed_matn_other ?? '') }}"
-                            data-show-when="tajweed_matn=أخرى"
-                            placeholder="يرجى كتابة اسم المتن..."
-                            class="w-full mt-2 p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all"
-                            style="display:none;">
+                        <x-creatable-select
+                            name="tajweed_matn"
+                            :options="['لا يوجد', 'تحفة الأطفال', 'المقدمة الجزرية']"
+                            :value="old('tajweed_matn', $itqan->tajweed_matn ?? '')"
+                            placeholder="اختر أو اكتب متن التجويد..." />
                     </div>
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1029,10 +1017,6 @@ $isNextYearReg = ($regMonth >= 7 && $regMonth <= 9);
                 <div class="space-y-2">
                     <div class="flex justify-between items-center">
                         <label class="block text-sm font-bold text-gray-700">ملاحظات الشيخ المختبر / المشرف الفنية</label>
-                        <button type="button" data-action="dictate" data-dictate-field="notes"
-                            class="text-xs font-bold flex items-center gap-1 px-3 py-1 bg-[#e8f5ed] rounded-full text-[#0a5c36]">
-                            <span id="dictateBtnLabel">🎤 إملاء صوتي</span>
-                        </button>
                     </div>
                     <textarea name="notes" data-field="notes"
                         placeholder="اكتب التوصيات الخاصة بمخارج الحروف والتجويد..."
@@ -1085,42 +1069,98 @@ $isNextYearReg = ($regMonth >= 7 && $regMonth <= 9);
 
                 document.querySelectorAll('[data-show-when]').forEach(initShowWhen);
 
-                // ── 2) الهواية "أخرى" ─────────────────────────────────────
-                const hobbyCheckbox = document.getElementById('hobbyOtherCheckbox');
-                const hobbyOtherInput = document.getElementById('hobbyOtherInput');
+                // ── 3) فلترة الحلقات حسب النظام + عرض بطاقة معلومات الجماعي ─
+                const circleSelect = document.getElementById('circleSelect');
+                const groupPlanInfo = document.getElementById('groupPlanInfo');
+                const groupPlanEmpty = document.getElementById('groupPlanEmpty');
+                const groupPlanSurah = document.getElementById('groupPlanSurah');
+                const groupPlanNew = document.getElementById('groupPlanNew');
+                const groupPlanRevision = document.getElementById('groupPlanRevision');
+                const groupPlanOld = document.getElementById('groupPlanOld');
 
-                if (hobbyCheckbox) {
-                    const toggleHobby = () => {
-                        if (hobbyOtherInput)
-                            hobbyOtherInput.style.display = hobbyCheckbox.checked ? 'block' : 'none';
-                    };
-                    hobbyCheckbox.addEventListener('change', toggleHobby);
-                    toggleHobby();
+                // ✅ فلاج لمنع مسح قيمة الحلقة المحفوظة عند أول تحميل لصفحة التعديل
+                let isFirstCircleFilterRun = true;
+
+                function filterCirclesBySystem() {
+                    if (!circleSelect) return;
+                    const selectedSystem = document.querySelector('input[name="study_system"]:checked')?.value;
+                    if (!selectedSystem) return;
+
+                    let currentValueStillValid = false;
+                    Array.from(circleSelect.options).forEach(opt => {
+                        if (!opt.value) return;
+                        const matches = opt.getAttribute('data-type') === selectedSystem;
+                        opt.hidden = !matches;
+                        if (matches && opt.value === circleSelect.value) currentValueStillValid = true;
+                    });
+
+                    // ✅ في أول تشغيل (تحميل الصفحة)، لا نمسح القيمة القادمة من السيرفر
+                    // حتى لو data-type مش متطابق، عشان نضمن ظهور بيانات التعديل
+                    // المسح يحصل فقط لما المستخدم يغيّر نظام الدراسة يدويًا بعد كده
+                    if (!currentValueStillValid && !isFirstCircleFilterRun) {
+                        circleSelect.value = '';
+                        hideGroupPlanInfo();
+                    }
+                    isFirstCircleFilterRun = false;
                 }
 
-                // ── 3) الحلقة → النظام المتبع ─────────────────────────────
-                const circleSelect = document.getElementById('circleSelect');
-                const studySystemHint = document.getElementById('studySystemHint');
+                function hideGroupPlanInfo() {
+                    groupPlanInfo?.classList.add('hidden');
+                    groupPlanEmpty?.classList.add('hidden');
+                }
+
+                async function showGroupPlanInfo() {
+                    if (!circleSelect || !circleSelect.value) {
+                        hideGroupPlanInfo();
+                        return;
+                    }
+
+                    const opt = circleSelect.options[circleSelect.selectedIndex];
+                    const circleType = opt?.getAttribute('data-type');
+
+                    if (circleType !== 'group') {
+                        hideGroupPlanInfo();
+                        return;
+                    }
+
+                    try {
+                        const res = await fetch(`/circles/${circleSelect.value}/group-plan`, {
+                            headers: {
+                                'Accept': 'application/json'
+                            }
+                        });
+                        if (!res.ok) return;
+
+                        const data = await res.json();
+
+                        if (!data.found) {
+                            groupPlanInfo?.classList.add('hidden');
+                            groupPlanEmpty?.classList.remove('hidden');
+                            return;
+                        }
+
+                        if (groupPlanSurah) groupPlanSurah.textContent = data.current_surah_name ?? '—';
+                        if (groupPlanNew) groupPlanNew.textContent = data.new_memorization_plan || '—';
+                        if (groupPlanRevision) groupPlanRevision.textContent = data.revision_plan || '—';
+                        if (groupPlanOld) groupPlanOld.textContent = data.old_memorization_plan || '—';
+
+                        groupPlanEmpty?.classList.add('hidden');
+                        groupPlanInfo?.classList.remove('hidden');
+                    } catch (e) {
+                        console.error('Group plan fetch error:', e);
+                    }
+                }
+
+                document.querySelectorAll('input[name="study_system"]').forEach(radio => {
+                    radio.addEventListener('change', filterCirclesBySystem);
+                });
 
                 if (circleSelect) {
-                    const autoSelectSystem = () => {
-                        const opt = circleSelect.options[circleSelect.selectedIndex];
-                        const systemType = opt ? opt.getAttribute('data-type') : '';
-
-                        if (systemType === 'فردي' || systemType === 'جماعي') {
-                            const radio = document.querySelector(`input[name="study_system"][value="${systemType}"]`);
-                            if (radio) {
-                                radio.checked = true;
-                                studySystemHint?.classList.remove('hidden');
-                            }
-                        } else {
-                            studySystemHint?.classList.add('hidden');
-                        }
-                    };
-
-                    circleSelect.addEventListener('change', autoSelectSystem);
-                    if (circleSelect.value !== '') autoSelectSystem();
+                    circleSelect.addEventListener('change', showGroupPlanInfo);
                 }
+
+                filterCirclesBySystem();
+                showGroupPlanInfo(); // في حالة edit لو الحلقة محددة مسبقًا
 
                 // ── 4) guardian_id قبل الإرسال ────────────────────────────
                 const studentForm = document.querySelector('form');
@@ -1146,6 +1186,18 @@ $isNextYearReg = ($regMonth >= 7 && $regMonth <= 9);
                     whatsappInput.addEventListener('input', () => {
                         clearTimeout(whatsappTimer);
                         whatsappTimer = setTimeout(checkGuardianExists, 600);
+                    });
+                }
+
+                // ── 7) ربط قرار الإدارة "مرفوض" بحالة الطالب "متوقف" تلقائيًا ──────
+                const decisionSelect = document.querySelector('select[name="decision"]');
+                const statusSelect = document.querySelector('select[name="status"]');
+
+                if (decisionSelect && statusSelect) {
+                    decisionSelect.addEventListener('change', function() {
+                        if (this.value === 'مرفوض') {
+                            statusSelect.value = 'متوقف';
+                        }
                     });
                 }
             });
@@ -1246,13 +1298,11 @@ $isNextYearReg = ($regMonth >= 7 && $regMonth <= 9);
 
             async function checkGuardianExists() {
                 const email = document.getElementById('parentEmailInput')?.value?.trim() ?? '';
-                const mobile = document.getElementById('whatsappInput')?.value?.trim() ?? '';
 
-                if (!email && !mobile) return;
+                if (!email) return;
 
                 const params = new URLSearchParams();
                 if (email) params.set('email', email);
-                if (mobile) params.set('mobile', mobile);
 
                 try {
                     const res = await fetch(`/guardians/check?${params}`, {
@@ -1300,5 +1350,25 @@ $isNextYearReg = ($regMonth >= 7 && $regMonth <= 9);
                 document.getElementById('emailCheckResult')?.classList.add('hidden');
 
                 _existingGuardianFromCheck = null;
+            }
+
+            // ── تحقق سريع من رقم واتساب عن طريق فتح wa.me ──────────────────
+            function checkWhatsappNumber(inputId) {
+                const input = document.getElementById(inputId);
+                if (!input) return;
+
+                let number = input.value.replace(/[^0-9]/g, '');
+
+                if (!number) {
+                    alert('يرجى إدخال رقم أولًا');
+                    return;
+                }
+
+                // ✅ تحويل الرقم المصري المحلي (01xxxxxxxxx) لصيغة دولية (2xxxxxxxxxx)
+                if (number.startsWith('0')) {
+                    number = '2' + number;
+                }
+
+                window.open(`https://wa.me/${number}`, '_blank');
             }
         </script>

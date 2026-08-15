@@ -18,9 +18,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/subscriptions/late-and-unpaid/{student}/months', [SubscriptionController::class, 'lateDetail'])
             ->name('subscriptions.late_detail');
         Route::get('/subscriptions/student/{student}/details-unpaid', [SubscriptionController::class, 'DetailsUnpaid']) // ✅
-        ->name('subscriptions.details_unpaid');
-
+            ->name('subscriptions.details_unpaid');
     });
+
+    // ─── إرسال تنبيه اشتراك متأخر ──────────────────────────────────
+    // Route::middleware('permission:edit subscriptions')->group(function () {
+    Route::post('/subscriptions/{student}/notify-unpaid', [SubscriptionController::class, 'notifyUnpaid'])
+        ->name('subscriptions.notify-unpaid');
+    // });ح
+
 
     // ─── إضافة اشتراك ─────────────────────────────────────────────
     Route::middleware('permission:create subscriptions')->group(function () {

@@ -11,10 +11,11 @@ class StoreAttendanceRequest extends FormRequest
         return true;
     }
 
+
     public function rules(): array
     {
         return [
-            'date' => 'required|date',
+            'date' => 'required|date|before_or_equal:today',
             'circle_id' => 'required|exists:circles,id',
             'attendance' => 'required|array|min:1',
             'attendance.*.student_id' => 'required|exists:students,id',

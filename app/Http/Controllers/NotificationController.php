@@ -2,32 +2,33 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class NotificationController extends Controller
 {
-
     public function index(Request $request): View
     {
         $user = $request->user();
-        $notifications = $user->notifications()->latest()->paginate(20);
+        $notifications = $user->notifications()->latest()->paginate(15);
         $unreadCount = $user->unreadNotifications()->count();
 
-        return view('notifications.index', compact('notifications', 'unreadCount'));
+        return view('guardians.my_notification', compact('notifications', 'unreadCount'));
     }
 
     public function markAsRead(Request $request, string $id)
     {
-        $request->user()->notifications()->where('id', $id)->first()?->markAsRead();
+        $notification = $request->user()->notifications()->where('id', $id)->firstOrFail();
+        $notification->markAsRead();
 
-        return back();
+        return response()->json(['success' => true]);
     }
 
     public function markAllAsRead(Request $request)
     {
         $request->user()->unreadNotifications->markAsRead();
 
-        return back();
+        return redirect()->back()->with('success', 'تم تحديد جميع الإشعارات كمقروءة.');
     }
 }

@@ -16,12 +16,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
             'App\Http\Controllers\AttendanceController@notifyStudent'
         )
             ->name('attendance.sequential-absences.notify');
-
-        Route::post(
-            '/attendance/sequential-absences/{student}/toggle-contact',
-            'App\Http\Controllers\AttendanceController@toggleContact'
-        )
-            ->name('attendance.sequential-absences.toggle-contact');
     });
 
     Route::middleware('permission:view reports')->group(function () {
@@ -34,8 +28,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->name('attendance.export.excel');
         Route::get('/attendance/export/monthly', 'App\Http\Controllers\AttendanceController@exportMonthly')
             ->name('attendance.export.monthly');
-        Route::get('/attendance/export/pdf', 'App\Http\Controllers\AttendanceController@pdfReport')
-            ->name('attendance.export.pdf');
     });
 
     Route::middleware('permission:create attendance')->group(function () {
@@ -62,10 +54,5 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->name('attendance.index');
         Route::get('/attendance/{attendance}', 'App\Http\Controllers\AttendanceController@show')
             ->name('attendance.show');
-    });
-
-    Route::middleware('permission:view own attendance')->group(function () {
-        Route::get('/my-attendance', 'App\Http\Controllers\AttendanceController@myAttendance')
-            ->name('attendance.own');
     });
 });

@@ -12,7 +12,7 @@ trait HasCommonFilters
      *
      * @param Builder $query
      * @param Request $request
-     * @param array $fields  أعمدة الجدول المراد البحث فيها، مثل ['name', 'email', 'mobile']
+     * @param array $fields  أعمدة الجدول المراد البحث فيها، مثل ['name', 'email']
      * @param string $param  اسم query string parameter (افتراضي: q)
      */
     public function applySearch(Builder $query, Request $request, array $fields, string $param = 'q'): Builder

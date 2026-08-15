@@ -1,12 +1,16 @@
 <?php
 
 use App\Http\Controllers\StudentController;
+use App\Http\Controllers\ExcludedStudentsController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'verified'])->group(function () {
 
-    Route::middleware('permission:view students|view own children')->group(function () {
+    Route::middleware('permission:view students')->group(function () {
         Route::get('/students', [StudentController::class, 'index'])->name('students.index');
+        Route::get('/students/export', [StudentController::class, 'export'])->name('students.export');
+        Route::get('/students/excluded-review', [StudentController::class, 'excludedReview'])
+            ->name('students.excluded-review');
     });
 
     // ✅ create قبل {student}

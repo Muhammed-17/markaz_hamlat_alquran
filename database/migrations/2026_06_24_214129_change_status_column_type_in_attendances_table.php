@@ -1,29 +1,23 @@
 <?php
 
 use Illuminate\Database\Migrations\Migration;
-use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
 
 return new class extends Migration
 {
     public function up(): void
     {
-        // Ensure all existing statuses are valid
+        // ✅ توحيد أي قيم غير صالحة قبل تغيير الـ enum
         DB::table('attendances')
             ->whereNotIn('status', ['present', 'absent', 'late', 'excused'])
             ->update(['status' => 'present']);
 
-        Schema::table('attendances', function (Blueprint $table) {
-            $table->enum('status', ['present', 'absent', 'late', 'excused'])
-                ->change();
-        });
+        // ✅ تعديل الـ enum مباشرة عبر SQL خام — بدون الحاجة لـ doctrine/dbal
+        DB::statement("ALTER TABLE attendances MODIFY COLUMN status ENUM('present', 'absent', 'late', 'excused') NOT NULL");
     }
 
     public function down(): void
     {
-        Schema::table('attendances', function (Blueprint $table) {
-            $table->string('status')->change();
-        });
+        DB::statement("ALTER TABLE attendances MODIFY COLUMN status VARCHAR(255) NOT NULL");
     }
 };

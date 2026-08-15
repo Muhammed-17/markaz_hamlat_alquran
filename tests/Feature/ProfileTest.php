@@ -1,22 +1,33 @@
 <?php
 
 use App\Models\User;
+use Spatie\Permission\Models\Role;
+use Spatie\Permission\Models\Permission;
 
 test('profile page is displayed', function () {
-    $user = User::factory()->create();
+    // Create role and permission
+    $role = Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web']);
+    Permission::firstOrCreate(['name' => 'edit profile', 'guard_name' => 'web']);
+    $role->givePermissionTo('edit profile');
 
-    $response = $this
-        ->actingAs($user)
+    $user = User::factory()->create();
+    $user->assignRole('admin');
+
+    $response = \Pest\Laravel\actingAs($user)
         ->get('/profile');
 
     $response->assertOk();
 });
 
 test('profile information can be updated', function () {
-    $user = User::factory()->create();
+    $role = Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web']);
+    Permission::firstOrCreate(['name' => 'edit profile', 'guard_name' => 'web']);
+    $role->givePermissionTo('edit profile');
 
-    $response = $this
-        ->actingAs($user)
+    $user = User::factory()->create();
+    $user->assignRole('admin');
+
+    $response = \Pest\Laravel\actingAs($user)
         ->patch('/profile', [
             'name' => 'Test User',
             'email' => 'test@example.com',
@@ -34,10 +45,14 @@ test('profile information can be updated', function () {
 });
 
 test('email verification status is unchanged when the email address is unchanged', function () {
-    $user = User::factory()->create();
+    $role = Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web']);
+    Permission::firstOrCreate(['name' => 'edit profile', 'guard_name' => 'web']);
+    $role->givePermissionTo('edit profile');
 
-    $response = $this
-        ->actingAs($user)
+    $user = User::factory()->create();
+    $user->assignRole('admin');
+
+    $response = \Pest\Laravel\actingAs($user)
         ->patch('/profile', [
             'name' => 'Test User',
             'email' => $user->email,
@@ -51,10 +66,14 @@ test('email verification status is unchanged when the email address is unchanged
 });
 
 test('user can delete their account', function () {
-    $user = User::factory()->create();
+    $role = Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web']);
+    Permission::firstOrCreate(['name' => 'edit profile', 'guard_name' => 'web']);
+    $role->givePermissionTo('edit profile');
 
-    $response = $this
-        ->actingAs($user)
+    $user = User::factory()->create();
+    $user->assignRole('admin');
+
+    $response = \Pest\Laravel\actingAs($user)
         ->delete('/profile', [
             'password' => 'password',
         ]);
@@ -63,15 +82,19 @@ test('user can delete their account', function () {
         ->assertSessionHasNoErrors()
         ->assertRedirect('/');
 
-    $this->assertGuest();
+    expect(auth()->check())->toBeFalse();
     $this->assertNull($user->fresh());
 });
 
 test('correct password must be provided to delete account', function () {
-    $user = User::factory()->create();
+    $role = Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web']);
+    Permission::firstOrCreate(['name' => 'edit profile', 'guard_name' => 'web']);
+    $role->givePermissionTo('edit profile');
 
-    $response = $this
-        ->actingAs($user)
+    $user = User::factory()->create();
+    $user->assignRole('admin');
+
+    $response = \Pest\Laravel\actingAs($user)
         ->from('/profile')
         ->delete('/profile', [
             'password' => 'wrong-password',

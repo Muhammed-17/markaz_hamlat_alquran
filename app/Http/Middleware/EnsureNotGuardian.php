@@ -17,12 +17,13 @@ class EnsureNotGuardian
         $user = Auth::user();
 
         if ($user->hasRole('guardian') && !$user->hasRole(['admin', 'general_manager', 'manager', 'supervisor', 'teacher'])) {
-            // ✅ AJAX — بدون رسالة
-            if ($request->expectsJson()) {
+
+            // ✅ AJAX — يرجع 403 بدون أي رسالة
+            if ($request->expectsJson() || $request->ajax() || $request->wantsJson()) {
                 return response()->json([], 403);
             }
 
-            // ✅ يرجع لآخر صفحة بدون أي رسالة
+            // ✅ redirect لآخر صفحة بدون أي رسالة
             $previous = url()->previous();
             $current  = url()->current();
 

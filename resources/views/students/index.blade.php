@@ -1,19 +1,19 @@
 @php
-    // ✅ تحديد الأدوار مرة واحدة في PHP لاستخدامها في الـ View
-    $canViewStudents = auth()->user()->can('view students');
+// ✅ تحديد الأدوار مرة واحدة في PHP لاستخدامها في الـ View
+$canViewStudents = auth()->user()->can('view students');
 
-    $sortLink = fn($field) => request()->fullUrlWithQuery([
-        'sort' => $field,
-        'dir' => request('sort') === $field && request('dir', 'asc') === 'asc' ? 'desc' : 'asc',
-    ]);
-    $sortIcon = fn($field) => request('sort') === $field
-        ? (request('dir', 'asc') === 'asc' ? '↑' : '↓')
-        : '';
+$sortLink = fn($field) => request()->fullUrlWithQuery([
+'sort' => $field,
+'dir' => request('sort') === $field && request('dir', 'asc') === 'asc' ? 'desc' : 'asc',
+]);
+$sortIcon = fn($field) => request('sort') === $field
+? (request('dir', 'asc') === 'asc' ? '↑' : '↓')
+: '';
 
-    $hasFilters = request()->anyFilled([
-        'q', 'status', 'circle_id', 'educational_stage',
-        'center_id', 'school_grade', 'decision', 'age_min', 'age_max',
-    ]);
+$hasFilters = request()->anyFilled([
+'q', 'status', 'circle_id', 'educational_stage',
+'center_id', 'school_grade', 'decision', 'age_min', 'age_max',
+]);
 @endphp
 
 <x-layouts.markaz-layout>
@@ -23,6 +23,24 @@
         {{-- Header --}}
         <div class="bg-[#0b3d2c] rounded-3xl p-6 lg:p-8 text-white relative overflow-hidden flex flex-col md:flex-row justify-between items-center shadow-xl gap-6">
             <div class="order-2 md:order-2 flex flex-wrap items-center gap-4 w-full md:w-auto">
+                @can('view students')
+                <a href="{{ route('students.export', request()->query()) }}"
+                    class="w-full md:w-auto px-6 py-3 bg-white/10 hover:bg-white/20 text-white font-bold rounded-2xl flex items-center justify-center gap-2 transition-all border border-white/20 active:scale-95">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H8a2 2 0 01-2-2V5a2 2 0 012-2h6l6 6v11a2 2 0 01-2 2z" />
+                    </svg>
+                    تصدير Excel
+                </a>
+
+                <a href="{{ route('students.excluded-review') }}"
+                    class="w-full md:w-auto px-6 py-3 bg-white/10 hover:bg-white/20 text-white font-bold rounded-2xl flex items-center justify-center gap-2 transition-all border border-white/20 active:scale-95">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    مراجعة مستثناة
+                </a>
+                @endcan
+
                 @can('create students')
                 <a href="{{ route('students.create') }}"
                     class="w-full md:w-auto px-6 py-3 bg-emerald-500 hover:bg-emerald-400 text-white font-bold rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg hover:shadow-emerald-500/20 active:scale-95">
@@ -38,9 +56,9 @@
                 <h1 class="text-3xl font-black mb-2">إدارة الطلاب</h1>
                 <p class="text-emerald-100/80 text-sm font-medium">
                     @if($hasFilters)
-                        {{ $students->total() }} نتيجة
+                    {{ $students->total() }} نتيجة
                     @else
-                        {{ $students->total() }} طالب مسجل في النظام
+                    {{ $students->total() }} طالب مسجل في النظام
                     @endif
                 </p>
             </div>
@@ -81,9 +99,9 @@
                     <label class="block text-xs font-bold text-gray-500 mb-1">الحالة</label>
                     <select name="status" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#10b981]/50">
                         <option value="">الكل</option>
-                        <option value="مقيد" @selected(request('status') === 'مقيد')>مقيد</option>
-                        <option value="متوقف" @selected(request('status') === 'متوقف')>متوقف</option>
-                        <option value="مسافر" @selected(request('status') === 'مسافر')>مسافر</option>
+                        <option value="مقيد" @selected(request('status')==='مقيد' )>مقيد</option>
+                        <option value="متوقف" @selected(request('status')==='متوقف' )>متوقف</option>
+                        <option value="مسافر" @selected(request('status')==='مسافر' )>مسافر</option>
                     </select>
                 </div>
                 <div>
@@ -91,7 +109,7 @@
                     <select name="circle_id" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#10b981]/50">
                         <option value="">كل الحلقات</option>
                         @foreach($circles as $circle)
-                        <option value="{{ $circle->id }}" @selected((string) request('circle_id') === (string) $circle->id)>
+                        <option value="{{ $circle->id }}" @selected((string) request('circle_id')===(string) $circle->id)>
                             {{ $circle->name }}
                         </option>
                         @endforeach
@@ -102,7 +120,7 @@
                     <select name="educational_stage" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#10b981]/50">
                         <option value="">الكل</option>
                         @foreach(['تمهيدي','حضانة','ابتدائي','اعدادي','ثانوي','جامعي','خريج'] as $stage)
-                        <option value="{{ $stage }}" @selected(request('educational_stage') === $stage)>{{ $stage }}</option>
+                        <option value="{{ $stage }}" @selected(request('educational_stage')===$stage)>{{ $stage }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -115,7 +133,7 @@
                     <select name="center_id" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#10b981]/50">
                         <option value="">كل الفروع</option>
                         @foreach($centers as $center)
-                        <option value="{{ $center->id }}" @selected((string) request('center_id') === (string) $center->id)>
+                        <option value="{{ $center->id }}" @selected((string) request('center_id')===(string) $center->id)>
                             {{ $center->name }}
                         </option>
                         @endforeach
@@ -141,7 +159,7 @@
                     <select name="school_grade" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#10b981]/50">
                         <option value="">كل الصفوف</option>
                         @foreach(['الأول','الثاني','الثالث','الرابع','الخامس','السادس','دراسات عليا','لا يوجد'] as $grade)
-                        <option value="{{ $grade }}" @selected(request('school_grade') === $grade)>{{ $grade }}</option>
+                        <option value="{{ $grade }}" @selected(request('school_grade')===$grade)>{{ $grade }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -154,9 +172,9 @@
                     <label class="block text-xs font-bold text-gray-500 mb-1">قرار الإدارة</label>
                     <select name="decision" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#10b981]/50">
                         <option value="">الكل</option>
-                        <option value="تحت الاختبار" @selected(request('decision') === 'تحت الاختبار')>تحت الاختبار</option>
-                        <option value="مقبول" @selected(request('decision') === 'مقبول')>مقبول</option>
-                        <option value="مرفوض" @selected(request('decision') === 'مرفوض')>مرفوض</option>
+                        <option value="تحت الاختبار" @selected(request('decision')==='تحت الاختبار' )>تحت الاختبار</option>
+                        <option value="مقبول" @selected(request('decision')==='مقبول' )>مقبول</option>
+                        <option value="مرفوض" @selected(request('decision')==='مرفوض' )>مرفوض</option>
                     </select>
                 </div>
             </div>
@@ -209,11 +227,11 @@
                         <td class="py-4 px-6 font-medium text-gray-800">{{ $student->name }}</td>
                         <td class="py-4 px-6">
                             @if($student->status === 'مقيد')
-                                <span class="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-md text-sm">مقيد</span>
+                            <span class="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-md text-sm">مقيد</span>
                             @elseif($student->status === 'متوقف')
-                                <span class="px-3 py-1 bg-orange-100 text-orange-700 rounded-md text-sm">موقوف</span>
+                            <span class="px-3 py-1 bg-orange-100 text-orange-700 rounded-md text-sm">موقوف</span>
                             @elseif($student->status === 'مسافر')
-                                <span class="px-3 py-1 bg-cyan-100 text-cyan-700 rounded-md text-sm">مسافر</span>
+                            <span class="px-3 py-1 bg-cyan-100 text-cyan-700 rounded-md text-sm">مسافر</span>
                             @endif
                         </td>
                         <td class="py-4 px-6 text-gray-600">{{ $student->circle?->name ?? '—' }}</td>
@@ -251,9 +269,9 @@
                     <tr>
                         <td colspan="6" class="py-12 px-6 text-center text-gray-500">
                             @if($hasFilters)
-                                <span>لا توجد نتائج مطابقة لبحثك أو الفلاتر.</span>
+                            <span>لا توجد نتائج مطابقة لبحثك أو الفلاتر.</span>
                             @else
-                                <span>لا يوجد طلاب مسجلون حالياً.</span>
+                            <span>لا يوجد طلاب مسجلون حالياً.</span>
                             @endif
                         </td>
                     </tr>

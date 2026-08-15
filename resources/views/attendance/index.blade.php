@@ -70,30 +70,24 @@
                     {{-- فلتر الحلقة --}}
                     <div>
                         <label class="block text-xs font-bold text-gray-500 mb-1">الحلقة</label>
-                        <select name="circle_id"
-                            class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500/50">
-                            <option value="">كل الحلقات</option>
-                            @foreach ($circles as $circle)
-                            <option value="{{ $circle->id }}" {{ $selectedCircleId == $circle->id ? 'selected' : '' }}>
-                                {{ $circle->name }}
-                            </option>
-                            @endforeach
-                        </select>
+                        <x-searchable-select
+                            name="circle_id"
+                            placeholder="كل الحلقات"
+                            search-placeholder="ابحث عن حلقة..."
+                            :default-value="$selectedCircleId"
+                            :options="$circles->map(fn($c) => ['value' => $c->id, 'label' => $c->name])" />
                     </div>
 
                     {{-- فلتر الفرع --}}
                     @if(auth()->user()->hasRole(['admin', 'general_manager']) && $centers->isNotEmpty())
                     <div>
                         <label class="block text-xs font-bold text-gray-500 mb-1">الفرع</label>
-                        <select name="center_id"
-                            class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500/50">
-                            <option value="">كل الفروع</option>
-                            @foreach ($centers as $center)
-                            <option value="{{ $center->id }}" {{ $selectedCenterId == $center->id ? 'selected' : '' }}>
-                                {{ $center->name }}
-                            </option>
-                            @endforeach
-                        </select>
+                        <x-searchable-select
+                            name="center_id"
+                            placeholder="كل الفروع"
+                            search-placeholder="ابحث عن فرع..."
+                            :default-value="$selectedCenterId"
+                            :options="$centers->map(fn($c) => ['value' => $c->id, 'label' => $c->name])" />
                     </div>
                     @endif
 
@@ -101,15 +95,12 @@
                     @if(auth()->user()->hasRole(['admin', 'general_manager', 'manager']))
                     <div>
                         <label class="block text-xs font-bold text-gray-500 mb-1">المسجل</label>
-                        <select name="user_id"
-                            class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500/50">
-                            <option value="">كل المسجلين</option>
-                            @foreach ($registrars as $registrar)
-                            <option value="{{ $registrar->id }}" {{ $selectedRegistrarId == $registrar->id ? 'selected' : '' }}>
-                                {{ $registrar->name }}
-                            </option>
-                            @endforeach
-                        </select>
+                        <x-searchable-select
+                            name="user_id"
+                            placeholder="كل المسجلين"
+                            search-placeholder="ابحث عن مسجل..."
+                            :default-value="$selectedRegistrarId"
+                            :options="$registrars->map(fn($r) => ['value' => $r->id, 'label' => $r->name])" />
                     </div>
                     @endif
 
@@ -148,25 +139,16 @@
                         d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
                 تصدير Excel
-            </a>
-            <a href="{{ route('attendance.export.pdf', request()->except('page')) }}"
-                class="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-100 rounded-2xl text-red-600 font-bold text-sm shadow-sm hover:bg-red-50 transition-all">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                </svg>
-                تصدير PDF
-            </a>
 
-            {{-- ✅ الزرار الجديد --}}
-            <a href="{{ route('attendance.export.monthly', request()->except('page')) }}"
-                class="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-100 rounded-2xl text-blue-600 font-bold text-sm shadow-sm hover:bg-blue-50 transition-all">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-                تقرير شهري
-            </a>
+                {{-- ✅ الزرار الجديد --}}
+                <a href="{{ route('attendance.export.monthly', request()->except('page')) }}"
+                    class="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-100 rounded-2xl text-blue-600 font-bold text-sm shadow-sm hover:bg-blue-50 transition-all">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    تقرير شهري
+                </a>
         </div>
     </div>
     @endcan
@@ -267,7 +249,7 @@
                         @if(auth()->user()->can('update', $record) || auth()->user()->hasRole('admin'))
                         <td class="px-8 py-6">
                             <div class="flex items-center justify-center gap-3">
-                                <a  href="{{ route('attendance.show', $record) }}"
+                                <a href="{{ route('attendance.show', $record) }}"
                                     class="text-green-400 hover:text-green-600 transition">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5"
                                         fill="none" viewBox="0 0 24 24" stroke="currentColor">

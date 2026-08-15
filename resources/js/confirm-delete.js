@@ -22,6 +22,8 @@ window.confirmDelete = function(event, { name, type = 'العنصر', form = nul
         cancelButtonColor: '#6b7280',
         reverseButtons: true,
         focusConfirm: false,
+        allowOutsideClick: false,
+        allowEscapeKey: false,
         customClass: {
             popup: 'rounded-3xl font-bold',
             confirmButton: 'rounded-xl px-6 py-2.5 text-sm',
@@ -37,7 +39,40 @@ window.confirmDelete = function(event, { name, type = 'العنصر', form = nul
         }
     }).then((result) => {
         if (result.isConfirmed) {
-            targetForm.submit();
+            // ✅ أنيميشن التحميل
+            Swal.fire({
+                title: 'جاري الحذف...',
+                html: `
+                    <div style="display:flex; flex-direction:column; align-items:center; gap:16px; padding:10px 0;">
+                        <div style="
+                            width: 50px; height: 50px;
+                            border: 4px solid #fee2e2;
+                            border-top: 4px solid #dc2626;
+                            border-radius: 50%;
+                            animation: spin 0.8s linear infinite;
+                        "></div>
+                        <p style="font-size:14px; color:#6b7280; margin:0; font-family:inherit;">
+                            يتم حذف <strong style="color:#dc2626">${name}</strong> الآن
+                        </p>
+                    </div>
+                    <style>
+                        @keyframes spin {
+                            0% { transform: rotate(0deg); }
+                            100% { transform: rotate(360deg); }
+                        }
+                    </style>
+                `,
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+                showConfirmButton: false,
+                showCancelButton: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                    setTimeout(() => {
+                        targetForm.submit();
+                    }, 800);
+                }
+            });
         }
     });
 }

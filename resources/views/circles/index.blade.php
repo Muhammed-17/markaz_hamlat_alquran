@@ -49,18 +49,14 @@ $sortIcon = fn($field) => request('sort') === $field
             </div>
 
             {{-- فلتر الفرع --}}
-
             <div class="w-full lg:w-48">
                 <label for="filter_center_id" class="block text-xs font-bold text-gray-400 mb-1.5">الفرع</label>
-                <select id="filter_center_id" name="center_id"
-                    class="w-full p-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-[#0a5c36] focus:border-[#0a5c36] transition-all bg-white appearance-none">
-                    <option value="">كل الفروع</option>
-                    @foreach($centers as $center)
-                    <option value="{{ $center->id }}" @selected((string) request('center_id')===(string) $center->id)>
-                        {{ $center->name }}
-                    </option>
-                    @endforeach
-                </select>
+                <x-searchable-select
+                    name="center_id"
+                    placeholder="كل الفروع"
+                    search-placeholder="بحث باسم الفرع..."
+                    :default-value="request('center_id', '')"
+                    :options="json_encode($centers->map(fn($c) => ['value' => (string)$c->id, 'label' => $c->name])->toArray())" />
             </div>
 
             {{-- فلتر النوع --}}
@@ -200,6 +196,18 @@ $sortIcon = fn($field) => request('sort') === $field
 
                         <td class="px-6 py-4 text-left">
                             <div class="flex items-center justify-end gap-3">
+                                {{-- زر عرض --}}
+                                @can('view circles')
+                                <a href="{{ route('circles.show', $circle) }}"
+                                    class="text-emerald-600 hover:text-emerald-800 transition"
+                                    title="عرض الحلقة">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                    </svg>
+                                </a>
+                                @endcan
+
                                 @can('edit circles')
                                 <a href="{{ route('circles.edit', $circle) }}"
                                     class="text-blue-500 hover:text-blue-700 transition">

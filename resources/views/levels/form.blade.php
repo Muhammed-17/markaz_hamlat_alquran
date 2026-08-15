@@ -1,0 +1,57 @@
+@php
+$level = $level ?? null;
+@endphp
+
+<div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-8 space-y-6">
+    <div class="flex items-center gap-3 mb-6 border-b border-gray-50 pb-4">
+        <div class="p-2 bg-emerald-50 rounded-xl text-[#0a5c36]">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+        </div>
+        <h2 class="text-xl font-bold text-gray-800">بيانات المستوى</h2>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="space-y-2 md:col-span-2">
+            <label for="level_name" class="block text-sm font-bold text-gray-700">اسم المستوى <span class="text-red-500">*</span></label>
+            <input id="level_name" type="text" name="name" autocomplete="off" value="{{ old('name', $level->name ?? '') }}"
+                class="w-full px-4 py-3 bg-gray-50 border border-gray-200 focus:bg-white focus:ring-2 focus:ring-emerald-100 focus:border-[#0a5c36] rounded-2xl outline-none transition-all">
+            @error('name') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
+        </div>
+
+        <div class="space-y-2 md:col-span-2">
+            <label for="level_description" class="block text-sm font-bold text-gray-700">الوصف</label>
+            <textarea id="level_description" name="description" rows="3"
+                class="w-full px-4 py-3 bg-gray-50 border border-gray-200 focus:bg-white focus:ring-2 focus:ring-emerald-100 focus:border-[#0a5c36] rounded-2xl outline-none transition-all">{{ old('description', $level->description ?? '') }}</textarea>
+            @error('description') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
+        </div>
+
+        <div class="space-y-2">
+            <label for="memorization_part" class="block text-sm font-bold text-gray-700">الجزء المحفوظ</label>
+            <input id="memorization_part" type="text" name="memorization_part" autocomplete="off"
+                value="{{ old('memorization_part', $level->memorization_part ?? '') }}"
+                class="w-full px-4 py-3 bg-gray-50 border border-gray-200 focus:bg-white focus:ring-2 focus:ring-emerald-100 focus:border-[#0a5c36] rounded-2xl outline-none transition-all">
+            @error('memorization_part') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
+        </div>
+
+        <div></div>
+
+        <div class="space-y-2">
+            <label for="memorization_from_part" class="block text-sm font-bold text-gray-700">من جزء</label>
+            <input id="memorization_from_part" type="text" name="memorization_from_part" autocomplete="off"
+                value="{{ old('memorization_from_part', $level->memorization_from_part ?? '') }}"
+                class="w-full px-4 py-3 bg-gray-50 border border-gray-200 focus:bg-white focus:ring-2 focus:ring-emerald-100 focus:border-[#0a5c36] rounded-2xl outline-none transition-all">
+            @error('memorization_from_part') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
+        </div>
+
+        <div class="space-y-2">
+            <label for="memorization_to_part" class="block text-sm font-bold text-gray-700">إلى جزء</label>
+            <input id="memorization_to_part" type="text" name="memorization_to_part" autocomplete="off"
+                value="{{ old('memorization_to_part', $level->memorization_to_part ?? '') }}"
+                class="w-full px-4 py-3 bg-gray-50 border border-gray-200 focus:bg-white focus:ring-2 focus:ring-emerald-100 focus:border-[#0a5c36] rounded-2xl outline-none transition-all">
+            @error('memorization_to_part') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
+        </div>
+    </div>
+</div>

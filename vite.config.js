@@ -11,6 +11,7 @@ export default defineConfig({
                 'resources/js/confirm-logout.js',
                 'resources/js/confirm-delete.js',
                 'resources/js/confirm-success.js',
+                'resources/js/confirm-round.js',
             ],
             refresh: true,
         }),

@@ -16,6 +16,7 @@ public function run(): void
         'manager'         => 'مدير فرع',
         'supervisor'      => 'مشرف',
         'teacher'         => 'معلم',
+        'examiner'       => 'مختبر',
         'guardian'        => 'ولي أمر',
     ];
 

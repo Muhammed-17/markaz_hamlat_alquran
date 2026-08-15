@@ -142,44 +142,4 @@ $currentRoles = old('roles', $isEdit ? $teacher->user->roles->pluck('name')->toA
     <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
     @enderror
 </div>
-
-<hr class="border-gray-100 my-6">
-
-{{-- المسؤولية الإدارية --}}
-<div class="space-y-2">
-    <label class="block text-sm font-bold text-gray-700">
-        المسؤولية الإدارية
-    </label>
-
-    <div x-data="{ isAdministrative: {{ old('is_administrative', $teacher->is_administrative ?? false) ? 'true' : 'false' }} }"
-        class="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-gray-100 transition-all"
-        :class="isAdministrative ? 'border-amber-200 bg-amber-50/20' : 'bg-gray-50 border-gray-100'">
-
-        <div class="flex items-center gap-3">
-            <div class="p-2 rounded-xl transition-colors" :class="isAdministrative ? 'bg-amber-100 text-amber-700' : 'bg-gray-200 text-gray-500'">
-                💼
-            </div>
-            <div>
-                <h4 class="text-sm font-bold text-gray-800">تعيين كعضو كادر إداري</h4>
-                <p class="text-xs text-gray-400 mt-0.5">تفعيل هذا الخيار يمنح المعلم صلاحية رؤية أقسام وحسابات الإدارة كـ (الماليات).</p>
-            </div>
-        </div>
-
-        {{-- التعديل هنا: استخدام translate-x بدلاً من سالب القيمة لتتماشى مع الـ RTL والـ LTR بشكل مرن --}}
-        <button type="button"
-            @click="isAdministrative = !isAdministrative"
-            class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full p-0.5 transition-colors duration-200 ease-in-out focus:outline-none"
-            :class="isAdministrative ? 'bg-amber-500' : 'bg-gray-300'">
-
-            <input type="hidden" name="is_administrative" :value="isAdministrative ? 1 : 0">
-
-            <span class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow transition-all duration-200 ease-in-out"
-                :class="isAdministrative ? 'mr-5' : 'mr-0'"></span>
-        </button>
-    </div>
-
-    @error('is_administrative')
-    <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
-    @enderror
-</div>
 </div>

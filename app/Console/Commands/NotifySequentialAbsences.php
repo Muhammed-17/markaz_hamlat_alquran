@@ -4,38 +4,51 @@ namespace App\Console\Commands;
 
 use App\Models\Student;
 use App\Notifications\SequentialAbsenceNotification;
+use Carbon\Carbon;
 use Illuminate\Console\Command;
 
 class NotifySequentialAbsences extends Command
 {
     protected $signature = 'notify:sequential-absences
-                            {--force : Force send even if already notified today}
+                            {--force : Force send even if already notified for this threshold}
                             {--dry-run : Simulate without sending}
-                            {--days=30 : Number of days to look back}
-                            {--min-absences=2 : Minimum absence days to trigger}';
+                            {--month= : Month to check (Y-m format), defaults to current month}
+                            {--min-absences=5 : Absence threshold step to trigger}';
 
-    protected $description = 'Send notifications to guardians for students with sequential absences';
+    protected $description = 'Send notifications to guardians for students with 5+ absences in a month, repeating every 5 additional absences';
+
+    /** رسائل مخصصة عند وصول الغياب المتتالي لعتبات معينة (بالأيام الدراسية) */
+    private array $milestoneMessages = [
+        5  => 'نود إحاطتكم بأن ابنكم %s غاب عن الحلقة لمدة أسبوع حتى الآن. يرجى التواصل مع الإدارة.',
+        10 => 'نود إحاطتكم بأن ابنكم %s غاب عن الحلقة لمدة أسبوعين متتاليين حتى الآن. يرجى التواصل مع الإدارة.',
+        15 => 'نود إحاطتكم بأن ابنكم %s غاب عن الحلقة لمدة ثلاثة أسابيع متتالية حتى الآن. يرجى التواصل الفوري مع الإدارة.',
+        20 => 'نود إحاطتكم بأن ابنكم %s غاب عن الحلقة لمدة أربعة أسابيع متتالية حتى الآن. يرجى التواصل الفوري مع الإدارة لمعرفة سبب الغياب.',
+    ];
 
     public function handle(): int
     {
         $force = $this->option('force');
         $dryRun = $this->option('dry-run');
-        $days = (int) $this->option('days');
-        $minAbsences = (int) $this->option('min-absences');
+        $step = (int) $this->option('min-absences');
+
+        $month = $this->option('month') ?? now()->format('Y-m');
+        $startOfMonth = Carbon::parse($month . '-01')->startOfMonth();
+        $endOfMonth = $startOfMonth->copy()->endOfMonth();
+
         $sent = 0;
         $skipped = 0;
         $noGuardian = 0;
 
         $students = Student::with([
-            'attendances' => fn($q) => $q->orderBy('date', 'desc')->take($days),
+            'attendances' => fn($q) => $q
+                ->whereBetween('date', [$startOfMonth, $endOfMonth])
+                ->orderBy('date'),
             'guardian',
-            'circle'
         ])
             ->where('status', '!=', 'متوقف')
             ->whereHas('guardian')
             ->get();
-
-        $this->info("Checking {$students->count()} students for sequential absences (last {$days} days, min {$minAbsences} absences)...");
+        $this->info("Checking {$students->count()} students for absences in {$month} (step every {$step} absences)...");
         $this->newLine();
 
         $bar = $this->output->createProgressBar($students->count());
@@ -44,13 +57,10 @@ class NotifySequentialAbsences extends Command
         foreach ($students as $student) {
             $bar->advance();
 
-            if (!$this->hasSequentialAbsencePattern($student)) {
-                continue;
-            }
 
-            $absenceDays = $student->attendances->where('status', 'absent')->count();
+            $absenceDays = $this->consecutiveAbsenceStreak($student);
 
-            if ($absenceDays < $minAbsences) {
+            if ($absenceDays < $step) {
                 continue;
             }
 
@@ -61,23 +71,69 @@ class NotifySequentialAbsences extends Command
                 continue;
             }
 
-            if (!$force && $this->alreadyNotifiedToday($guardian, $student)) {
+            // آخر عتبة تم الإشعار عليها فعلياً هذا الشهر
+            $lastNotifiedCount = $this->lastNotifiedAbsenceCount($guardian, $student, $month);
+
+            // العتبة الحالية اللي المفروض نبعت عندها (أقرب مضاعف لـ step وصله الطالب)
+            // ── فحص غياب الشهر بالكامل (قبل نهاية الشهر بـ 3 أيام) ──
+            $totalClassDaysSoFar = $student->attendances->count();
+            $isNearMonthEnd = now()->day >= ($endOfMonth->day - 2);
+            $isFullMonthAbsent = $totalClassDaysSoFar > 0
+                && $absenceDays === $totalClassDaysSoFar
+                && $isNearMonthEnd;
+
+            if ($isFullMonthAbsent) {
+                if (!$force && $this->alreadyNotifiedFullMonth($guardian, $student, $month)) {
+                    $skipped++;
+                    continue;
+                }
+
+                $fullMonthMessage = 'نأسف لإبلاغكم أن ابنكم ' . $student->name . ' غاب عن الحلقة طوال هذا الشهر بالكامل دون أي حضور. يرجى التواصل العاجل مع الإدارة.';
+
+                if ($dryRun) {
+                    $this->newLine();
+                    $this->line("  [DRY-RUN] Would notify (FULL MONTH): {$student->name} → {$guardian->name}");
+                    $sent++;
+                    continue;
+                }
+
+                try {
+                    $guardian->notify(new SequentialAbsenceNotification($student, $absenceDays, $fullMonthMessage, true));
+                    $sent++;
+                    $this->newLine();
+                    $this->info("  ✓ Sent (FULL MONTH): {$student->name} → {$guardian->name}");
+                } catch (\Exception $e) {
+                    $this->newLine();
+                    $this->error("  ✗ Failed: {$student->name} - {$e->getMessage()}");
+                }
+                continue;
+            }
+
+            // العتبة الحالية اللي المفروض نبعت عندها (أقرب مضاعف لـ step وصله الطالب)
+            $currentThreshold = intdiv($absenceDays, $step) * $step;
+            $lastThreshold = intdiv($lastNotifiedCount, $step) * $step;
+
+            if (!$force && $currentThreshold <= $lastThreshold) {
                 $skipped++;
                 continue;
             }
 
+            $message = isset($this->milestoneMessages[$currentThreshold])
+                ? sprintf($this->milestoneMessages[$currentThreshold], $student->name)
+                : null;
+
             if ($dryRun) {
                 $this->newLine();
-                $this->line("  [DRY-RUN] Would notify: {$student->name} → {$guardian->name} ({$absenceDays} absence days)");
+                $this->line("  [DRY-RUN] Would notify: {$student->name} → {$guardian->name} ({$absenceDays} absence days, threshold {$currentThreshold})");
                 $sent++;
                 continue;
             }
 
             try {
-                $guardian->notify(new SequentialAbsenceNotification($student, $absenceDays));
+                $guardian->notify(new SequentialAbsenceNotification($student, $absenceDays, $message));
                 $sent++;
                 $this->newLine();
-                $this->info("  ✓ Sent: {$student->name} → {$guardian->name}");
+                $this->info("  ✓ Sent: {$student->name} → {$guardian->name} ({$absenceDays} absence days)");
             } catch (\Exception $e) {
                 $this->newLine();
                 $this->error("  ✗ Failed: {$student->name} - {$e->getMessage()}");
@@ -90,52 +146,67 @@ class NotifySequentialAbsences extends Command
         $label = $dryRun ? 'Would send' : 'Sent';
         $this->info("📊 Summary:");
         $this->line("   {$label}: {$sent}");
-        $this->line("   Skipped (already notified today): {$skipped}");
+        $this->line("   Skipped (already notified for this threshold): {$skipped}");
         $this->line("   No guardian: {$noGuardian}");
 
         return 0;
     }
 
-    private function hasSequentialAbsencePattern(Student $student): bool
+    /**
+     * أعلى عدد غياب تم إرسال إشعار عنه فعلياً لهذا الطالب هذا الشهر.
+     * ترجع 0 لو مفيش أي إشعار اتبعت خالص.
+     */
+    private function lastNotifiedAbsenceCount($guardian, Student $student, string $month): int
     {
-        $records = $student->attendances->sortBy('date')->values();
-        $statuses = $records->pluck('status')->toArray();
-        $count = count($statuses);
+        $notifications = $guardian->notifications()
+            ->where('type', SequentialAbsenceNotification::class)
+            ->whereJsonContains('data->student_id', $student->id)
+            ->whereYear('created_at', Carbon::parse($month . '-01')->year)
+            ->whereMonth('created_at', Carbon::parse($month . '-01')->month)
+            ->get();
 
-        if ($count < 2) return false;
+        $max = 0;
 
-        // Two consecutive absences
-        for ($i = 0; $i < $count - 1; $i++) {
-            if ($statuses[$i] === 'absent' && $statuses[$i + 1] === 'absent') {
-                return true;
-            }
+        foreach ($notifications as $notification) {
+            $data = $notification->data;
+            $count = (int) ($data['absence_days'] ?? 0);
+            $max = max($max, $count);
         }
 
-        // Absent with one day gap
-        for ($i = 0; $i < $count - 2; $i++) {
-            if ($statuses[$i] === 'absent' && $statuses[$i + 2] === 'absent') {
-                return true;
-            }
-        }
-
-        // Three absences in any 5-day window
-        for ($i = 0; $i <= $count - 3; $i++) {
-            $window = array_slice($statuses, $i, 5);
-            $absences = collect($window)->filter(fn($s) => $s === 'absent')->count();
-            if ($absences >= 3) return true;
-        }
-
-        return false;
+        return $max;
     }
 
-    private function alreadyNotifiedToday($guardian, Student $student): bool
+    /**
+     * هل سبق إرسال إشعار "غياب الشهر بالكامل" لهذا الطالب هذا الشهر؟
+     */
+    private function alreadyNotifiedFullMonth($guardian, Student $student, string $month): bool
     {
-        $search = '"student_id":' . $student->id;
-
         return $guardian->notifications()
             ->where('type', SequentialAbsenceNotification::class)
-            ->whereDate('created_at', today())
-            ->where('data', 'like', '%' . $search . '%')
+            ->whereJsonContains('data->student_id', $student->id)
+            ->whereJsonContains('data->is_full_month', true)
+            ->whereYear('created_at', Carbon::parse($month . '-01')->year)
+            ->whereMonth('created_at', Carbon::parse($month . '-01')->month)
             ->exists();
+    }
+
+    /**
+     * أطول سلسلة غياب متتالية منتهية بآخر يوم حضور مسجل للطالب.
+     * أي يوم "حاضر" بيصفّر العداد. الأيام اللي مفيش لها سجل أصلاً
+     * (زي الخميس والجمعة، الإجازة الأسبوعية) مبتأثرش على التسلسل.
+     */
+    private function consecutiveAbsenceStreak(Student $student): int
+    {
+        $streak = 0;
+
+        foreach ($student->attendances as $attendance) {
+            if ($attendance->status === 'absent') {
+                $streak++;
+            } else {
+                $streak = 0;
+            }
+        }
+
+        return $streak;
     }
 }

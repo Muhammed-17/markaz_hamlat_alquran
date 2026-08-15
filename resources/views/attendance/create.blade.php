@@ -2,20 +2,25 @@
     <div class="space-y-6" x-data="{
         students: {{ Js::from(
             $students->map(function ($s) use ($attendanceData) {
+                $status = $attendanceData[$s->id]->status ?? 'not_recorded';
+                $notes  = $attendanceData[$s->id]->notes ?? '';
                 return [
                     'id' => $s->id,
                     'name' => $s->name,
-                    'status' => $attendanceData[$s->id]->status ?? 'not_recorded',
-                    'notes' => $attendanceData[$s->id]->notes ?? '',
+                    'status' => $status,
+                    'notes' => $notes,
+                    'original_status' => $status, // ✅ نسخة أصلية للمقارنة قبل الحفظ
+                    'original_notes' => $notes,   // ✅ نسخة أصلية للمقارنة قبل الحفظ
                 ];
             }),
         ) }},
         filter: 'all',
 
         submitForm() {
-            const recorded = this.students.filter(s => s.status !== 'not_recorded');
+            // ✅ الطلاب اللي عندهم حالة مسجّلة أصلاً
+            const touched = this.students.filter(s => s.status !== 'not_recorded');
 
-            if (recorded.length === 0) {
+            if (touched.length === 0) {
                 alert('يرجى تسجيل حضور طالب واحد على الأقل');
                 return;
             }
@@ -27,10 +32,22 @@
                 return;
             }
 
+            // ✅ إرسال الطلاب الجدد (لم يكن لهم سجل سابق) أو الذين تغيّرت حالتهم/ملاحظاتهم فقط
+            const changed = touched.filter(s =>
+                s.original_status === 'not_recorded' ||
+                s.status !== s.original_status ||
+                (s.notes ?? '') !== (s.original_notes ?? '')
+            );
+
+            if (changed.length === 0) {
+                alert('لا يوجد أي تعديل جديد لحفظه');
+                return;
+            }
+
             const form = document.getElementById('attendance-form');
             form.querySelectorAll('input[name^=attendance]').forEach(el => el.remove());
 
-            recorded.forEach((s, i) => {
+            changed.forEach((s, i) => {
                 const idInput = document.createElement('input');
                 idInput.type = 'hidden';
                 idInput.name = `attendance[${i}][student_id]`;
@@ -64,11 +81,9 @@
         },
 
         allPresent() {
-            if (confirm('تأكيد تحضير جميع الطلاب غير المسجلين كـ حاضر؟')) {
-                this.students.forEach(s => {
-                    if (s.status === 'not_recorded') s.status = 'present';
-                });
-            }
+            this.students.forEach(s => {
+                if (s.status === 'not_recorded') s.status = 'present';
+            });
         }
     }">
         <!-- Header Card -->
@@ -87,55 +102,74 @@
 
                 <div class="flex gap-2 mt-6">
                     <a href="{{ route('attendance.index') }}"
-                        class="text-[11px] font-bold px-4 py-2 bg-white/5 hover:bg-white/10 rounded-xl transition-all flex items-center gap-2 border border-white/5">
-                        <svg class="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                        class="z-10 inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 border border-white/20 text-white px-6 py-3 rounded-2xl font-bold transition-all">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                         </svg>
-                        الإحصائيات
-                    </a>
-                    <a href="{{ route('attendance.report') }}"
-                        class="text-[11px] font-bold px-4 py-2 bg-white/5 hover:bg-white/10 rounded-xl transition-all flex items-center gap-2 border border-white/5">
-                        <svg class="w-3.5 h-3.5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                        المنصة العامة
+                        الرجوع للحضور
                     </a>
                 </div>
             </div>
 
+            {{-- ✅ الفورم مع فلاتر الحلقة والمعلم --}}
             <form action="{{ route('attendance.create') }}" method="GET"
-                class="flex flex-col md:flex-row gap-4 w-full md:w-auto shrink-0">
-                <input type="date" name="date" value="{{ $date }}"
-                    max="{{ now()->format('Y-m-d') }}"
-                    onchange="this.form.submit()"
-                    class="bg-white/10 hover:bg-white/20 border border-white/10 rounded-2xl px-5 py-3.5 text-white focus:outline-none focus:ring-4 focus:ring-emerald-400/20 transition-all font-bold appearance-none">
+                class="flex flex-col md:flex-row gap-4 w-full md:w-auto shrink-0 items-end"
+                id="attendanceFilterForm">
 
-                <div x-data="{ open: false, selected: '{{ $circles->firstWhere('id', $selectedCircleId)->name ?? 'اختر الحلقة...' }}' }"
-                    class="relative w-full md:w-auto">
-                    <button @click="open = !open" type="button"
-                        class="flex items-center justify-between w-full bg-white/10 hover:bg-white/20 border border-white/10 rounded-2xl px-5 py-3.5 text-white focus:outline-none focus:ring-4 focus:ring-emerald-400/20 transition-all font-bold min-w-[240px]">
-                        <span x-text="selected"></span>
-                        <svg class="w-5 h-5 text-emerald-300 transition-transform duration-300"
-                            :class="{ 'rotate-180': open }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M19 9l-7 7-7-7" />
-                        </svg>
-                    </button>
+                {{-- فلتر التاريخ --}}
+                <div>
+                    <label class="block text-xs font-bold text-emerald-100/80 mb-1.5">التاريخ</label>
+                    <input type="date" name="date" value="{{ $date }}"
+                        max="{{ now()->format('Y-m-d') }}"
+                        onchange="document.getElementById('attendanceFilterForm').submit()"
+                        class="bg-white/10 hover:bg-white/20 border border-white/10 rounded-2xl px-5 py-3.5 text-white focus:outline-none focus:ring-4 focus:ring-emerald-400/20 transition-all font-bold appearance-none h-11">
+                </div>
 
-                    <div x-show="open" x-transition @click.away="open = false"
-                        class="absolute right-0 mt-3 w-full bg-white text-gray-800 rounded-2xl shadow-2xl overflow-visible border border-gray-100 origin-top z-[9999]">
-                        @foreach ($circles as $circle)
-                        <a href="{{ route('attendance.create', ['circle_id' => $circle->id, 'date' => $date]) }}"
-                            class="flex items-center justify-between px-6 py-4 hover:bg-emerald-50 transition text-right group/item">
-                            <span class="font-bold text-gray-700 group-hover/item:text-emerald-700">{{ $circle->name }}</span>
-                            @if ($selectedCircleId == $circle->id)
-                            <div class="w-2 h-2 bg-emerald-500 rounded-full"></div>
-                            @endif
-                        </a>
-                        @endforeach
-                    </div>
+                {{-- ✅ فلتر المعلم بـ searchable-select --}}
+                @if($teachers->isNotEmpty())
+                <div class="w-full md:w-56">
+                    <label class="block text-xs font-bold text-emerald-100/80 mb-1.5">المعلم</label>
+                    <x-searchable-select
+                        name="teacher_id"
+                        placeholder="كل المعلمين"
+                        search-placeholder="ابحث عن معلم..."
+                        :default-value="$selectedTeacherId ?? ''"
+                        :options="$teachers->map(fn($t) => ['value' => $t->id, 'label' => $t->name])"
+                        @searchable-change.window="
+                    if ($event.detail.name === 'teacher_id') {
+                        const url = new URL(window.location.href);
+                        if ($event.detail.value) {
+                            url.searchParams.set('teacher_id', $event.detail.value);
+                        } else {
+                            url.searchParams.delete('teacher_id');
+                        }
+                        url.searchParams.set('date', '{{ $date }}');
+                        window.location.href = url.toString();
+                    }
+                " />
+                </div>
+                @endif
+
+                {{-- ✅ فلتر الحلقة بـ searchable-select --}}
+                <div class="w-full md:w-56">
+                    <label class="block text-xs font-bold text-emerald-100/80 mb-1.5">الحلقة</label>
+                    <x-searchable-select
+                        name="circle_id"
+                        placeholder="اختر الحلقة..."
+                        search-placeholder="ابحث عن حلقة..."
+                        :default-value="$selectedCircleId"
+                        :options="$circles->map(fn($c) => ['value' => $c->id, 'label' => $c->name])"
+                        @searchable-change.window="
+                    if ($event.detail.name === 'circle_id') {
+                        const url = new URL(window.location.href);
+                        url.searchParams.set('circle_id', $event.detail.value);
+                        url.searchParams.set('date', '{{ $date }}');
+                        @if($selectedTeacherId)
+                        url.searchParams.set('teacher_id', '{{ $selectedTeacherId }}');
+                        @endif
+                        window.location.href = url.toString();
+                    }
+                " />
                 </div>
             </form>
 

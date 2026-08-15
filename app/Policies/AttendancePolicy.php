@@ -12,18 +12,12 @@ class AttendancePolicy
 
     public function viewAny(User $user): bool
     {
-        return $user->can('view attendance')
-            || $user->can('view own attendance');
+        return $user->can('view attendance');
     }
 
     public function view(User $user, Attendance $attendance): bool
     {
         if ($user->hasRole('admin')) return true;
-
-        if ($user->hasRole('guardian')) {
-            return $user->can('view own attendance')
-                && $attendance->student->guardian_id === $user->id;
-        }
 
         if (!$user->can('view attendance')) return false;
 
@@ -60,10 +54,7 @@ class AttendancePolicy
 
         return true;
     }
-
-    /**
-     * التحقق المشترك من صلاحية الوصول للسجل
-     */
+    
     private function userCanManageAttendance(User $user, Attendance $attendance): bool
     {
         $teacher = $this->getTeacherRecord($user);
