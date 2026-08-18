@@ -2,9 +2,9 @@
     <x-slot name="title">نتيجة — {{ $participant->participant_name }}</x-slot>
 
     <nav class="text-xs text-gray-400 mb-4 flex items-center gap-1">
-        <a href="{{ route('admin.competitions.index') }}" class="hover:text-[#0a5c36]">المسابقات</a>
+        <a href="{{ route('competitions.overview.index') }}" class="hover:text-[#0a5c36]">المسابقات</a>
         <span>/</span>
-        <a href="{{ route('admin.participants.index', $participant->competition_level_id) }}" class="hover:text-[#0a5c36]">المشاركون</a>
+        <a href="{{ route('competitions.level-participants.index', $participant->competition_level_id) }}" class="hover:text-[#0a5c36]">المشاركون</a>
         <span>/</span>
         <span>{{ $participant->participant_name }}</span>
     </nav>
@@ -72,7 +72,7 @@
                             <td class="px-6 py-4 font-bold text-[#0a5c36]">{{ $answer->score }}</td>
                             <td class="px-6 py-4 text-gray-500">{{ $answer->notes ?: '—' }}</td>
                             <td class="px-6 py-4">
-                                <a href="{{ route('admin.exam.show', $participant) }}?question={{ $answer->competition_question_id }}"
+                                <a href="{{ route('competitions.exam.show', $participant) }}?question={{ $answer->competition_question_id }}"
                                     class="px-4 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 font-bold rounded-lg text-xs transition-all">
                                     تعديل
                                 </a>

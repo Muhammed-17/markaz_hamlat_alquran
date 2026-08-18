@@ -1,7 +1,8 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Competition;
 
+use App\Http\Controllers\Controller;
 use App\Exports\CompetitionParticipantsExport;
 use App\Http\Requests\Competition\StoreCompetitionParticipantRequest;
 use App\Http\Requests\Competition\UpdateCompetitionParticipantRequest;

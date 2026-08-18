@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Admin;
+namespace App\Http\Controllers\Competition;
 
 use App\Http\Controllers\Controller;
 use App\Models\Competition;
@@ -14,7 +14,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
-class CompetitionAdminController extends Controller
+class CompetitionAnswerController extends Controller
 {
     /**
      * قائمة كل المسابقات (بدون فلترة على مختبر معيّن).
@@ -156,7 +156,7 @@ class CompetitionAdminController extends Controller
         );
 
         return redirect()
-            ->route('admin.participants.index', $participant->competition_level_id)
+            ->route('competitions.level-participants.index', $participant->competition_level_id)
             ->with('success', 'تم حفظ النتيجة يدويًا. تنبيه: إذا تم اختبار المشارك لاحقًا عبر الأسئلة واعتماد النتيجة، ستُستبدل هذه القيمة تلقائيًا.');
     }
 }

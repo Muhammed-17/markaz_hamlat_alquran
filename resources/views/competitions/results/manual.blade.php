@@ -2,9 +2,9 @@
     <x-slot name="title">إدخال نتيجة يدوي — {{ $participant->participant_name }}</x-slot>
 
     <nav class="text-xs text-gray-400 mb-4 flex items-center gap-1">
-        <a href="{{ route('admin.competitions.index') }}" class="hover:text-[#0a5c36]">المسابقات</a>
+        <a href="{{ route('competitions.overview.index') }}" class="hover:text-[#0a5c36]">المسابقات</a>
         <span>/</span>
-        <a href="{{ route('admin.participants.index', $participant->competition_level_id) }}" class="hover:text-[#0a5c36]">المشاركون</a>
+        <a href="{{ route('competitions.level-participants.index', $participant->competition_level_id) }}" class="hover:text-[#0a5c36]">المشاركون</a>
         <span>/</span>
         <span>{{ $participant->participant_name }}</span>
     </nav>
@@ -27,7 +27,7 @@
     </div>
 
     <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 max-w-md">
-        <form method="POST" action="{{ route('admin.participants.manual-result.store', $participant) }}" class="space-y-5">
+        <form method="POST" action="{{ route('competitions.participants.manual-result.store', $participant) }}" class="space-y-5">
             @csrf
 
             <div>
@@ -40,7 +40,7 @@
             </div>
 
             <div class="flex items-center justify-between pt-2">
-                <a href="{{ route('admin.participants.index', $participant->competition_level_id) }}"
+                <a href="{{ route('competitions.level-participants.index', $participant->competition_level_id) }}"
                     class="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl text-sm transition-all">
                     إلغاء
                 </a>

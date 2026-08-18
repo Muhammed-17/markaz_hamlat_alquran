@@ -45,7 +45,7 @@ class RolePermissionController extends Controller
             ->get()
             ->groupBy('group');
 
-        return view('admin.roles.index', compact('roles', 'permissions'));
+        return view('roles.index', compact('roles', 'permissions'));
     }
 
     // ─────────────────────────────────────────────

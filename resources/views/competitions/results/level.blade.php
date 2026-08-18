@@ -2,7 +2,7 @@
     <x-slot name="title">مستويات {{ $competition->name }}</x-slot>
 
     <nav class="text-xs text-gray-400 mb-4 flex items-center gap-1">
-        <a href="{{ route('admin.competitions.index') }}" class="hover:text-[#0a5c36]">المسابقات</a>
+        <a href="{{ route('competitions.overview.index') }}" class="hover:text-[#0a5c36]">المسابقات</a>
         <span>/</span>
         <span>{{ $competition->name }}</span>
     </nav>
@@ -30,7 +30,7 @@
                 </div>
             </div>
 
-            <a href="{{ route('admin.participants.index', $competitionLevel) }}"
+            <a href="{{ route('competitions.level-participants.index', $competitionLevel) }}"
                 class="w-full block text-center px-4 py-2.5 bg-[#0a5c36] hover:bg-[#0d7a48] text-white font-bold rounded-xl transition-all">
                 عرض المشاركين
             </a>

@@ -1,13 +1,13 @@
 <?php
 
-use App\Http\Controllers\Admin\CompetitionAdminController;
-use App\Http\Controllers\Admin\CompetitionExamAdminController;
-use App\Http\Controllers\CompetitionController;
-use App\Http\Controllers\CompetitionExaminerController;
-use App\Http\Controllers\CompetitionExaminerQuestionController;
-use App\Http\Controllers\CompetitionLevelController;
-use App\Http\Controllers\CompetitionLevelQuestionController;
-use App\Http\Controllers\CompetitionParticipantController;
+use App\Http\Controllers\Competition\CompetitionAnswerController;
+use App\Http\Controllers\Competition\CompetitionExamAnswerController;
+use App\Http\Controllers\Competition\CompetitionController;
+use App\Http\Controllers\Competition\CompetitionExaminerController;
+use App\Http\Controllers\Competition\CompetitionExaminerQuestionController;
+use App\Http\Controllers\Competition\CompetitionLevelController;
+use App\Http\Controllers\Competition\CompetitionLevelQuestionController;
+use App\Http\Controllers\Competition\CompetitionParticipantController;
 use App\Http\Controllers\CompetitionResultController;
 use Illuminate\Support\Facades\Route;
 
@@ -66,25 +66,21 @@ Route::middleware(['auth'])->group(function () {
         // النتائج
         Route::get('/{competition}/results', [CompetitionResultController::class, 'index'])->name('results');
         Route::get('/{competition}/results/export', [CompetitionResultController::class, 'exportExcel'])->name('results.export');
-    });
 
-    /*
-    |--------------------------------------------------------------------------
-    | واجهة الأدمن — عرض فقط (بدون قيود إسناد المختبر)
-    |--------------------------------------------------------------------------
-    */
-    Route::prefix('admin')->name('admin.')->group(function () {
+        /*
+        |--------------------------------------------------------------------------
+        | واجهة عرض النتائج والاختبار (سابقًا كانت تحت prefix admin)
+        | تم دمجها هنا تحت نفس prefix('competitions') بدون تكرار كلمة admin
+        |--------------------------------------------------------------------------
+        */
 
-        Route::prefix('competitions')->name('competitions.')->group(function () {
-            Route::get('/', [CompetitionAdminController::class, 'competitions'])->name('index');
-            Route::get('/{competition}/levels', [CompetitionAdminController::class, 'levels'])->name('levels');
-        });
+        // عرض المسابقات ومستوياتها (واجهة العرض العامة، بدون قيود إسناد المختبر)
+        Route::get('/overview', [CompetitionAnswerController::class, 'competitions'])->name('overview.index');
+        Route::get('/{competition}/overview/levels', [CompetitionAnswerController::class, 'levels'])->name('overview.levels');
 
-        Route::prefix('competition-levels')->name('participants.')->group(function () {
-            Route::get('/{competitionLevel}/participants', [CompetitionAdminController::class, 'participants'])->name('index');
-        });
+        Route::get('/levels/{competitionLevel}/participants', [CompetitionAnswerController::class, 'participants'])->name('level-participants.index');
 
-        Route::get('/participants/{participant}/result', [CompetitionAdminController::class, 'result'])->name('participants.result');
+        Route::get('/participants/{participant}/result', [CompetitionAnswerController::class, 'result'])->name('participants.result');
 
         /*
         |----------------------------------------------------------------
@@ -92,27 +88,21 @@ Route::middleware(['auth'])->group(function () {
         |----------------------------------------------------------------
         */
         Route::prefix('exam')->name('exam.')->group(function () {
-            Route::get('/{participant}', [CompetitionExamAdminController::class, 'show'])->name('show');
-            Route::post('/{participant}', [CompetitionExamAdminController::class, 'store'])->name('store');
-            Route::get('/{participant}/review', [CompetitionExamAdminController::class, 'review'])->name('review');
-            Route::post('/{participant}/finalize', [CompetitionExamAdminController::class, 'finalize'])->name('finalize');
+            Route::get('/{participant}', [CompetitionExamAnswerController::class, 'show'])->name('show');
+            Route::post('/{participant}', [CompetitionExamAnswerController::class, 'store'])->name('store');
+            Route::get('/{participant}/review', [CompetitionExamAnswerController::class, 'review'])->name('review');
+            Route::post('/{participant}/finalize', [CompetitionExamAnswerController::class, 'finalize'])->name('finalize');
         });
 
         /*
         |----------------------------------------------------------------
         | إدخال نتيجة يدوي — بدون المرور على أسئلة الاختبار
         |----------------------------------------------------------------
-        | ملحوظة: كانت هذه المجموعة موضوعة خطأً خارج prefix('admin') في
-        | آخر نسخة، فكان اسمها participants.manual-result.form بدل
-        | admin.participants.manual-result.form وهو ما كسر الرابط في
-        | صفحة المشاركين. تم نقلها هنا داخل مجموعة admin.* الصحيحة.
         */
-        Route::prefix('participants')->name('participants.')->group(function () {
-            Route::get('/{participant}/manual-result', [CompetitionAdminController::class, 'manualResultForm'])
-                ->name('manual-result.form');
+        Route::get('/participants/{participant}/manual-result', [CompetitionAnswerController::class, 'manualResultForm'])
+            ->name('participants.manual-result.form');
 
-            Route::post('/{participant}/manual-result', [CompetitionAdminController::class, 'storeManualResult'])
-                ->name('manual-result.store');
-        });
+        Route::post('/participants/{participant}/manual-result', [CompetitionAnswerController::class, 'storeManualResult'])
+            ->name('participants.manual-result.store');
     });
 });

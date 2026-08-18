@@ -1,7 +1,8 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Competition;
 
+use App\Http\Controllers\Controller;
 use App\Http\Requests\Competition\StoreCompetitionQuestionRequest;
 use App\Models\Competition;
 use App\Models\CompetitionQuestion;

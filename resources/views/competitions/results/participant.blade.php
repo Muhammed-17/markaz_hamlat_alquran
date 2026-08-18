@@ -3,7 +3,7 @@
 
     <nav class="text-xs text-gray-400 mb-4 flex items-center gap-1">
         <span>/</span>
-        <a href="{{ route('admin.competitions.index') }}" class="hover:text-[#0a5c36]">المسابقات</a>
+        <a href="{{ route('competitions.overview.index') }}" class="hover:text-[#0a5c36]">المسابقات</a>
         <span>/</span>
         <span>{{ $competitionLevel->level?->name }}</span>
     </nav>
@@ -59,24 +59,24 @@
                         <td class="px-6 py-4">
                             <div class="flex items-center gap-2 flex-wrap">
                                 @if($participant->exam_status === 'completed')
-                                <a href="{{ route('admin.participants.result', $participant) }}"
+                                <a href="{{ route('competitions.participants.result', $participant) }}"
                                     class="px-4 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-lg text-xs transition-all">
                                     عرض النتيجة
                                 </a>
                                 @elseif($participant->exam_status === 'testing')
-                                <a href="{{ route('admin.exam.show', $participant) }}"
+                                <a href="{{ route('competitions.exam.show', $participant) }}"
                                     class="px-4 py-1.5 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-lg text-xs transition-all">
                                     متابعة
                                 </a>
                                 @else
-                                <a href="{{ route('admin.exam.show', $participant) }}"
+                                <a href="{{ route('competitions.exam.show', $participant) }}"
                                     class="px-4 py-1.5 bg-[#0a5c36] hover:bg-[#0d7a48] text-white font-bold rounded-lg text-xs transition-all">
                                     بدء الاختبار
                                 </a>
                                 @endif
 
                                 {{-- إدخال/تعديل نتيجة يدوي — متاح دائمًا بغض النظر عن حالة الاختبار --}}
-                                <a href="{{ route('admin.participants.manual-result.form', $participant) }}"
+                                <a href="{{ route('competitions.participants.manual-result.form', $participant) }}"
                                     class="px-4 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-700 font-bold rounded-lg text-xs transition-all">
                                     إدخال نتيجة يدوي
                                 </a>

@@ -149,30 +149,6 @@
                 @endcan
 
                 <!-- ═══════════════════════════════════════════════════════════════ -->
-                <!-- ═══════════════ قسم نتائج المسابقات (Admin) ══════════════════ -->
-                <!-- ═══════════════════════════════════════════════════════════════ -->
-                @can('view competitions')
-                <div x-data="{ open: {{ request()->routeIs(['admin.competition-results.*', 'admin.competitions.finalization.*']) ? 'true' : 'false' }} }" class="space-y-1">
-                    <button @click="open = !open"
-                        class="w-full flex items-center justify-between px-4 py-2 rounded-lg hover:bg-[#0d7a48] transition-colors focus:outline-none {{ request()->routeIs(['admin.competition-results.*', 'admin.competitions.finalization.*']) ? 'bg-[#0d7a48]' : '' }}">
-                        <span class="flex items-center gap-2">
-                            <span>نتائج المسابقات</span>
-                        </span>
-                        <svg class="w-4 h-4 transition-transform duration-200" :class="open ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                        </svg>
-                    </button>
-
-                    <div x-show="open" x-cloak class="pr-3 space-y-1 border-r border-white/10 mr-1">
-                        <a href="{{ route('admin.competition-results.index') }}"
-                            class="block px-4 py-2 rounded-lg text-[13px] {{ request()->routeIs('admin.competition-results.*') ? 'bg-[#0d7a48] font-bold' : 'hover:bg-[#0d7a48]' }}">
-                            جميع النتائج
-                        </a>
-                    </div>
-                </div>
-                @endcan
-
-                <!-- ═══════════════════════════════════════════════════════════════ -->
                 <!-- ═══════════════ قسم المتابعة   (student-weekly-followups) ══════════════════ -->
                 <!-- ═══════════════════════════════════════════════════════════════ -->
                 {{-- قسم المتابعة --}}

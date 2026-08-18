@@ -2,9 +2,9 @@
     <x-slot name="title">مراجعة الاختبار — {{ $participant->participant_name }}</x-slot>
 
     <nav class="text-xs text-gray-400 mb-4 flex items-center gap-1">
-        <a href="{{ route('admin.competitions.index') }}" class="hover:text-[#0a5c36]">المسابقات</a>
+        <a href="{{ route('competitions.overview.index') }}" class="hover:text-[#0a5c36]">المسابقات</a>
         <span>/</span>
-        <a href="{{ route('admin.participants.index', $participant->competition_level_id) }}" class="hover:text-[#0a5c36]">المشاركون</a>
+        <a href="{{ route('competitions.level-participants.index', $participant->competition_level_id) }}" class="hover:text-[#0a5c36]">المشاركون</a>
         <span>/</span>
         <span>{{ $participant->participant_name }}</span>
     </nav>
@@ -49,7 +49,7 @@
                         <td class="px-6 py-4 text-gray-600">{{ $answer->tashkeel_mistakes ?? '—' }}</td>
                         <td class="px-6 py-4 font-bold text-[#0a5c36]">{{ $answer->score }}</td>
                         <td class="px-6 py-4">
-                            <a href="{{ route('admin.exam.show', $participant) }}?question={{ $answer->competition_question_id }}"
+                            <a href="{{ route('competitions.exam.show', $participant) }}?question={{ $answer->competition_question_id }}"
                                 class="px-4 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 font-bold rounded-lg text-xs transition-all">
                                 تعديل
                             </a>
@@ -66,12 +66,12 @@
     </div>
 
     <div class="flex items-center justify-between">
-        <a href="{{ route('admin.exam.show', $participant) }}?question={{ $answers->first()?->competition_question_id }}"
+        <a href="{{ route('competitions.exam.show', $participant) }}?question={{ $answers->first()?->competition_question_id }}"
             class="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl text-sm transition-all">
             الرجوع للأسئلة
         </a>
 
-        <form method="POST" action="{{ route('admin.exam.finalize', $participant) }}">
+        <form method="POST" action="{{ route('competitions.exam.finalize', $participant) }}">
             @csrf
             <button type="submit"
                 class="px-6 py-2.5 bg-[#0a5c36] hover:bg-[#0d7a48] text-white font-bold rounded-xl text-sm transition-all">

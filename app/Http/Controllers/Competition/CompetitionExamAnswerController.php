@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Admin;
+namespace App\Http\Controllers\Competition;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Examiner\StoreCompetitionAnswerRequest;
@@ -21,7 +21,7 @@ use Illuminate\View\View;
  * تُحفظ تحت المختبر الفعلي المسؤول عن السؤال (وليس تحت الأدمن نفسه)،
  * حتى تبقى الإحصائيات ونتيجة كل مختبر صحيحة.
  */
-class CompetitionExamAdminController extends Controller
+class CompetitionExamAnswerController extends Controller
 {
     /**
      * عرض شاشة السؤال الحالي للمشارك (سؤال واحد فقط) — كل أسئلة المستوى.
@@ -37,7 +37,7 @@ class CompetitionExamAdminController extends Controller
 
         if ($questions->isEmpty()) {
             return redirect()
-                ->route('admin.participants.index', $participant->competition_level_id)
+                ->route('competitions.level-participants.index', $participant->competition_level_id)
                 ->with('error', 'لا توجد أسئلة لهذا المستوى.');
         }
 
@@ -57,7 +57,7 @@ class CompetitionExamAdminController extends Controller
                 abort(404);
             }
 
-            return redirect()->route('admin.exam.review', $participant->id);
+            return redirect()->route('competitions.exam.review', $participant->id);
         }
 
         $existingAnswer = CompetitionAnswer::query()
@@ -119,17 +119,17 @@ class CompetitionExamAdminController extends Controller
 
         if ($request->action === 'finish') {
             return redirect()
-                ->route('admin.exam.review', $participant->id)
+                ->route('competitions.exam.review', $participant->id)
                 ->with('success', 'تم حفظ التقييم بنجاح.');
         }
 
         if ($request->action === 'save') {
             return redirect()
-                ->route('admin.exam.show', $participant->id)
+                ->route('competitions.exam.show', $participant->id)
                 ->with('success', 'تم حفظ التقييم بنجاح.');
         }
 
-        return redirect()->route('admin.exam.show', $participant->id);
+        return redirect()->route('competitions.exam.show', $participant->id);
     }
 
     /**
@@ -188,7 +188,7 @@ class CompetitionExamAdminController extends Controller
         });
 
         return redirect()
-            ->route('admin.participants.index', $participant->competition_level_id)
+            ->route('competitions.level-participants.index', $participant->competition_level_id)
             ->with('success', 'تم اعتماد النتيجة بنجاح.');
     }
 

@@ -54,7 +54,7 @@
         </div>
         @endif
 
-        <form method="POST" action="{{ route('admin.exam.store', $participant) }}" class="space-y-5">
+        <form method="POST" action="{{ route('competitions.exam.store', $participant) }}" class="space-y-5">
             @csrf
             <input type="hidden" name="competition_question_id" value="{{ $question->id }}">
 
@@ -101,12 +101,12 @@
 
             <div class="flex items-center justify-between pt-4 border-t border-gray-50">
                 @if($previousQuestion)
-                <a href="{{ route('admin.exam.show', $participant) }}?question={{ $previousQuestion->id }}"
+                <a href="{{ route('competitions.exam.show', $participant) }}?question={{ $previousQuestion->id }}"
                     class="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl text-sm transition-all">
                     السابق
                 </a>
                 @else
-                <a href="{{ route('admin.participants.index', $participant->competition_level_id) }}"
+                <a href="{{ route('competitions.level-participants.index', $participant->competition_level_id) }}"
                     class="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl text-sm transition-all">
                     السابق
                 </a>
