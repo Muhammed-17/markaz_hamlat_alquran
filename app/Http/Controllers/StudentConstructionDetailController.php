@@ -23,9 +23,9 @@ class StudentConstructionDetailController extends Controller
     /**
      * إنشاء خطة بناء جديدة
      */
-    public function create(Request $request): View|RedirectResponse  // ✅ تغيير نوع الإرجاع
+    public function create(Request $request): View|RedirectResponse
     {
-        $this->authorize('create', StudentConstructionDetail::class);
+        $this->authorize('create students');
 
         // السياق: إنشاء خطة لحلقة جماعية
         if ($request->filled('circle_id')) {
@@ -80,7 +80,7 @@ class StudentConstructionDetailController extends Controller
      */
     public function store(StoreStudentConstructionDetailRequest $request): RedirectResponse
     {
-        $this->authorize('create', StudentConstructionDetail::class);
+        $this->authorize('create students');
 
         $validated = $request->validated();
 
@@ -128,7 +128,14 @@ class StudentConstructionDetailController extends Controller
      */
     public function show(StudentConstructionDetail $studentConstructionDetail): View
     {
-        $this->authorize('view', $studentConstructionDetail);
+        $this->authorize('view students');
+
+        if (
+            !$this->accessService->canAccessStudent(auth()->user(), $studentConstructionDetail->student)
+            && !$this->accessService->canAccessCircle(auth()->user(), $studentConstructionDetail->circle_id)
+        ) {
+            abort(403);
+        }
 
         $studentConstructionDetail->load(['student', 'circle']);
 
@@ -140,7 +147,14 @@ class StudentConstructionDetailController extends Controller
      */
     public function edit(StudentConstructionDetail $studentConstructionDetail): View|RedirectResponse  // ✅ تغيير نوع الإرجاع
     {
-        $this->authorize('update', $studentConstructionDetail);
+        $this->authorize('edit students');
+
+        if (
+            !$this->accessService->canAccessStudent(auth()->user(), $studentConstructionDetail->student)
+            && !$this->accessService->canAccessCircle(auth()->user(), $studentConstructionDetail->circle_id)
+        ) {
+            abort(403);
+        }
 
         $studentConstructionDetail->load(['student', 'circle']);
 
@@ -165,7 +179,14 @@ class StudentConstructionDetailController extends Controller
      */
     public function update(UpdateStudentConstructionDetailRequest $request, StudentConstructionDetail $studentConstructionDetail): RedirectResponse
     {
-        $this->authorize('update', $studentConstructionDetail);
+        $this->authorize('edit students');
+
+        if (
+            !$this->accessService->canAccessStudent($request->user(), $studentConstructionDetail->student)
+            && !$this->accessService->canAccessCircle($request->user(), $studentConstructionDetail->circle_id)
+        ) {
+            abort(403);
+        }
 
         $validated = $request->validated();
 
@@ -187,7 +208,14 @@ class StudentConstructionDetailController extends Controller
      */
     public function destroy(StudentConstructionDetail $studentConstructionDetail): RedirectResponse
     {
-        $this->authorize('delete', $studentConstructionDetail);
+        $this->authorize('delete students');
+
+        if (
+            !$this->accessService->canAccessStudent(auth()->user(), $studentConstructionDetail->student)
+            && !$this->accessService->canAccessCircle(auth()->user(), $studentConstructionDetail->circle_id)
+        ) {
+            abort(403);
+        }
 
         $redirect = $studentConstructionDetail->student_id
             ? route('students.show', $studentConstructionDetail->student_id)

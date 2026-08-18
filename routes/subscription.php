@@ -4,7 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\SubscriptionController;
 use App\Http\Controllers\SubscriptionPriceController;
 
-Route::middleware(['auth', 'verified'])->group(function () {
+Route::middleware(['auth', 'verified','permission:view subscriptions'])->group(function () {
 
     Route::get('subscriptions/filter-options', [SubscriptionController::class, 'getFilterOptions'])
         ->name('subscriptions.filter-options');
@@ -17,16 +17,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->name('subscriptions.late_and_unpaid');
         Route::get('/subscriptions/late-and-unpaid/{student}/months', [SubscriptionController::class, 'lateDetail'])
             ->name('subscriptions.late_detail');
-        Route::get('/subscriptions/student/{student}/details-unpaid', [SubscriptionController::class, 'DetailsUnpaid']) // ✅
+        Route::get('/subscriptions/student/{student}/details-unpaid', [SubscriptionController::class, 'DetailsUnpaid'])
             ->name('subscriptions.details_unpaid');
     });
 
-    // ─── إرسال تنبيه اشتراك متأخر ──────────────────────────────────
-    // Route::middleware('permission:edit subscriptions')->group(function () {
+    // ─── إرسال تنبيه اشتراك متأخر (بدون قيد صلاحية — مقصود) ────────
     Route::post('/subscriptions/{student}/notify-unpaid', [SubscriptionController::class, 'notifyUnpaid'])
         ->name('subscriptions.notify-unpaid');
-    // });ح
-
 
     // ─── إضافة اشتراك ─────────────────────────────────────────────
     Route::middleware('permission:create subscriptions')->group(function () {
@@ -50,17 +47,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->name('subscriptions.destroy');
     });
 
-    // ─── عرض أسعار الاشتراكات ────────────────────────────────────
+    // ─── أسعار الاشتراكات ─────────────────────────────────────────
     Route::middleware('permission:view subscription prices')->group(function () {
         Route::get('/subscription-prices', [SubscriptionPriceController::class, 'index'])
             ->name('subscription-prices.index');
-    });
 
-    // ─── إدارة أسعار الاشتراكات ──────────────────────────────────
-    Route::middleware('permission:manage subscription prices')->group(function () {
-        Route::post('/subscription-prices', [SubscriptionPriceController::class, 'store'])
-            ->name('subscription-prices.store');
-        Route::delete('/subscription-prices/{subscriptionPrice}', [SubscriptionPriceController::class, 'destroy'])
-            ->name('subscription-prices.destroy');
+        Route::middleware('permission:manage subscription prices')->group(function () {
+            Route::post('/subscription-prices', [SubscriptionPriceController::class, 'store'])
+                ->name('subscription-prices.store');
+            Route::delete('/subscription-prices/{subscriptionPrice}', [SubscriptionPriceController::class, 'destroy'])
+                ->name('subscription-prices.destroy');
+        });
     });
 });

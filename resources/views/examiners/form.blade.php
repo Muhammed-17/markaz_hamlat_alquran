@@ -26,6 +26,7 @@ $examiner = $examiner ?? null;
             <label for="email" class="block text-sm font-bold text-gray-700">البريد الإلكتروني <span class="text-red-500">*</span></label>
             <input id="email" type="email" name="email" autocomplete="off"
                 value="{{ old('email', $examiner->user->email ?? '') }}"
+                placeholder="example@examiner.com"
                 class="w-full px-4 py-3 bg-gray-50 border border-gray-200 focus:bg-white focus:ring-2 focus:ring-emerald-100 focus:border-[#0a5c36] rounded-2xl outline-none transition-all">
             @error('email') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
         </div>

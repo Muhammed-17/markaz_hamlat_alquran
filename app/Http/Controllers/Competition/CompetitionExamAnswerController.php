@@ -28,7 +28,7 @@ class CompetitionExamAnswerController extends Controller
      */
     public function show(Request $request, CompetitionParticipant $participant): View|RedirectResponse
     {
-        // $this->authorize('examine', $participant);
+        $this->authorize('examine competition participants');
 
         $questions = CompetitionQuestion::query()
             ->where('competition_level_id', $participant->competition_level_id)
@@ -86,6 +86,7 @@ class CompetitionExamAnswerController extends Controller
      */
     public function store(StoreCompetitionAnswerRequest $request, CompetitionParticipant $participant): RedirectResponse
     {
+        $this->authorize('examine competition participants');
         $question = CompetitionQuestion::findOrFail($request->competition_question_id);
 
         $competitionExaminer = $question->competitionExaminers()->first();
@@ -137,7 +138,7 @@ class CompetitionExamAnswerController extends Controller
      */
     public function review(CompetitionParticipant $participant): View
     {
-        // $this->authorize('review', $participant);
+        $this->authorize('examine competition participants');
 
         $totalQuestions = CompetitionQuestion::query()
             ->where('competition_level_id', $participant->competition_level_id)
@@ -168,7 +169,7 @@ class CompetitionExamAnswerController extends Controller
      */
     public function finalize(CompetitionParticipant $participant): RedirectResponse
     {
-        // $this->authorize('examine', $participant);
+        $this->authorize('examine competition participants');
 
         $hasAnswers = CompetitionAnswer::query()
             ->where('competition_participant_id', $participant->id)

@@ -151,7 +151,9 @@ class CircleController extends Controller
             'assistantTeachers' => fn($q) => $q->withoutGlobalScope(CenterScope::class),
             'supervisors' => fn($q) => $q->withoutGlobalScope(CenterScope::class),
             'students',
-            'studentConstructionDetails' => fn($q) => $q->with('student')->latest(),
+            'studentConstructionDetails' => fn($q) => $q->withoutGlobalScope(CenterScope::class)
+                ->with('student')
+                ->latest(),
         ]);
 
         if (!$user->hasRole(['admin', 'general_manager'])) {
@@ -351,10 +353,6 @@ class CircleController extends Controller
             if (!$teacher) {
                 throw new \Exception('المعلم الرئيسي غير موجود.');
             }
-            // ✅ السماح للـ admin بتعيين أي معلم
-            if ($teacher->center_id != $centerId && !$user->hasRole(['admin', 'general_manager'])) {
-                throw new \Exception('المعلم الرئيسي يجب أن يكون في نفس الفرع.');
-            }
             if (!in_array($teacher->id, $accessibleTeacherIds)) {
                 throw new \Exception('ليس لديك صلاحية تعيين هذا المعلم.');
             }
@@ -365,9 +363,6 @@ class CircleController extends Controller
             $teacher = Teacher::find($request->assistant_teacher_id);
             if (!$teacher) {
                 throw new \Exception('المعلم المساعد غير موجود.');
-            }
-            if ($teacher->center_id != $centerId && !$user->hasRole(['admin', 'general_manager'])) {
-                throw new \Exception('المعلم المساعد يجب أن يكون في نفس الفرع.');
             }
             if (!in_array($teacher->id, $accessibleTeacherIds)) {
                 throw new \Exception('ليس لديك صلاحية تعيين هذا المعلم.');
@@ -381,14 +376,10 @@ class CircleController extends Controller
             if (!$teacher) {
                 throw new \Exception('المشرف غير موجود.');
             }
-            if ($teacher->center_id != $centerId && !$user->hasRole(['admin', 'general_manager'])) {
-                throw new \Exception('المشرف يجب أن يكون في نفس الفرع.');
-            }
             if (!in_array($teacher->id, $accessibleTeacherIds)) {
                 throw new \Exception('ليس لديك صلاحية تعيين هذا المشرف.');
             }
         }
-
         // 1) المعلم الرئيسي/المساعد — حذف القديم ثم إدراج الجديد
         DB::table('circle_teacher')
             ->where('circle_id', $circle->id)
@@ -454,6 +445,7 @@ class CircleController extends Controller
         }
 
         $latest = $circle->studentConstructionDetails()
+            ->withoutGlobalScope(CenterScope::class)
             ->with('currentSurah:id,number,name_arabic')
             ->latest('updated_at')
             ->first();

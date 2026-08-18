@@ -10,7 +10,7 @@ class UpdateBehavioralNoteActionRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true; // الـ authorize الفعلي بيتم في الـ controller عبر $this->authorize()
+        return true;
     }
 
     public function rules(): array
@@ -22,12 +22,20 @@ class UpdateBehavioralNoteActionRequest extends FormRequest
         ];
     }
 
-    public function attributes(): array
+    public function messages(): array
     {
         return [
-            'action_taken' => 'الإجراء المتخذ',
-            'status'       => 'حالة الإجراء',
-            'follow_up_at' => 'تاريخ المتابعة',
+            // Action Taken
+            'action_taken.required' => 'يرجى إدخال الإجراء المتخذ.',
+            'action_taken.string'   => 'الإجراء المتخذ يجب أن يكون نصاً.',
+            'action_taken.max'      => 'الإجراء المتخذ يجب ألا يتجاوز 2000 حرف.',
+
+            // Status
+            'status.required'       => 'يرجى تحديد حالة الملاحظة.',
+            'status.in'             => 'حالة الملاحظة المختارة غير صالحة.',
+
+            // Follow-up Date
+            'follow_up_at.date'     => 'تاريخ المتابعة يجب أن يكون تاريخاً صحيحاً.',
         ];
     }
 }

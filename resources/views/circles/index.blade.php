@@ -65,8 +65,8 @@ $sortIcon = fn($field) => request('sort') === $field
                 <select id="filter_type" name="type"
                     class="w-full p-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-[#0a5c36] focus:border-[#0a5c36] transition-all bg-white appearance-none">
                     <option value="">كل الأنواع</option>
-                    <option value="group" @selected(request('type')==='group' )>جماعية</option>
-                    <option value="individual" @selected(request('type')==='individual' )>فردية</option>
+                    <option value="group" @selected(request('type')==='group' )>جماعي</option>
+                    <option value="individual" @selected(request('type')==='individual' )>فردي</option>
                 </select>
             </div>
 
@@ -145,11 +145,11 @@ $sortIcon = fn($field) => request('sort') === $field
                         <td class="px-6 py-4 text-gray-600">
                             @if ($circle->type == 'group')
                             <span class="px-3 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-600">
-                                جماعية
+                                جماعي
                             </span>
                             @elseif ($circle->type == 'individual')
                             <span class="px-3 py-1 rounded-full text-xs font-bold bg-purple-50 text-purple-600">
-                                فردية
+                                فردي
                             </span>
                             @endif
                         </td>

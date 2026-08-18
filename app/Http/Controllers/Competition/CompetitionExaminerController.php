@@ -16,7 +16,7 @@ class CompetitionExaminerController extends Controller
 {
     public function index(Competition $competition)
     {
-        $this->authorize('update', $competition);
+        $this->authorize('view competition examiners');
 
         $examiners = $competition->competitionExaminers()
             ->with(['examiner.user', 'competitionExaminerLevels.competitionLevel.level'])
@@ -27,7 +27,7 @@ class CompetitionExaminerController extends Controller
 
     public function create(Competition $competition)
     {
-        $this->authorize('update', $competition);
+        $this->authorize('select competition examiners');
 
         $levels = $competition->competitionLevels()->with('level')->get();
 
@@ -55,26 +55,9 @@ class CompetitionExaminerController extends Controller
         ]);
     }
 
-    public function edit(Competition $competition, CompetitionExaminer $competitionExaminer)
-    {
-        $this->authorize('update', $competition);
-
-
-        $levels = $competition->competitionLevels()->with('level')->get();
-        $selectedLevelIds = $competitionExaminer->competitionExaminerLevels()->pluck('competition_level_id')->toArray();
-
-        return view('competitions.examiners.examiner_levels', [
-            'competition'         => $competition,
-            'competitionExaminer' => $competitionExaminer,
-            'levels'              => $levels,
-            'selectedExaminer'    => $competitionExaminer->examiner,
-            'selectedLevelIds'    => $selectedLevelIds,
-        ]);
-    }
-
     public function store(Competition $competition, Storecompetitionexaminerrequest  $request)
     {
-        $this->authorize('update', $competition);
+        $this->authorize('select competition examiners');
         $data = $request->validated();
 
         DB::transaction(function () use ($competition, $data) {
@@ -89,9 +72,27 @@ class CompetitionExaminerController extends Controller
             ->with('success', 'تم إضافة المختبر بنجاح.');
     }
 
+    public function edit(Competition $competition, CompetitionExaminer $competitionExaminer)
+    {
+        $this->authorize('edit examiner levels');
+
+
+        $levels = $competition->competitionLevels()->with('level')->get();
+        $selectedLevelIds = $competitionExaminer->competitionExaminerLevels()->pluck('competition_level_id')->toArray();
+
+        return view('competitions.examiners.examiner_levels', [
+            'competition'         => $competition,
+            'competitionExaminer' => $competitionExaminer,
+            'levels'              => $levels,
+            'selectedExaminer'    => $competitionExaminer->examiner,
+            'selectedLevelIds'    => $selectedLevelIds,
+        ]);
+    }
+
+
     public function update(Competition $competition, CompetitionExaminer $competitionExaminer, Updatecompetitionexaminerrequest  $request)
     {
-        $this->authorize('update', $competition);
+        $this->authorize('edit examiner levels');
         $data = $request->validated();
         $this->syncExaminerLevels($competitionExaminer, $data['competition_level_ids'] ?? []);
 
@@ -102,7 +103,7 @@ class CompetitionExaminerController extends Controller
 
     public function destroy(Competition $competition, CompetitionExaminer $competitionExaminer)
     {
-        $this->authorize('update', $competition);
+        $this->authorize('delete competition examiners');
 
         $competitionExaminer->competitionExaminerLevels()->delete();
         $competitionExaminer->delete();
@@ -111,34 +112,6 @@ class CompetitionExaminerController extends Controller
             ->route('competitions.examiners', $competition)
             ->with('success', 'تم حذف المختبر من المسابقة بنجاح.');
     }
-
-    public function searchExaminers(Request $request, Competition $competition)
-    {
-        $search = trim($request->get('q', ''));
-
-        $existingExaminerIds = $competition->competitionExaminers()->pluck('examiner_id');
-
-        $examiners = Examiner::query()
-            ->with('user')
-            ->whereNotIn('id', $existingExaminerIds)
-            ->when($search !== '', function ($query) use ($search) {
-                $query->where(function ($q) use ($search) {
-                    $q->whereHas('user', function ($u) use ($search) {
-                        $u->where('name', 'like', "%{$search}%");
-                    })
-                        ->orWhere('phone', 'like', "%{$search}%");
-                });
-            })
-            ->limit(20)
-            ->get()
-            ->map(fn($examiner) => [
-                'id'   => $examiner->id,
-                'text' => ($examiner->user?->name ?? 'بدون اسم') . ($examiner->phone ? ' - ' . $examiner->phone : ''),
-            ]);
-
-        return response()->json($examiners);
-    }
-
     /**
      * Manually sync competition_level_ids for a CompetitionExaminer,
      * since competitionExaminerLevels() is a HasMany relation (no sync()).

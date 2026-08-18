@@ -30,10 +30,12 @@ $activities = $studentWeeklyFollowup->activities ?? collect();
                 </p>
             </div>
             <div class="flex items-center gap-2">
+                @can('edit student weekly followups')
                 <a href="{{ route('student-weekly-followups.edit', $studentWeeklyFollowup) }}"
                     class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#0a5c36] text-white font-semibold hover:bg-[#0d7a48] transition-colors">
                     تعديل
                 </a>
+                @endcan
                 <a href="{{ route('student-weekly-followups.index') }}"
                     class="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors">
                     رجوع

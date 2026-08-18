@@ -64,10 +64,10 @@
                     @endif
                 </div>
                 <div class="mt-6 space-y-2">
-                    @can('update', $behavioralNote)
+                    @can('edit behavioral notes')
                     <a href="{{ route('behavioral-notes.edit', $behavioralNote) }}" class="block w-full bg-amber-500 hover:bg-amber-600 text-white text-center py-2.5 rounded-lg text-sm font-medium transition-colors"><i class="fas fa-edit ml-2"></i>تعديل</a>
                     @endcan
-                    @can('recordAction', $behavioralNote)
+                    @can('approve behavioral notes')
                     <a href="{{ route('behavioral-notes.edit-action', $behavioralNote) }}" class="block w-full bg-sky-500 hover:bg-sky-600 text-white text-center py-2.5 rounded-lg text-sm font-medium transition-colors"><i class="fas fa-clipboard-check ml-2"></i>تسجيل الإجراء</a>
                     @endcan
                     <a href="{{ route('behavioral-notes.index') }}" class="block w-full bg-gray-100 hover:bg-gray-200 text-gray-700 text-center py-2.5 rounded-lg text-sm font-medium transition-colors"><i class="fas fa-arrow-right ml-2"></i>رجوع</a>

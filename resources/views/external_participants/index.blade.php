@@ -23,7 +23,6 @@ $sortIcon = fn($field) => request('sort') === $field
         </div>
 
         <div class="flex flex-wrap items-center gap-4 w-full md:w-auto">
-            @can('create external participants')
             <a href="{{ route('external-participants.create') }}"
                 class="w-full md:w-auto px-6 py-3 bg-emerald-500 hover:bg-emerald-400 text-white font-bold rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg hover:shadow-emerald-500/20 active:scale-95">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -31,7 +30,6 @@ $sortIcon = fn($field) => request('sort') === $field
                 </svg>
                 جديد
             </a>
-            @endcan
         </div>
 
         <div class="absolute -right-10 -bottom-10 w-40 h-40 bg-white/10 rounded-full blur-3xl"></div>
@@ -95,7 +93,7 @@ $sortIcon = fn($field) => request('sort') === $field
                         </td>
                         <td class="px-6 py-4 text-left">
                             <div class="flex items-center justify-end gap-3">
-                                @can('view external participants')
+
                                 <a href="{{ route('external-participants.show', $participant) }}"
                                     class="text-emerald-600 hover:text-emerald-800 transition" title="عرض المشارك">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -103,18 +101,16 @@ $sortIcon = fn($field) => request('sort') === $field
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                                     </svg>
                                 </a>
-                                @endcan
 
-                                @can('edit external participants')
+
                                 <a href="{{ route('external-participants.edit', $participant) }}" class="text-blue-500 hover:text-blue-700 transition">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                             d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                     </svg>
                                 </a>
-                                @endcan
 
-                                @can('delete external participants')
+
                                 <form method="POST" action="{{ route('external-participants.destroy', $participant) }}"
                                     onsubmit="confirmDelete(event, { name: '{{ e($participant->name) }}', type: 'المشارك' })"
                                     class="text-red-400 hover:text-red-600 transition">
@@ -127,7 +123,6 @@ $sortIcon = fn($field) => request('sort') === $field
                                         </svg>
                                     </button>
                                 </form>
-                                @endcan
                             </div>
                         </td>
                     </tr>

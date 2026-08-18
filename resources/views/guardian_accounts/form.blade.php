@@ -71,8 +71,7 @@ $action = $isEdit
                         value="{{ old('name', $guardian->name ?? '') }}"
                         placeholder="اسم ولي الأمر رباعياً"
                         class="w-full p-3 bg-white border rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36] focus:ring-1 focus:ring-[#0a5c36] transition-all
-                               {{ $errors->has('name') ? 'border-red-400 bg-red-50' : 'border-gray-200' }}"
-                        required>
+                               {{ $errors->has('name') ? 'border-red-400 bg-red-50' : 'border-gray-200' }}">
                     @error('name')
                     <p class="text-red-500 text-xs font-semibold">{{ $message }}</p>
                     @enderror
@@ -115,13 +114,10 @@ $action = $isEdit
                 <div class="space-y-2">
                     <label class="block text-sm font-bold text-gray-700">
                         البريد الإلكتروني
-                        @if(!$isEdit)
-                        <span class="text-gray-400 font-normal text-xs">(اختياري — يُولَّد تلقائياً إن تُرك فارغاً)</span>
-                        @endif
                     </label>
                     <input type="tel" name="email"
                         value="{{ old('email', $guardian->email ?? '') }}"
-                        placeholder="01xxxxxxxxx"
+                        placeholder="name@markaz.com"
 
                         class="w-full p-3 bg-white border rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36] focus:ring-1 focus:ring-[#0a5c36] transition-all {{ $errors->has('email') ? 'border-red-400 bg-red-50' : 'border-gray-200' }}">
                     @error('email')
@@ -136,14 +132,12 @@ $action = $isEdit
                         <span class="text-gray-400 font-normal text-xs">
                             @if($isEdit)
                             (اتركها فارغة للإبقاء على الحالية)
-                            @else
-                            (اتركها فارغة للتوليد التلقائي)
                             @endif
                         </span>
                     </label>
                     <div class="relative">
                         <input :type="showPass ? 'text' : 'password'" name="password"
-                            placeholder="{{ $isEdit ? 'أدخل كلمة مرور جديدة...' : 'اتركها فارغة للتوليد التلقائي' }}"
+                            placeholder="{{ $isEdit ? 'أدخل كلمة مرور جديدة...' : 'الرجاء إدخال كلمة مرور حتى تتمكن من إنشاء الحساب' }}"
                             class="w-full p-3 pl-11 bg-white border rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36] focus:ring-1 focus:ring-[#0a5c36] transition-all
                                    {{ $errors->has('password') ? 'border-red-400 bg-red-50' : 'border-gray-200' }}">
                         <button type="button" @click="showPass = !showPass"

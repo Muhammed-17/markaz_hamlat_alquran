@@ -2,10 +2,9 @@
 
 namespace App\Http\Requests\Student;
 
-
 use Illuminate\Foundation\Http\FormRequest;
 
-class CreateStudentRequest extends FormRequest
+class StoreStudentRequest extends FormRequest
 {
     public function authorize(): bool
     {
@@ -18,7 +17,8 @@ class CreateStudentRequest extends FormRequest
             // Step 1
             'supervisor_id'   => 'required|integer|exists:teachers,id',
             'join_date'       => 'required|date',
-            'applicant'       => 'nullable|string|max:50',
+            // ✅ FIX: بقت مطلوبة بناءً على طلبك
+            'applicant'       => 'required|string|max:50',
 
             // Step 2
             'student_code'                    => 'nullable|digits:14|unique:students,student_code',
@@ -26,17 +26,22 @@ class CreateStudentRequest extends FormRequest
             'gender'                          => 'required|in:ذكر,أنثى',
             'date_of_birth'                   => 'nullable|date',
             'address'                         => 'required|string',
-            'center_id'                       => 'required|integer|exists:centers,id', // ✅ مصحح
+            'center_id'                       => 'required|integer|exists:centers,id',
             'whatsapp_number'                 => 'nullable|string|max:20',
             'whatsapp_owner'                  => 'nullable|string|max:50',
             'second_phone'                    => 'nullable|string|max:20',
             'additional_contact_owner'        => 'nullable|string|max:50',
-            'parent_email'                    => 'nullable|string|max:255',
-            'password'                        => 'nullable|string|min:6',
+
+            // ✅ FIX: كانت string فقط بدون تنسيق بريد صحيح، وبدون required_if رغم وجود رسالة له
+            'parent_email' => 'required_if:guardian_id,new|nullable|email|max:255',
+            // ✅ FIX: بدون required_if رغم وجود رسالة له — لكن تُركت اختيارية عمدًا
+            // لأن الكنترولر بيولّد باسورد تلقائي (Str::random) لو اتسابت فاضية
+            'password' => 'nullable|string|min:6',
+
             'guardian_id' => [
                 function ($attribute, $value, $fail) {
                     if ($value === null || $value === '') return;
-                    if (in_array((string)$value, ['new', 'other', 'none'])) return;
+                    if (in_array((string) $value, ['new', 'other', 'none'])) return;
                     if (!\App\Models\User::where('id', $value)->exists()) {
                         $fail('ولي الأمر المختار غير موجود.');
                     }
@@ -60,49 +65,53 @@ class CreateStudentRequest extends FormRequest
             'previous_school'   => 'required|string|max:255',
 
             // Step 4
-            'health_status'        => 'required|string|max:100',
-            'learning_difficulties'       => 'required|string|max:255',
+            'health_status'         => 'required|string|max:100',
+            'learning_difficulties' => 'required|string|max:255',
             'personal_traits'       => 'required|string|max:255',
-            'hobbies'               => 'nullable|array',
-            'hobbies.*'             => 'string',
+            'hobbies'                => 'nullable|array',
+            'hobbies.*'              => 'string',
             'student_exit_status'   => 'required|string|max:100',
 
             // Step 5
             'reading'            => 'required|string|max:50',
-            'center_entry_level' => 'required|in:construction,mastery,creativity', // ✅ مصحح
+            'center_entry_level' => 'required|in:construction,mastery,creativity',
 
             // Step 6 - Construction
-            'placement_evaluation'    => 'nullable|string',
-            'current_surah_id'        => 'nullable|integer|exists:surahs,id',
-            'new_memorization_plan'   => 'required_if:study_system,individual|nullable|string',
-            'revision_plan'           => 'required_if:study_system,individual|nullable|string|max:100',
-            'old_memorization_plan'   => 'required_if:study_system,individual|nullable|string',
-            'study_system'            => 'required_if:center_entry_level,construction|nullable|in:group,individual',
-            'circle_id'               => 'required_if:center_entry_level,construction|nullable|integer|exists:circles,id',
+            // ✅ FIX: بقت مطلوبة (فقط لمستوى البناء) بناءً على طلبك
+            'placement_evaluation'  => 'required_if:center_entry_level,construction|nullable|string',
+            'current_surah_id'      => 'nullable|integer|exists:surahs,id',
+            'new_memorization_plan' => 'required_if:study_system,individual|nullable|string',
+            'revision_plan'         => 'required_if:study_system,individual|nullable|string|max:100',
+            'old_memorization_plan' => 'required_if:study_system,individual|nullable|string',
+            'study_system'          => 'required_if:center_entry_level,construction|nullable|in:group,individual',
+            'circle_id'             => 'required_if:center_entry_level,construction|nullable|integer|exists:circles,id',
 
-            // Step 7 - Mastery ✅ مصحح
+            // Step 7 - Mastery
             'previous_memorization_side' => 'required_if:center_entry_level,mastery|nullable|string|max:255',
             'previous_khatamat_count'    => 'required_if:center_entry_level,mastery|nullable|string',
             'current_review_amount'      => 'required_if:center_entry_level,mastery|nullable|string|max:255',
-            'self_evaluation'            => 'nullable|integer|min:1|max:10',
-            'tajweed_matn'               => 'nullable|string|max:100',
-            'desired_path'               => 'required_if:center_entry_level,mastery|nullable|string|max:255',
-            'preferred_time'             => 'nullable|string|max:100',
-            'teacher_name'               => 'nullable|string|max:255',
-            'itqan_details'              => 'nullable|string',
+            // ✅ FIX: الفورم بيحطها كـ * (مطلوبة) لمستوى الإتقان لكن كانت nullable فقط
+            'self_evaluation'            => 'required_if:center_entry_level,mastery|nullable|integer|min:1|max:10',
+            'tajweed_matn'                => 'required_if:center_entry_level,mastery|nullable|string|max:100',
+            'desired_path'                => 'required_if:center_entry_level,mastery|nullable|string|max:255',
+            // ✅ FIX: مطلوب في الفورم لكل من الإتقان والإبداع
+            'preferred_time'              => 'required_if:center_entry_level,mastery,creativity|nullable|string|max:100',
+            'teacher_name'                => 'nullable|string|max:255',
+            'itqan_details'               => 'nullable|string',
 
-            // Step 8 - Creativity ✅ مصحح
+            // Step 8 - Creativity
             'previous_licenses_and_chains' => 'required_if:center_entry_level,creativity|nullable|string',
             'desired_narration_and_path'   => 'required_if:center_entry_level,creativity|nullable|string|max:255',
             'supervisor_name'              => 'nullable|string|max:255',
             'ibda_details'                 => 'nullable|string',
 
             // Step 9
-            'notes'    => 'nullable|string',
-            'status'   => 'nullable|string|max:50',
-            'decision' => 'nullable|string|max:50',
-            'subscription_fees' => 'nullable|string|max:50',
-            'received_tools'    => 'nullable|string|max:100',
+            'notes'              => 'nullable|string',
+            // ✅ FIX: الحقول الأربعة دي بقت مطلوبة بناءً على طلبك
+            'status'             => 'required|string|max:50',
+            'decision'           => 'required|string|max:50',
+            'subscription_fees'  => 'required|string|max:50',
+            'received_tools'     => 'required|string|max:100',
         ];
     }
 
@@ -111,6 +120,7 @@ class CreateStudentRequest extends FormRequest
         return [
             'supervisor_id.required'    => 'المشرف مطلوب',
             'join_date.required'        => 'تاريخ التسجيل مطلوب',
+            'applicant.required'        => 'مقدم طلب التسجيل مطلوب',
             'student_code.digits'       => 'الرقم القومي يجب أن يتكون من 14 رقمًا بالضبط',
             'student_code.unique'       => 'الرقم القومي مستخدم مسبقاً لطالب آخر',
             'name.required'             => 'الاسم مطلوب',
@@ -120,7 +130,7 @@ class CreateStudentRequest extends FormRequest
             'center_id.required'        => 'المركز مطلوب',
             'center_id.exists'          => 'المركز المختار غير موجود',
             'parent_email.required_if'  => 'البريد الإلكتروني مطلوب عند إضافة ولي أمر جديد',
-            'password.required_if'      => 'كلمة المرور مطلوبة عند إضافة ولي أمر جديد',
+            'parent_email.email'        => 'صيغة البريد الإلكتروني غير صحيحة',
             'educational_stage.required' => 'المرحلة الدراسية مطلوبة',
             'education_type.required'   => 'نوع التعليم مطلوب',
             'school_grade.required'     => 'الصف الدراسي مطلوب',
@@ -132,15 +142,25 @@ class CreateStudentRequest extends FormRequest
             'reading.required'          => 'مستوى القراءة مطلوب',
             'center_entry_level.required' => 'مستوى الالتحاق مطلوب',
             'center_entry_level.in'     => 'مستوى الالتحاق غير صحيح',
-            'current_surah.required_if' => 'سورة الالتحاق مطلوبة لمستوى البناء',
             'study_system.required_if'  => 'نظام الدراسة مطلوب لمستوى البناء',
-            'circle_id.required_if' => 'الحلقة مطلوبة لمستوى البناء',
+            'circle_id.required_if'     => 'الحلقة مطلوبة لمستوى البناء',
+            'placement_evaluation.required_if' => 'تقييم التسكين مطلوب لمستوى البناء',
+            'new_memorization_plan.required_if' => 'خطة الحفظ الجديد مطلوبة للنظام الفردي',
+            'revision_plan.required_if'         => 'خطة المراجعة مطلوبة للنظام الفردي',
+            'old_memorization_plan.required_if' => 'خطة الحفظ القديم مطلوبة للنظام الفردي',
             'previous_memorization_side.required_if' => 'جهة الحفظ السابقة مطلوبة لمستوى الإتقان',
             'previous_khatamat_count.required_if'    => 'عدد الختمات السابقة مطلوب لمستوى الإتقان',
             'current_review_amount.required_if'      => 'مقدار المراجعة الحالي مطلوب لمستوى الإتقان',
+            'self_evaluation.required_if'            => 'تقييم مستوى الحفظ مطلوب لمستوى الإتقان',
+            'tajweed_matn.required_if'               => 'متن التجويد مطلوب لمستوى الإتقان',
             'desired_path.required_if'               => 'المسار المرغوب مطلوب لمستوى الإتقان',
+            'preferred_time.required_if'             => 'الوقت المناسب للمجلس مطلوب',
             'previous_licenses_and_chains.required_if' => 'الإجازات والأسانيد مطلوبة لمستوى الإبداع',
             'desired_narration_and_path.required_if'   => 'الرواية المراد دراستها مطلوبة لمستوى الإبداع',
+            'status.required'            => 'حالة الطالب مطلوبة',
+            'decision.required'          => 'قرار الإدارة مطلوب',
+            'subscription_fees.required' => 'رسوم حجز المقعد مطلوبة',
+            'received_tools.required'    => 'يجب تحديد الأدوات والكتب المستلمة',
         ];
     }
 }

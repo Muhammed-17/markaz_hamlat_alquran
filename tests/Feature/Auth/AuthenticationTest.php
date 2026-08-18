@@ -16,19 +16,20 @@ test('login screen can be rendered', function () {
 });
 
 test('users can authenticate using the login screen', function () {
-    // Create role and permission
-    $role = Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web']);
-    Permission::firstOrCreate(['name' => 'view dashboard', 'guard_name' => 'web']);
-    $role->givePermissionTo('view dashboard');
+    // 1. إنشاء الدور
+    Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web']);
 
+    // 2. إنشاء المستخدم وتعيين الدور له
     $user = User::factory()->create();
     $user->assignRole('admin');
 
+    // 3. إرسال طلب تسجيل الدخول
     $response = post('/login', [
-        'email' => $user->email,
+        'email'    => $user->email,
         'password' => 'password',
     ]);
 
+    // 4. التحقق من نجاح عملية المصادقة والتوجيه
     $this->assertTrue(auth()->check());
     $response->assertRedirect(route('dashboard', absolute: false));
 });

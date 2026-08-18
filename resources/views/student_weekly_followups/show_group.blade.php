@@ -15,6 +15,7 @@
                 <p class="text-gray-500 mt-1 text-sm">عرض بيانات الخطة ومستويات الطلاب</p>
             </div>
             <div class="flex items-center gap-3">
+                @can('edit student weekly followups')
                 <a href="{{ route('student-weekly-followups.edit-group', $batchId) }}"
                     class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-500 text-white hover:bg-amber-600 transition-colors">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -22,6 +23,7 @@
                     </svg>
                     تعديل
                 </a>
+                @endcan
                 <a href="{{ route('student-weekly-followups.index-group') }}"
                     class="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

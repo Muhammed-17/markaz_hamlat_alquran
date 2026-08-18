@@ -42,23 +42,12 @@ class StoreTafsirFileRequest extends FormRequest
     {
         return [
             'name.required' => 'اسم ملف التفسير مطلوب.',
-            'name.string' => 'اسم ملف التفسير يجب أن يكون نصًا.',
-            'name.max' => 'اسم ملف التفسير يجب ألا يتجاوز 255 حرفًا.',
-            'name.unique' => 'ملف التفسير بهذا الاسم موجود بالفعل.',
+            'name.string'   => 'اسم ملف التفسير يجب أن يكون نصًا.',
+            'name.max'      => 'اسم ملف التفسير يجب ألا يتجاوز :max حرفًا.',
+            'name.unique'   => 'ملف التفسير بهذا الاسم موجود بالفعل.',
 
             'description.string' => 'الوصف يجب أن يكون نصًا.',
-            'description.max' => 'الوصف يجب ألا يتجاوز 2000 حرف.',
-        ];
-    }
-
-    /**
-     * Validation attributes.
-     */
-    public function attributes(): array
-    {
-        return [
-            'name' => 'اسم ملف التفسير',
-            'description' => 'الوصف',
+            'description.max'    => 'الوصف يجب ألا يتجاوز :max حرفًا.',
         ];
     }
 }

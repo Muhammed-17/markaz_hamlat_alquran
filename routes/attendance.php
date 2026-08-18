@@ -2,13 +2,10 @@
 
 use Illuminate\Support\Facades\Route;
 
-Route::middleware(['auth', 'verified'])->group(function () {
+Route::middleware(['auth', 'verified', 'permission:view attendance'])->group(function () {
 
-    // ✅ الـ routes الثابتة أولاً (قبل أي {parameter})
-    Route::middleware('permission:view attendance')->group(function () {
-        Route::get('/attendance/sequential-absences', 'App\Http\Controllers\AttendanceController@sequentialAbsences')
-            ->name('attendance.sequential-absences');
-    });
+    Route::get('/attendance/sequential-absences', 'App\Http\Controllers\AttendanceController@sequentialAbsences')
+        ->name('attendance.sequential-absences');
 
     Route::middleware('permission:notify attendance')->group(function () {
         Route::post(
@@ -49,10 +46,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     });
 
     // ✅ الـ {attendance} parameter في الآخر دائماً
-    Route::middleware('permission:view attendance')->group(function () {
-        Route::get('/attendance', 'App\Http\Controllers\AttendanceController@index')
-            ->name('attendance.index');
-        Route::get('/attendance/{attendance}', 'App\Http\Controllers\AttendanceController@show')
-            ->name('attendance.show');
-    });
+    Route::get('/attendance', 'App\Http\Controllers\AttendanceController@index')
+        ->name('attendance.index');
+    Route::get('/attendance/{attendance}', 'App\Http\Controllers\AttendanceController@show')
+        ->name('attendance.show');
 });

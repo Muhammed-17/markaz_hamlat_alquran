@@ -42,6 +42,8 @@
     @if ($activeLevelId)
     <div class="flex items-center justify-between mb-4">
         <h2 class="text-lg font-bold text-gray-800">الأسئلة</h2>
+
+        @can('create level questions')
         <a href="{{ route('competitions.level-questions.create', [$competition, 'level_id' => $activeLevelId]) }}"
             class="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-white font-bold rounded-xl flex items-center gap-2 transition-all text-sm shadow-md">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -49,6 +51,7 @@
             </svg>
             إضافة سؤال
         </a>
+        @endcan
     </div>
 
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
@@ -71,16 +74,21 @@
                         <td class="px-6 py-4 text-gray-600">{{ $question->typeLabel() }}</td>
                         <td class="px-6 py-4 text-gray-600">{{ $question->score }}</td>
                         <td class="px-6 py-4">
-                            @if ($question->competitionExaminer)
-                            <span class="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-[#0a5c36]">
-                                {{ $question->competitionExaminer->examiner->user->name ?? '-' }}
-                            </span>
+                            @if ($question->competitionExaminers->isNotEmpty())
+                            <div class="flex flex-wrap gap-1">
+                                @foreach ($question->competitionExaminers as $competitionExaminer)
+                                <span class="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-[#0a5c36]">
+                                    {{ $competitionExaminer->examiner->user->name ?? '-' }}
+                                </span>
+                                @endforeach
+                            </div>
                             @else
                             <span class="px-2.5 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-500">غير محدد</span>
                             @endif
                         </td>
                         <td class="px-6 py-4 text-left" onclick="event.stopPropagation()">
                             <div class="flex items-center justify-end gap-3">
+                                @can('view level questions')
                                 <a href="{{ route('competitions.level-questions.show', [$competition, $question]) }}"
                                     class="text-emerald-600 hover:text-emerald-800 transition" title="عرض السؤال">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -88,6 +96,9 @@
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                                     </svg>
                                 </a>
+                                @endcan
+
+                                @can('edit level questions')
                                 <a href="{{ route('competitions.level-questions.edit', [$competition, $question]) }}"
                                     class="text-blue-500 hover:text-blue-700 transition" title="تعديل السؤال">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -95,6 +106,8 @@
                                             d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                     </svg>
                                 </a>
+                                @endcan
+                                @can('delete level questions')
                                 <form action="{{ route('competitions.level-questions.destroy', [$competition, $question]) }}" method="POST"
                                     onsubmit="confirmDelete(event, { name: '{{ e($question->name) }}', type: 'السؤال' })"
                                     class="text-red-400 hover:text-red-600 transition">
@@ -107,6 +120,7 @@
                                         </svg>
                                     </button>
                                 </form>
+                                @endcan
                             </div>
                         </td>
                     </tr>

@@ -77,44 +77,72 @@ class UpdateIndividualWeeklyFollowupRequest extends FormRequest
         ];
     }
 
-    public function attributes(): array
+    public function messages(): array
     {
         return [
-            'student_id'    => 'الطالب',
-            'teacher_id'    => 'المعلم',
-            'circle_id'     => 'الحلقة',
-            'week_start'    => 'بداية الأسبوع',
-            'week_end'      => 'نهاية الأسبوع',
-            'study_days'    => 'أيام الدراسة',
+            // Basic Info
+            'student_id.required'        => 'حقل الطالب مطلوب.',
+            'student_id.exists'          => 'الطالب المختار غير موجود.',
+            'teacher_id.required'        => 'حقل المعلم مطلوب.',
+            'teacher_id.exists'          => 'المعلم المختار غير موجود.',
+            'circle_id.exists'           => 'الحلقة المختارة غير موجودة.',
 
-            'memorization_from_surah_id'       => 'سورة البداية (حفظ جديد)',
-            'memorization_from_ayah'           => 'آية البداية (حفظ جديد)',
-            'memorization_to_surah_id'         => 'سورة النهاية (حفظ جديد)',
-            'memorization_to_ayah'             => 'آية النهاية (حفظ جديد)',
-            'memorization_plan_comparison'     => 'مقارنة الخطة (حفظ جديد)',
-            'memorization_progress_difference' => 'فرق التقدم (حفظ جديد)',
-            'new_memorization_level'           => 'مستوى الحفظ الجديد',
+            'week_start.required'        => 'حقل بداية الأسبوع مطلوب.',
+            'week_start.date'            => 'حقل بداية الأسبوع يجب أن يكون تاريخًا صحيحًا.',
+            'week_start.date_format'     => 'صيغة تاريخ بداية الأسبوع غير صحيحة.',
 
-            'revision_from_surah_id'       => 'سورة البداية (مراجعة)',
-            'revision_from_ayah'           => 'آية البداية (مراجعة)',
-            'revision_to_surah_id'         => 'سورة النهاية (مراجعة)',
-            'revision_to_ayah'             => 'آية النهاية (مراجعة)',
-            'revision_plan_comparison'     => 'مقارنة الخطة (مراجعة)',
-            'revision_progress_difference' => 'فرق التقدم (مراجعة)',
-            'revision_level'               => 'مستوى المراجعة',
+            'week_end.required'          => 'حقل نهاية الأسبوع مطلوب.',
+            'week_end.date'              => 'حقل نهاية الأسبوع يجب أن يكون تاريخًا صحيحًا.',
+            'week_end.date_format'       => 'صيغة تاريخ نهاية الأسبوع غير صحيحة.',
+            'week_end.after_or_equal'    => 'تاريخ نهاية الأسبوع يجب أن يكون بعد أو مساويًا لتاريخ بداية الأسبوع.',
 
-            'old_revision_from_surah_id'       => 'سورة البداية (حفظ قديم)',
-            'old_revision_from_ayah'           => 'آية البداية (حفظ قديم)',
-            'old_revision_to_surah_id'         => 'سورة النهاية (حفظ قديم)',
-            'old_revision_to_ayah'             => 'آية النهاية (حفظ قديم)',
-            'old_revision_plan_comparison'     => 'مقارنة الخطة (حفظ قديم)',
-            'old_revision_progress_difference' => 'فرق التقدم (حفظ قديم)',
-            'old_memorization_level'           => 'مستوى الحفظ القديم',
+            'study_days.array'           => 'حقل أيام الدراسة يجب أن يكون قائمة.',
+            'study_days.*.in'            => 'إحدى القيم المختارة في أيام الدراسة غير صحيحة.',
 
-            'discipline_level'             => 'مستوى الانضباط',
-            'tajweed_level'                => 'مستوى التجويد',
-            'foundation_level_level'       => 'المستوى التأسيسي',
-            'educational_lesson_level'     => 'مستوى الدرس التربوي',
+            // Surah & Ayah Validation Checks
+            'memorization_from_surah_id.exists' => 'سورة البداية المختارة للحفظ الجديد غير موجودة.',
+            'memorization_to_surah_id.exists'   => 'سورة النهاية المختارة للحفظ الجديد غير موجودة.',
+            'memorization_from_ayah.min'        => 'رقم آية البداية للحفظ الجديد يجب أن يكون 1 أو أكثر.',
+            'memorization_to_ayah.min'          => 'رقم آية النهاية للحفظ الجديد يجب أن يكون 1 أو أكثر.',
+
+            'revision_from_surah_id.exists'     => 'سورة البداية المختارة للمراجعة غير موجودة.',
+            'revision_to_surah_id.exists'       => 'سورة النهاية المختارة للمراجعة غير موجودة.',
+            'revision_from_ayah.min'            => 'رقم آية البداية للمراجعة يجب أن يكون 1 أو أكثر.',
+            'revision_to_ayah.min'              => 'رقم آية النهاية للمراجعة يجب أن يكون 1 أو أكثر.',
+
+            'old_revision_from_surah_id.exists' => 'سورة البداية المختارة للحفظ القديم غير موجودة.',
+            'old_revision_to_surah_id.exists'   => 'سورة النهاية المختارة للحفظ القديم غير موجودة.',
+            'old_revision_from_ayah.min'        => 'رقم آية البداية للحفظ القديم يجب أن يكون 1 أو أكثر.',
+            'old_revision_to_ayah.min'          => 'رقم آية النهاية للحفظ القديم يجب أن يكون 1 أو أكثر.',
+
+            // Levels Validation
+            'new_memorization_level.in'  => 'مستوى الحفظ الجديد يجب أن يكون أحد الخيارات المتاحة.',
+            'revision_level.in'          => 'مستوى المراجعة يجب أن يكون أحد الخيارات المتاحة.',
+            'old_memorization_level.in'  => 'مستوى الحفظ القديم يجب أن يكون أحد الخيارات المتاحة.',
+            'discipline_level.in'        => 'مستوى الانضباط يجب أن يكون أحد الخيارات المتاحة.',
+            'tajweed_level.in'           => 'مستوى التجويد يجب أن يكون أحد الخيارات المتاحة.',
+            'foundation_level_level.in'  => 'المستوى التأسيسي يجب أن يكون أحد الخيارات المتاحة.',
+            'educational_lesson_level.in'=> 'مستوى الدرس التربوي يجب أن يكون أحد الخيارات المتاحة.',
+
+            // Educational Lesson & Activities
+            'educational_lesson_id.exists'               => 'الدرس التربوي المختار غير موجود.',
+            'activities.*.activity_type.required_with'  => 'نوع النشاط مطلوب عند إضافة نشاط.',
+            'activities.*.activity_name.required_with'  => 'اسم النشاط مطلوب عند إضافة نشاط.',
+            'activities.*.activity_date.required_with'  => 'تاريخ النشاط مطلوب عند إضافة نشاط.',
+            'activities.*.activity_date.date'           => 'تاريخ النشاط يجب أن يكون تاريخًا صحيحًا.',
+
+            // Fallback Defaults
+            'required'       => 'هذا الحقل مطلوب.',
+            'integer'        => 'هذا الحقل يجب أن يكون رقمًا صحيحًا.',
+            'string'         => 'هذا الحقل يجب أن يكون نصًا.',
+            'array'          => 'هذا الحقل يجب أن يكون قائمة.',
+            'min'            => 'هذا الحقل يجب ألا يقل عن :min.',
+            'max'            => 'هذا الحقل يجب ألا يزيد عن :max حرفًا.',
+            'date'           => 'هذا الحقل يجب أن يكون تاريخًا صحيحًا.',
+            'date_format'    => 'صيغة هذا الحقل غير صحيحة.',
+            'after_or_equal' => 'هذا الحقل يجب أن يكون تاريخًا بعد أو مساويًا للمحدد.',
+            'exists'         => 'القيمة المختارة غير موجودة.',
+            'in'             => 'القيمة المختارة غير صحيحة.',
         ];
     }
 }

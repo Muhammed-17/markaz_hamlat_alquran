@@ -24,7 +24,7 @@ class CompetitionParticipantController extends Controller
      */
     public function index(Competition $competition, Request $request)
     {
-        $this->authorize('update', $competition);
+        $this->authorize('view competition participants');
 
         $participants = CompetitionParticipant::query()
             ->where('competition_id', $competition->id)
@@ -81,12 +81,11 @@ class CompetitionParticipantController extends Controller
     }
 
     /**
-     * تصدير قائمة المشاركين إلى ملف Excel، مع تطبيق نفس فلاتر
-     * صفحة المشاركين الحالية (البحث، المستوى، المركز).
+     * تصدير قائمة المشاركين إلى ملف Excel.
      */
     public function exportExcel(Competition $competition, Request $request)
     {
-        $this->authorize('update', $competition);
+        $this->authorize('export competition participants');
 
         $fileName = 'participants-' . $competition->id . '-' . now()->format('Y-m-d') . '.xlsx';
 
@@ -101,7 +100,7 @@ class CompetitionParticipantController extends Controller
      */
     public function create(Competition $competition)
     {
-        $this->authorize('update', $competition);
+        $this->authorize('create competition participants');
 
         $levels = $competition->competitionLevels()
             ->with('level')
@@ -119,9 +118,6 @@ class CompetitionParticipantController extends Controller
             ->orderBy('name')
             ->get(['id', 'name']);
 
-        /*
-         * ملفات التفسير المتاحة.
-         */
         $tafsirFiles = TafsirFile::query()
             ->orderBy('name')
             ->get(['id', 'name', 'description']);
@@ -146,23 +142,14 @@ class CompetitionParticipantController extends Controller
         StoreCompetitionParticipantRequest $request,
         Competition $competition
     ) {
-        $this->authorize('update', $competition);
+        $this->authorize('create competition participants');
 
         $data = $request->validated();
 
-        /*
-         * تحديد نوع المشارك.
-         */
         $isStudent = $data['participant_type'] === 'student';
 
-        /*
-         * ربط المشارك بالمسابقة الحالية.
-         */
         $data['competition_id'] = $competition->id;
 
-        /*
-         * بيانات الطالب / الخارجي.
-         */
         $data['student_id'] = $isStudent
             ? $data['student_id']
             : null;
@@ -171,28 +158,14 @@ class CompetitionParticipantController extends Controller
             ? $data['external_participant_id']
             : null;
 
-        /*
-         * الحلقة تخص الطالب الداخلي فقط.
-         */
         $data['circle_id'] = $isStudent
             ? ($data['circle_id'] ?? null)
             : null;
 
-        /*
-         * الرسوم.
-         */
         $data['registration_fee'] = $data['registration_fee'] ?? 0;
 
-        /*
-         * حالة ملف التفسير.
-         */
         $data['file_status'] = $data['file_status'];
 
-        /*
-         * ملف التفسير.
-         *
-         * إذا لم يتم اختيار ملف تفسير يتم تخزين null.
-         */
         $data['tafsir_file_id'] = $data['tafsir_file_id'] ?? null;
 
         CompetitionParticipant::create($data);
@@ -209,7 +182,7 @@ class CompetitionParticipantController extends Controller
         Competition $competition,
         CompetitionParticipant $participant
     ) {
-        $this->authorize('update', $competition);
+        $this->authorize('edit competition participants');
 
         $levels = $competition->competitionLevels()
             ->with('level')
@@ -227,16 +200,10 @@ class CompetitionParticipantController extends Controller
             ->orderBy('name')
             ->get(['id', 'name']);
 
-        /*
-         * ملفات التفسير.
-         */
         $tafsirFiles = TafsirFile::query()
             ->orderBy('name')
             ->get(['id', 'name', 'description']);
 
-        /*
-         * الطلاب التابعون للحلقة الحالية.
-         */
         $studentOptions = [];
 
         if ($participant->isInternal() && $participant->circle_id) {
@@ -285,26 +252,17 @@ class CompetitionParticipantController extends Controller
         Competition $competition,
         CompetitionParticipant $participant
     ) {
-        $this->authorize('update', $competition);
+        $this->authorize('edit competition participants');
 
         $data = $request->validated();
 
         $isStudent = $data['participant_type'] === 'student';
 
-        /*
-         * إذا تغيّر المستوى، فإن كل الإجابات والنتيجة المسجّلة سابقًا
-         * أصبحت غير مرتبطة بأسئلة المستوى الجديد (لأن الأسئلة والمختبرين
-         * مرتبطون بمستوى معيّن)، فيجب حذفها لمنع بقاء بيانات تقييم
-         * منسوبة لأسئلة مستوى مختلف عن المستوى الحالي للمشارك.
-         */
         if ((int) $data['competition_level_id'] !== (int) $participant->competition_level_id) {
             $participant->competitionAnswers()->delete();
             $participant->competitionResult()->delete();
         }
 
-        /*
-         * بيانات الطالب / الخارجي.
-         */
         $data['student_id'] = $isStudent
             ? $data['student_id']
             : null;
@@ -313,26 +271,14 @@ class CompetitionParticipantController extends Controller
             ? $data['external_participant_id']
             : null;
 
-        /*
-         * الحلقة للطالب الداخلي فقط.
-         */
         $data['circle_id'] = $isStudent
             ? ($data['circle_id'] ?? null)
             : null;
 
-        /*
-         * الرسوم.
-         */
         $data['registration_fee'] = $data['registration_fee'] ?? 0;
 
-        /*
-         * حالة ملف التفسير.
-         */
         $data['file_status'] = $data['file_status'] ?? 0;
 
-        /*
-         * ملف التفسير.
-         */
         $data['tafsir_file_id'] = $data['tafsir_file_id'] ?? null;
 
         $participant->update($data);
@@ -349,7 +295,7 @@ class CompetitionParticipantController extends Controller
         Competition $competition,
         CompetitionParticipant $participant
     ) {
-        $this->authorize('update', $competition);
+        $this->authorize('delete competition participants');
 
         $participant->delete();
 
@@ -363,6 +309,8 @@ class CompetitionParticipantController extends Controller
      */
     public function searchStudents(Request $request)
     {
+        $this->authorize('create competition participants');
+
         $circleId = $request->get('circle_id');
 
         if (!$circleId) {
@@ -399,14 +347,14 @@ class CompetitionParticipantController extends Controller
 
         return response()->json($students);
     }
+
     /**
      * Search external participants.
-     *
-     * لا يتم إنشاء مشارك خارجي جديد من هنا.
-     * البحث فقط في جدول external_participants.
      */
     public function searchExternalParticipants(Request $request)
     {
+        $this->authorize('create competition participants');
+
         $search = $request->get('q', '');
         $competitionId = $request->get('competition_id');
         $excludeParticipantId = $request->get('exclude_participant_id');

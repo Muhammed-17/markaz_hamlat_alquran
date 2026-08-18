@@ -98,6 +98,26 @@ class UserAccessService
         );
     }
 
+    /**
+     * أنواع الحلقات (group/individual) التي يرتبط بها المستخدم كمعلم
+     * (أساسي/مساعد) أو كمشرف. تُستخدم للتحكم في ظهور روابط المتابعة بالـ sidebar.
+     */
+    public function teacherCircleTypes(User $user): Collection
+    {
+        $teacher = $this->teacher($user);
+        if (!$teacher) {
+            return collect();
+        }
+
+        return $this->rememberCircleIds(
+            "circle_types_{$teacher->id}",
+            fn() => $teacher->circles()
+                ->wherePivotIn('role', ['main', 'assistant', 'supervisor'])
+                ->distinct()
+                ->pluck('circles.type')
+        );
+    }
+
     public function accessibleCircles(User $user): Builder
     {
         if ($user->hasRole(['admin', 'general_manager'])) {
@@ -246,21 +266,32 @@ class UserAccessService
             }),
             'student_activities',
             'other_assessments',
-            'recommendations'            => $builder->whereIn('weekly_plan_id', function ($sub) use ($circleIds) {
-                $sub->select('id')->from('quran_weekly_plans')->where(function ($q) use ($circleIds) {
-                    $q->whereIn('circle_id', $circleIds)
-                        ->orWhereIn('student_id', function ($sub2) use ($circleIds) {
-                            $sub2->select('id')->from('students')->whereIn('circle_id', $circleIds);
-                        })
-                        ->orWhereIn('id', function ($sub2) use ($circleIds) {
-                            $sub2->select('quran_weekly_plan_id')
-                                ->from('quran_weekly_plan_students')
-                                ->whereIn('student_id', function ($sub3) use ($circleIds) {
-                                    $sub3->select('id')->from('students')->whereIn('circle_id', $circleIds);
-                                });
-                        });
-                });
+            'recommendations',
+            'student_weekly_disciplines',
+            'student_weekly_new_memorizations',
+            'student_weekly_old_memorizations',
+            'student_weekly_revisions',
+            'student_weekly_tajweed_assessments',
+            'student_weekly_foundation_levels',
+            'student_weekly_educational_lessons' => $builder->whereIn('weekly_followup_id', function ($sub) use ($circleIds) {
+                $sub->select('id')
+                    ->from('student_weekly_followups')
+                    ->where(function ($q) use ($circleIds) {
+                        $q->whereIn('circle_id', $circleIds)
+                            ->orWhereIn('student_id', function ($sub2) use ($circleIds) {
+                                $sub2->select('id')->from('students')->whereIn('circle_id', $circleIds);
+                            });
+                    });
             }),
+
+            'student_weekly_followups' => $builder->where(function ($q) use ($circleIds) {
+                $q->whereIn('circle_id', $circleIds)
+                    ->orWhereIn('student_id', function ($sub) use ($circleIds) {
+                        $sub->select('id')->from('students')->whereIn('circle_id', $circleIds);
+                    });
+            }),
+
+            'group_session_plans' => $builder->whereIn('circle_id', $circleIds),
 
             'behavioral_notes'           => $builder->where(function ($q) use ($circleIds) {
                 $q->whereIn('circle_id', $circleIds)
@@ -268,7 +299,17 @@ class UserAccessService
                         $sub->select('id')->from('students')->whereIn('circle_id', $circleIds);
                     });
             }),
-            default                      => null,
+
+            // educational_lessons: بدون circle_id (فيها center_id فقط) — تُفلتر من CenterScope مباشرة، ليس من هنا
+            'educational_lessons' => null,
+
+            // teachers: تصل هنا فقط عبر فرع "orWhere" الخاص بـ supervisorCircleIds في CenterScope
+            // (الفرع الأساسي لـ teachers متعامل معه بشرط خاص في applyManagerScope/applyTeacherScope/applySupervisorTeachersScope)
+            'teachers' => $builder->whereHas('circles', fn($cq) => $cq->whereIn('circles.id', $circleIds)),
+
+            default => throw new \InvalidArgumentException(
+                "applyScopeByCircleIds: جدول غير معروف/غير معالج: [{$table}] — أضف case له في UserAccessService."
+            ),
         };
     }
 

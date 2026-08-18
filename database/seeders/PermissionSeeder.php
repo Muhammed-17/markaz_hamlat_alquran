@@ -19,7 +19,6 @@ class PermissionSeeder extends Seeder
             // ─────────────────────────────────────────────────────────
             // النظام واللوحة (system)
             // ─────────────────────────────────────────────────────────
-            'view dashboard'              => ['عرض لوحة التحكم', 'system'],
             'manage guardians'             => ['إدارة حسابات أولياء الأمور', 'system'],
             'edit profile'                => ['تعديل الملف الشخصي', 'system'],
             'view reports'                => ['عرض التقارير', 'system'],
@@ -33,12 +32,6 @@ class PermissionSeeder extends Seeder
             'edit users'                  => ['تعديل المستخدمين', 'users'],
             'delete users'                => ['حذف المستخدمين', 'users'],
             'manage roles'                => ['إدارة الأدوار والصلاحيات', 'users'],
-
-            // ─────────────────────────────────────────────────────────
-            // الفروع والمراكز (centers)
-            // ─────────────────────────────────────────────────────────
-            'view centers'                => ['عرض الفروع المشترك بها', 'centers'],
-            'manage centers'              => ['إدارة الفروع (إضافة/تعديل/حذف)', 'centers'],
 
             // ─────────────────────────────────────────────────────────
             // الحلقات (circles)
@@ -66,14 +59,6 @@ class PermissionSeeder extends Seeder
             'delete students'             => ['حذف طلاب', 'students'],
             'assign student to circle'    => ['تسكين الطالب في حلقة', 'students'],
             'manage student status'       => ['تحديث حالة الطالب', 'students'],
-
-
-            'create student construction details' => ['إنشاء خطة حلقة', 'students'],
-            'edit student construction details' => ['تعديل خطة حلقة', 'students'],
-            'delete student construction details' => ['حذف خطة حلقة', 'students'],
-
-            'view student construction details' => ['عرض خطة حلقة', 'students'],
-
             // ─────────────────────────────────────────────────────────
             // الحضور والغياب (attendance)
             // ─────────────────────────────────────────────────────────
@@ -151,46 +136,26 @@ class PermissionSeeder extends Seeder
             'create competitions' => ['إنشاء مسابقات', 'competitions'],
             'edit competitions'   => ['تعديل المسابقات', 'competitions'],
             'delete competitions' => ['حذف المسابقات', 'competitions'],
-
-            // ─────────────────────────────────────────────────────────
-            // المستويات (levels)
-            // ─────────────────────────────────────────────────────────
-            'view levels'   => ['عرض المستويات', 'levels'],
-            'create levels' => ['إنشاء مستويات', 'levels'],
-            'edit levels'   => ['تعديل المستويات', 'levels'],
-            'delete levels' => ['حذف المستويات', 'levels'],
-
-            // ─────────────────────────────────────────────────────────
-            // المختبرون (examiners)
-            // ─────────────────────────────────────────────────────────
-            'view examiners'   => ['عرض المختبرين', 'examiners'],
-            'create examiners' => ['إنشاء مختبرين', 'examiners'],
-            'edit examiners'   => ['تعديل المختبرين', 'examiners'],
-            'delete examiners' => ['حذف المختبرين', 'examiners'],
-            // ─────────────────────────────────────────────────────────
-            // المشاركون من الخارج (external participants)
-            // ─────────────────────────────────────────────────────────
-            'view external participants'   => ['عرض المشاركين من الخارج', 'external participants'],
-            'create external participants' => ['إنشاء مشاركين من الخارج', 'external participants'],
-            'edit external participants'   => ['تعديل المشاركين من الخارج', 'external participants'],
-            'delete external participants' => ['حذف المشاركين من الخارج', 'external participants'],
+            'manage competitions' => ['إدارة المسابقات', 'competitions'],
+            'view level questions' => ['عرض أسئلة المستوى', 'competitions'],
+            'create level questions' => ['إنشاء أسئلة المستوى', 'competitions'],
+            'edit level questions' => ['تعديل أسئلة المستوى', 'competitions'],
+            'delete level questions' => ['حذف أسئلة المستوى', 'competitions'],
+            'view competition examiners' => ['عرض مختبرين للمسابقة', 'competitions'],
+            'select competition examiners' => ['إختيار مختبرين للمسابقة', 'competitions'],
+            'edit examiner levels' => ['تعديل مستويات للمختبر', 'competitions'],
+            'delete competition examiners' => ['حذف المختبرين  من مسابقة', 'competitions'],
+            'select examiner questions' => ['إختيار أسئلة المختبر', 'competitions'],
+            
             // ─────────────────────────────────────────────────────────
             // مشاركو المسابقات (competition participants)
             // ─────────────────────────────────────────────────────────
-            'view competition participants'    => ['عرض مشاركي المسابقات', 'competition participants'],
-            'create competition participants'  => ['إضافة مشاركين للمسابقة', 'competition participants'],
-            'edit competition participants'    => ['تعديل مشاركي المسابقات', 'competition participants'],
-            'delete competition participants'  => ['حذف مشاركي المسابقات', 'competition participants'],
-            'export competition participants'  => ['تصدير مشاركي المسابقات', 'competition participants'],
-            'examine competition participants' => ['تصحيح/اختبار المشاركين', 'competition participants'],
-
-            // ─────────────────────────────────────────────────────────
-            // نتائج المسابقات (competition results)
-            // ─────────────────────────────────────────────────────────
-            'view competition results'     => ['عرض نتائج المسابقات', 'competition results'],
-            'edit competition results'     => ['تعديل نتائج المسابقات', 'competition results'],
-            'finalize competition results' => ['اعتماد نتائج المسابقات وإغلاقها', 'competition results'],
-            'export competition results'   => ['تصدير نتائج المسابقات', 'competition results'],
+            'view competition participants'    => ['عرض مُشارِكي المسابقة', 'competitions'],
+            'create competition participants'  => ['إضافة مُشارِكين للمسابقة', 'competitions'],
+            'edit competition participants'    => ['تعديل بيانات مُشارِكي المسابقة', 'competitions'],
+            'delete competition participants'  => ['حذف مُشارِكي المسابقة', 'competitions'],
+            'export competition participants'  => ['تصدير بيانات مُشارِكي المسابقة', 'competitions'],
+            'examine competition participants' => ['اختبار/تقييم المُشارِكين', 'competitions'],
         ];
 
         // 1. إنشاء وتحديث الصلاحيات ببياناتها العربية الكاملة والمجمعات
@@ -212,7 +177,6 @@ class PermissionSeeder extends Seeder
         $rolesPermissions = [
             'admin' => [
                 // system
-                'view dashboard',
                 'manage guardians',
                 'edit profile',
                 'view reports',
@@ -223,9 +187,6 @@ class PermissionSeeder extends Seeder
                 'edit users',
                 'delete users',
                 'manage roles',
-                // centers
-                'view centers',
-                'manage centers',
                 // circles
                 'view circles',
                 'create circles',
@@ -244,10 +205,6 @@ class PermissionSeeder extends Seeder
                 'delete students',
                 'assign student to circle',
                 'manage student status',
-                'view student construction details',
-                'create student construction details',
-                'edit student construction details',
-                'delete student construction details',
                 // attendance
                 'view attendance',
                 'create attendance',
@@ -293,29 +250,23 @@ class PermissionSeeder extends Seeder
                 'update surah tests',
                 'delete surah tests',
 
-                // competitions
+                // competitions & questions
                 'view competitions',
                 'create competitions',
                 'edit competitions',
                 'delete competitions',
+                'manage competitions',
+                'view level questions',
+                'create level questions',
+                'edit level questions',
+                'delete level questions',
 
-                // levels
-                'view levels',
-                'create levels',
-                'edit levels',
-                'delete levels',
-
-                // examiners
-                'view examiners',
-                'create examiners',
-                'edit examiners',
-                'delete examiners',
-
-                // external participants
-                'view external participants',
-                'create external participants',
-                'edit external participants',
-                'delete external participants',
+                // competition examiners
+                'view competition examiners',
+                'select competition examiners',
+                'edit examiner levels',
+                'delete competition examiners',
+                'select examiner questions',
 
                 // competition participants
                 'view competition participants',
@@ -323,25 +274,17 @@ class PermissionSeeder extends Seeder
                 'edit competition participants',
                 'delete competition participants',
                 'export competition participants',
-
-                // competition results
-                'view competition results',
-                'edit competition results',
-                'finalize competition results',
-                'export competition results',
+                'examine competition participants',
             ],
 
             'general_manager' => [
                 // system
-                'view dashboard',
                 'manage guardians',
                 'edit profile',
                 'view reports',
                 'export data',
                 // users
                 'view users',
-                // centers
-                'view centers',
                 // circles
                 'view circles',
                 'edit circles',
@@ -390,28 +333,15 @@ class PermissionSeeder extends Seeder
 
                 // competitions
                 'view competitions',
-                'create competitions',
-                'edit competitions',
-                'delete competitions',
 
                 // competition participants
                 'view competition participants',
-                'create competition participants',
-                'edit competition participants',
-
-                // competition results
-                'view competition results',
-                'edit competition results',
-                'finalize competition results',
             ],
 
             'manager' => [
                 // system
-                'view dashboard',
                 'edit profile',
                 'manage guardians',
-                // centers
-                'view centers',
                 // circles
                 'view circles',
                 'edit circles',
@@ -468,18 +398,9 @@ class PermissionSeeder extends Seeder
 
                 // competitions
                 'view competitions',
-                'create competitions',
-                'edit competitions',
 
                 // competition participants
                 'view competition participants',
-                'create competition participants',
-                'edit competition participants',
-
-                // competition results
-                'view competition results',
-                'edit competition results',
-                'finalize competition results',
             ],
 
             'supervisor' => [
@@ -528,9 +449,6 @@ class PermissionSeeder extends Seeder
 
                 // competitions
                 'view competitions',
-
-                // competition results
-                'view competition results',
             ],
 
             'teacher' => [
@@ -561,9 +479,7 @@ class PermissionSeeder extends Seeder
                 'delete behavioral notes',
             ],
 
-            'examiner' => [
-                'examine competition participants',
-            ],
+            'examiner' => [],
 
             'guardian' => [
                 // system

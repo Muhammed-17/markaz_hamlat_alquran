@@ -29,7 +29,9 @@ $currentRoles = old('roles', $isEdit ? $teacher->user->roles->pluck('name')->toA
     <label class="block text-sm font-bold text-gray-700">البريد الإلكتروني <span class="text-red-500">*</span></label>
     <input type="email" name="email"
         value="{{ old('email', $teacher->user->email ?? '') }}"
+        placeholder="example@teacher.com"
         class="w-full px-4 py-3 bg-gray-50 border border-gray-200 focus:bg-white focus:ring-2 focus:ring-emerald-100 focus:border-[#0a5c36] rounded-2xl outline-none transition-all ltr">
+        
     @error('email')
     <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
     @enderror

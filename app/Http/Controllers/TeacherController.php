@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Requests\Teacher\CreateTeacherRequest;
-use App\Http\Requests\Teacher\EditTeacherRequest;
+use App\Http\Requests\Teacher\StoreTeacherRequest;
+use App\Http\Requests\Teacher\UpdateTeacherRequest;
 use App\Models\Teacher;
 use App\Models\User;
 use App\Traits\ResolvesUserScope;
@@ -125,7 +125,7 @@ class TeacherController extends Controller
     }
 
     // ─────────────────────────────────────────
-    public function store(CreateTeacherRequest $request)
+    public function store(StoreTeacherRequest $request)
     {
         $this->authorize('create', Teacher::class);
         $this->authorize('create', User::class);
@@ -205,7 +205,7 @@ class TeacherController extends Controller
     }
 
     // ─────────────────────────────────────────
-    public function update(EditTeacherRequest $request, Teacher $teacher)
+    public function update(UpdateTeacherRequest $request, Teacher $teacher)
     {
         $this->authorize('update', $teacher);
 

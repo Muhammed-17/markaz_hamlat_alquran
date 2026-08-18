@@ -1,17 +1,14 @@
 <?php
 
 use App\Http\Controllers\StudentController;
-use App\Http\Controllers\ExcludedStudentsController;
 use Illuminate\Support\Facades\Route;
 
-Route::middleware(['auth', 'verified'])->group(function () {
+Route::middleware(['auth', 'verified', 'permission:view students'])->group(function () {
 
-    Route::middleware('permission:view students')->group(function () {
-        Route::get('/students', [StudentController::class, 'index'])->name('students.index');
-        Route::get('/students/export', [StudentController::class, 'export'])->name('students.export');
-        Route::get('/students/excluded-review', [StudentController::class, 'excludedReview'])
-            ->name('students.excluded-review');
-    });
+    Route::get('/students', [StudentController::class, 'index'])->name('students.index');
+    Route::get('/students/export', [StudentController::class, 'export'])->name('students.export');
+    Route::get('/students/excluded-review', [StudentController::class, 'excludedReview'])
+        ->name('students.excluded-review');
 
     // ✅ create قبل {student}
     Route::middleware('permission:create students')->group(function () {
@@ -19,9 +16,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/students', [StudentController::class, 'store'])->name('students.store');
     });
 
-    Route::middleware('permission:view students')->group(function () {
-        Route::get('/students/{student}', [StudentController::class, 'show'])->name('students.show');
-    });
+    Route::get('/students/{student}', [StudentController::class, 'show'])->name('students.show');
 
     Route::middleware('permission:edit students')->group(function () {
         Route::get('/students/{student}/edit', [StudentController::class, 'edit'])->name('students.edit');

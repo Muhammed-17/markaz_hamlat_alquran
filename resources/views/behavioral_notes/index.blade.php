@@ -16,7 +16,7 @@
         </div>
 
         <div class="flex flex-wrap items-center gap-4 w-full md:w-auto z-10">
-            @can('create', App\Models\BehavioralNote::class)
+            @can('create behavioral notes')
             <a href="{{ route('behavioral-notes.create') }}"
                 class="w-full md:w-auto px-6 py-3 bg-emerald-500 hover:bg-emerald-400 text-white font-bold rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg hover:shadow-emerald-500/20 active:scale-95">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -150,16 +150,16 @@
                         </td>
                         <td class="px-4 py-3">
                             <div class="flex items-center gap-1.5">
-                                @can('view', $note)
+                                @can('view behavioral notes')
                                 <a href="{{ route('behavioral-notes.show', $note) }}" class="w-7 h-7 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center"><i class="fas fa-eye text-xs"></i></a>
                                 @endcan
-                                @can('update', $note)
+                                @can('edit behavioral notes')
                                 <a href="{{ route('behavioral-notes.edit', $note) }}" class="w-7 h-7 bg-amber-50 hover:bg-amber-100 text-amber-600 rounded-lg flex items-center justify-center"><i class="fas fa-edit text-xs"></i></a>
                                 @endcan
-                                @can('recordAction', $note)
+                                @can('approve behavioral notes')
                                 <a href="{{ route('behavioral-notes.edit-action', $note) }}" class="w-7 h-7 bg-sky-50 hover:bg-sky-100 text-sky-600 rounded-lg flex items-center justify-center" title="تسجيل الإجراء"><i class="fas fa-clipboard-check text-xs"></i></a>
                                 @endcan
-                                @can('delete', $note)
+                                @can('delete behavioral notes')
                                 <form action="{{ route('behavioral-notes.destroy', $note) }}" method="POST" class="inline" id="delete-note-{{ $note->id }}">
                                     @csrf @method('DELETE')
                                     <button type="button"

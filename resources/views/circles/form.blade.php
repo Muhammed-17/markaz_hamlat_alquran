@@ -46,8 +46,8 @@ $canManageAll = auth()->user()->hasRole(['admin', 'general_manager']);
             <label for="circle_type" class="block text-sm font-bold text-gray-700">نوع الحلقة <span class="text-red-500">*</span></label>
             <select id="circle_type" name="type" autocomplete="off"
                 class="w-full px-4 py-3 bg-gray-50 border border-gray-200 focus:bg-white focus:ring-2 focus:ring-emerald-100 focus:border-[#0a5c36] rounded-2xl outline-none transition-all appearance-none">
-                <option value="group" {{ old('type', $circle->type ?? '') == 'group' ? 'selected' : '' }}>جماعية</option>
-                <option value="individual" {{ old('type', $circle->type ?? '') == 'individual' ? 'selected' : '' }}>فردية</option>
+                <option value="group" {{ old('type', $circle->type ?? '') == 'group' ? 'selected' : '' }}>جماعي</option>
+                <option value="individual" {{ old('type', $circle->type ?? '') == 'individual' ? 'selected' : '' }}>فردي</option>
             </select>
             @error('type') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
         </div>
@@ -106,8 +106,8 @@ $canManageAll = auth()->user()->hasRole(['admin', 'general_manager']);
             <label for="circle_type_mgr" class="block text-sm font-bold text-gray-700">نوع الحلقة <span class="text-red-500">*</span></label>
             <select id="circle_type_mgr" name="type" autocomplete="off"
                 class="w-full px-4 py-3 bg-gray-50 border border-gray-200 focus:bg-white focus:ring-2 focus:ring-emerald-100 focus:border-[#0a5c36] rounded-2xl outline-none transition-all appearance-none">
-                <option value="group">جماعية</option>
-                <option value="individual">فردية</option>
+                <option value="group">جماعي</option>
+                <option value="individual">فردي</option>
             </select>
             @error('type') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
         </div>
@@ -205,6 +205,7 @@ $canManageAll = auth()->user()->hasRole(['admin', 'general_manager']);
             </div>
             @endif
             @error('supervisor_ids') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
+            @error('supervisor_ids.*') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
         </div>
 
     </div>

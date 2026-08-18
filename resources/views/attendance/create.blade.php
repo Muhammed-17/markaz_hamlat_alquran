@@ -17,58 +17,76 @@
         filter: 'all',
 
         submitForm() {
-            // ✅ الطلاب اللي عندهم حالة مسجّلة أصلاً
-            const touched = this.students.filter(s => s.status !== 'not_recorded');
+    // ✅ الطلاب اللي عندهم حالة مسجّلة أصلاً
+    const touched = this.students.filter(s => s.status !== 'not_recorded');
 
-            if (touched.length === 0) {
-                alert('يرجى تسجيل حضور طالب واحد على الأقل');
-                return;
-            }
+    if (touched.length === 0) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'تنبيه',
+            text: 'يرجى تسجيل حضور طالب واحد على الأقل',
+            confirmButtonText: 'حسناً',
+            confirmButtonColor: '#0a5c36'
+        });
+        return;
+    }
 
-            const selectedDate = document.querySelector('input[name=date]')?.value;
-            const today = new Date().toISOString().split('T')[0];
-            if (selectedDate > today) {
-                alert('لا يمكن تسجيل الحضور لتاريخ مستقبلي');
-                return;
-            }
+    const selectedDate = document.querySelector('input[name=date]')?.value;
+    const today = new Date().toISOString().split('T')[0];
+    if (selectedDate > today) {
+        Swal.fire({
+            icon: 'error',
+            title: 'خطأ',
+            text: 'لا يمكن تسجيل الحضور لتاريخ مستقبلي',
+            confirmButtonText: 'حسناً',
+            confirmButtonColor: '#0a5c36'
+        });
+        return;
+    }
 
-            // ✅ إرسال الطلاب الجدد (لم يكن لهم سجل سابق) أو الذين تغيّرت حالتهم/ملاحظاتهم فقط
-            const changed = touched.filter(s =>
-                s.original_status === 'not_recorded' ||
-                s.status !== s.original_status ||
-                (s.notes ?? '') !== (s.original_notes ?? '')
-            );
+    // ✅ إرسال الطلاب الجدد (لم يكن لهم سجل سابق) أو الذين تغيّرت حالتهم/ملاحظاتهم فقط
+    const changed = touched.filter(s =>
+        s.original_status === 'not_recorded' ||
+        s.status !== s.original_status ||
+        (s.notes ?? '') !== (s.original_notes ?? '')
+    );
 
-            if (changed.length === 0) {
-                alert('لا يوجد أي تعديل جديد لحفظه');
-                return;
-            }
+    if (changed.length === 0) {
+        Swal.fire({
+            icon: 'info',
+            title: 'تنبيه',
+            text: 'لا يوجد أي تعديل جديد لحفظه',
+            confirmButtonText: 'حسناً',
+            confirmButtonColor: '#0a5c36'
+        });
+        return;
+    }
 
-            const form = document.getElementById('attendance-form');
-            form.querySelectorAll('input[name^=attendance]').forEach(el => el.remove());
+    const form = document.getElementById('attendance-form');
+    form.querySelectorAll('input[name^=attendance]').forEach(el => el.remove());
 
-            changed.forEach((s, i) => {
-                const idInput = document.createElement('input');
-                idInput.type = 'hidden';
-                idInput.name = `attendance[${i}][student_id]`;
-                idInput.value = s.id;
-                form.appendChild(idInput);
+    changed.forEach((s, i) => {
+        const idInput = document.createElement('input');
+        idInput.type = 'hidden';
+        idInput.name = `attendance[${i}][student_id]`;
+        idInput.value = s.id;
+        form.appendChild(idInput);
 
-                const statusInput = document.createElement('input');
-                statusInput.type = 'hidden';
-                statusInput.name = `attendance[${i}][status]`;
-                statusInput.value = s.status;
-                form.appendChild(statusInput);
+        const statusInput = document.createElement('input');
+        statusInput.type = 'hidden';
+        statusInput.name = `attendance[${i}][status]`;
+        statusInput.value = s.status;
+        form.appendChild(statusInput);
 
-                const notesInput = document.createElement('input');
-                notesInput.type = 'hidden';
-                notesInput.name = `attendance[${i}][notes]`;
-                notesInput.value = s.notes ?? '';
-                form.appendChild(notesInput);
-            });
+        const notesInput = document.createElement('input');
+        notesInput.type = 'hidden';
+        notesInput.name = `attendance[${i}][notes]`;
+        notesInput.value = s.notes ?? '';
+        form.appendChild(notesInput);
+    });
 
-            form.submit();
-        },
+    form.submit();
+},
 
         get totalCount() { return this.students.length },
         get recordedCount() { return this.students.filter(s => s.status !== 'not_recorded').length },
@@ -178,16 +196,6 @@
         </div>
 
         @if ($selectedCircleId)
-        @if ($errors->any())
-        <div class="bg-red-50 border border-red-200 rounded-2xl p-4">
-            <ul class="list-disc list-inside text-red-700 text-sm font-bold space-y-1">
-                @foreach ($errors->all() as $error)
-                <li>{{ $error }}</li>
-                @endforeach
-            </ul>
-        </div>
-        @endif
-
         <!-- UI Stats & Progress -->
         <div class="bg-white rounded-[2rem] p-6 shadow-sm border border-gray-100 flex flex-col md:flex-row items-center gap-8">
             <div class="flex items-center gap-4 shrink-0">

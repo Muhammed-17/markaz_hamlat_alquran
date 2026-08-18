@@ -51,10 +51,10 @@ class StudentWeeklyFollowupController extends Controller
 
         $stats = $this->buildStats();
         $filters = $this->buildFilterData();
+        $circleAccess = $this->resolveCircleTypeAccess();
 
-        return view('student_weekly_followups.index_group', compact('groupBatches', 'stats', 'filters'));
+        return view('student_weekly_followups.index_group', compact('groupBatches', 'stats', 'filters', 'circleAccess'));
     }
-
     public function indexIndividual(Request $request): View
     {
         $this->authorize('viewAny', StudentWeeklyFollowup::class);
@@ -65,8 +65,9 @@ class StudentWeeklyFollowupController extends Controller
 
         $stats = $this->buildStats();
         $filters = $this->buildFilterData();
+        $circleAccess = $this->resolveCircleTypeAccess();
 
-        return view('student_weekly_followups.index_individual', compact('individualPlans', 'stats', 'filters'));
+        return view('student_weekly_followups.index_individual', compact('individualPlans', 'stats', 'filters', 'circleAccess'));
     }
 
     // =============================================================
@@ -145,7 +146,7 @@ class StudentWeeklyFollowupController extends Controller
 
             $count = count($validated['students']);
             return redirect()
-                ->route('student-weekly-followups.index-group', $batchId)
+                ->route('student-weekly-followups.show-group', $batchId)
                 ->with('success', "تم إنشاء {$count} متابعة أسبوعية بنجاح لطلاب الحلقة.");
         } catch (\Exception $e) {
             DB::rollBack();
@@ -204,7 +205,7 @@ class StudentWeeklyFollowupController extends Controller
             DB::commit();
 
             return redirect()
-                ->route('student-weekly-followups.index')
+                ->route('student-weekly-followups.index-group')
                 ->with('success', 'تم تحديث المتابعة الجماعية وبياناتها بنجاح.');
         } catch (\Exception $e) {
             DB::rollBack();
@@ -293,7 +294,7 @@ class StudentWeeklyFollowupController extends Controller
             DB::commit();
 
             return redirect()
-                ->route('student-weekly-followups.index')
+                ->route('student-weekly-followups.index-individual')
                 ->with('success', 'تم إنشاء المتابعة الفردية وبياناتها بنجاح.');
         } catch (\Exception $e) {
             DB::rollBack();
@@ -354,7 +355,7 @@ class StudentWeeklyFollowupController extends Controller
             DB::commit();
 
             return redirect()
-                ->route('student-weekly-followups.index')
+                ->route('student-weekly-followups.index-individual')
                 ->with('success', 'تم تحديث المتابعة الفردية وبياناتها بنجاح.');
         } catch (\Exception $e) {
             DB::rollBack();
@@ -590,16 +591,36 @@ class StudentWeeklyFollowupController extends Controller
 
     private function buildFilterData(): array
     {
+        $user = auth()->user();
+        $access = app(\App\Services\UserAccessService::class);
+
         return [
-            'circles'  => Circle::all(),
-            'teachers' => Teacher::with('user')->get(),
-            'centers'  => \App\Models\Center::all(),
+            'circles'  => $access->accessibleCircles($user)->get(),
+            'teachers' => $access->accessibleTeachers($user)->get(),
+            'centers'  => $access->accessibleCenters($user)->get(),
         ];
     }
 
     // =============================================================
     // Private: Helpers
     // =============================================================
+    private function resolveCircleTypeAccess(): array
+    {
+        $user = auth()->user();
+
+        // admin / general_manager / manager: نطاقهم أوسع من حلقاتهم الشخصية فقط
+        if ($user->hasRole(['admin', 'general_manager', 'manager'])) {
+            return ['group' => true, 'individual' => true];
+        }
+
+        $circleTypes = app(\App\Services\UserAccessService::class)->teacherCircleTypes($user);
+
+        return [
+            'group'      => $circleTypes->contains('group'),
+            'individual' => $circleTypes->contains('individual'),
+        ];
+    }
+
     private function calculateCurrentWeek(): array
     {
         $weekStart = Carbon::now()->startOfWeek(Carbon::SATURDAY);

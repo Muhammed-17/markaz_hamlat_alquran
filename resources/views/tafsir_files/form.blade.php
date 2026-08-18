@@ -19,7 +19,6 @@
             id="name"
             name="name"
             value="{{ old('name', $tafsirFile->name ?? '') }}"
-            required
             maxlength="255"
             placeholder="مثال: تفسير ابن كثير"
             class="w-full px-4 py-3 bg-gray-50 border border-gray-200
@@ -73,7 +72,7 @@
     </a>
 
     <button type="submit"
-        class="px-7 py-2.5 bg-[#0a5c36] hover:bg-[#084d2d]text-white rounded-xl font-bold transition shadow-sm">
+        class="px-8 py-2.5 bg-[#0a5c36] hover:bg-[#084d2d] text-white rounded-xl font-bold transition-all shadow-md">
 
         {{ ($isEdit ?? false) ? 'حفظ التعديلات' : 'حفظ الملف' }}
 

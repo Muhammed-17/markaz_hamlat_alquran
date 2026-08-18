@@ -25,20 +25,12 @@ $results = $isEdit ? $surahTest->results : collect();
     <div>
         <label class="{{ $labelClass }}">المعلم *</label>
         @if(auth()->user()->hasRole(['admin', 'general_manager']))
-        <div class="relative">
-            <select name="teacher_id" class="{{ $selectClass }}">
-                <option value="">اختر المعلم...</option>
-                @foreach($teachers as $teacher)
-                <option value="{{ $teacher->id }}"
-                    {{ old('teacher_id', $isEdit ? $surahTest->teacher_id : '') == $teacher->id ? 'selected' : '' }}>
-                    {{ $teacher->user->name ?? $teacher->name }}
-                </option>
-                @endforeach
-            </select>
-            <svg class="w-4 h-4 text-gray-400 absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-            </svg>
-        </div>
+        <x-searchable-select
+            name="teacher_id"
+            :options="$teachers->map(fn($t) => ['value' => $t->id, 'label' => $t->user->name ?? $t->name])->values()->toArray()"
+            :default-value="old('teacher_id', $isEdit ? $surahTest->teacher_id : '')"
+            placeholder="اختر المعلم..."
+            search-placeholder="ابحث عن معلم..." />
         @else
         @php($currentTeacher = app(\App\Services\UserAccessService::class)->teacher(auth()->user()))
         <div class="{{ $readonlyClass }}">
@@ -55,20 +47,12 @@ $results = $isEdit ? $surahTest->results : collect();
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
             <label class="{{ $labelClass }}">الحلقة *</label>
-            <div class="relative">
-                <select name="circle_id" id="circle-select" class="{{ $selectClass }}">
-                    <option value="">اختر الحلقة...</option>
-                    @foreach($circles as $circle)
-                    <option value="{{ $circle->id }}"
-                        {{ old('circle_id', $isEdit ? $surahTest->circle_id : '') == $circle->id ? 'selected' : '' }}>
-                        {{ $circle->name }}
-                    </option>
-                    @endforeach
-                </select>
-                <svg class="w-4 h-4 text-gray-400 absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                </svg>
-            </div>
+            <x-searchable-select
+                name="circle_id"
+                :options="$circles->map(fn($c) => ['value' => $c->id, 'label' => $c->name])->values()->toArray()"
+                :default-value="old('circle_id', $isEdit ? $surahTest->circle_id : '')"
+                placeholder="اختر الحلقة..."
+                search-placeholder="ابحث عن حلقة..." />
             @error('circle_id')
             <p class="text-xs text-red-600 mt-1.5">{{ $message }}</p>
             @enderror
@@ -76,27 +60,18 @@ $results = $isEdit ? $surahTest->results : collect();
 
         <div>
             <label class="{{ $labelClass }}">السورة *</label>
-            <div class="relative">
-                <select name="surah_id" class="{{ $selectClass }}">
-                    <option value="">اختر السورة...</option>
-                    @foreach($surahs as $surah)
-                    <option value="{{ $surah->id }}"
-                        {{ old('surah_id', $isEdit ? $surahTest->surah_id : '') == $surah->id ? 'selected' : '' }}>
-                        {{ $surah->name_arabic }}
-                    </option>
-                    @endforeach
-                </select>
-                <svg class="w-4 h-4 text-gray-400 absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                </svg>
-            </div>
+            <x-searchable-select
+                name="surah_id"
+                :options="$surahs->map(fn($s) => ['value' => $s->id, 'label' => $s->name_arabic])->values()->toArray()"
+                :default-value="old('surah_id', $isEdit ? $surahTest->surah_id : '')"
+                placeholder="اختر السورة..."
+                search-placeholder="ابحث عن سورة..." />
             @error('surah_id')
             <p class="text-xs text-red-600 mt-1.5">{{ $message }}</p>
             @enderror
         </div>
     </div>
 
-    <!-- تاريخ الاختبار -->
     <!-- تاريخ الاختبار -->
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>

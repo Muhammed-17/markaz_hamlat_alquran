@@ -21,7 +21,7 @@ Route::get('/dashboard', [DashboardController::class, 'index'])
         'auth',
         'verified',
         'not.guardian',
-        'permission:view dashboard',
+        'role:admin',
     ])
     ->name('dashboard');
 
@@ -54,7 +54,6 @@ Route::middleware(['auth', 'throttle:30,1'])->group(function () {
 require __DIR__ . '/auth.php';
 require __DIR__ . '/student.php';
 require __DIR__ . '/circle.php';
-require __DIR__ . '/notification.php';
 require __DIR__ . '/admin.php';
 require __DIR__ . '/attendance.php';
 require __DIR__ . '/teacher.php';

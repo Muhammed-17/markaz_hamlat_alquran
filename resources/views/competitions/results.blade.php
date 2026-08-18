@@ -21,7 +21,7 @@
                     </svg>
                     طباعة
                 </button>
-                @can('export competition results')
+                @can('manage competitions')
                 <a href="{{ route('competitions.results.export', array_merge(['competition' => $competition->id], request()->query())) }}"
                     class="px-6 py-3 bg-emerald-500 hover:bg-emerald-400 text-white font-bold rounded-2xl flex items-center gap-2 transition-all shadow-lg text-sm">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

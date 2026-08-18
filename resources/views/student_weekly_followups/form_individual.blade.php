@@ -46,17 +46,6 @@ $activityTypes = [
 // Activities data
 $activities = $studentWeeklyFollowup?->activities ?? collect();
 @endphp
-
-@if ($errors->any())
-<div class="bg-red-50 border border-red-200 text-red-700 rounded-lg p-4 mb-4">
-    <p class="font-semibold mb-2">فيه أخطاء لازم تتصلح:</p>
-    <ul class="list-disc list-inside space-y-1 text-sm">
-        @foreach ($errors->all() as $error)
-            <li>{{ $error }}</li>
-        @endforeach
-    </ul>
-</div>
-@endif
 @if($isCreate || $isEdit)
 <form action="{{ $formAction }}" method="POST" id="followup-form" class="space-y-6"
     x-data="individualPlanForm({

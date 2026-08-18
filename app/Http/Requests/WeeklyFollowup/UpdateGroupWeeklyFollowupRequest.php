@@ -122,35 +122,55 @@ class UpdateGroupWeeklyFollowupRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'required'       => 'حقل :attribute مطلوب.',
-            'integer'        => 'حقل :attribute يجب أن يكون رقمًا صحيحًا.',
-            'string'         => 'حقل :attribute يجب أن يكون نصًا.',
-            'array'          => 'حقل :attribute يجب أن يكون قائمة.',
-            'min'            => 'حقل :attribute يجب ألا يقل عن :min.',
-            'max'            => 'حقل :attribute يجب ألا يزيد عن :max حرفًا.',
-            'date'           => 'حقل :attribute يجب أن يكون تاريخًا صحيحًا.',
-            'date_format'    => 'صيغة حقل :attribute غير صحيحة.',
-            'after_or_equal' => 'حقل :attribute يجب أن يكون بعد أو مساويًا لـ :date.',
-            'exists'         => 'القيمة المختارة في حقل :attribute غير موجودة.',
-            'in'             => 'القيمة المختارة في حقل :attribute غير صحيحة.',
-            'students.required' => 'يجب إضافة طالب واحد على الأقل.',
-            'students.min'       => 'يجب إضافة طالب واحد على الأقل.',
-        ];
-    }
+            // Field-specific custom messages (replacing attributes)
+            'circle_id.required'         => 'حقل الحلقة مطلوب.',
+            'circle_id.integer'          => 'حقل الحلقة يجب أن يكون رقمًا صحيحًا.',
+            'circle_id.in'               => 'القيمة المختارة في حقل الحلقة غير صحيحة.',
 
-    public function attributes(): array
-    {
-        return [
-            'week_start'    => 'بداية الأسبوع',
-            'week_end'      => 'نهاية الأسبوع',
-            'circle_id'     => 'الحلقة',
-            'teacher_id'    => 'المعلم',
-            'study_days'    => 'أيام الدراسة',
-            'students'      => 'الطلاب',
-            'students.*.student_id' => 'الطالب',
-            'activities.*.activity_type' => 'نوع النشاط',
-            'activities.*.activity_name' => 'اسم النشاط',
-            'activities.*.activity_date' => 'تاريخ النشاط',
+            'teacher_id.required'        => 'حقل المعلم مطلوب.',
+            'teacher_id.integer'         => 'حقل المعلم يجب أن يكون رقمًا صحيحًا.',
+            'teacher_id.in'              => 'القيمة المختارة في حقل المعلم غير صحيحة.',
+
+            'week_start.required'        => 'حقل بداية الأسبوع مطلوب.',
+            'week_start.date'            => 'حقل بداية الأسبوع يجب أن يكون تاريخًا صحيحًا.',
+            'week_start.date_format'     => 'صيغة حقل بداية الأسبوع غير صحيحة.',
+
+            'week_end.required'          => 'حقل نهاية الأسبوع مطلوب.',
+            'week_end.date'              => 'حقل نهاية الأسبوع يجب أن يكون تاريخًا صحيحًا.',
+            'week_end.date_format'       => 'صيغة حقل نهاية الأسبوع غير صحيحة.',
+            'week_end.after_or_equal'    => 'حقل نهاية الأسبوع يجب أن يكون بعد أو مساويًا لبداية الأسبوع.',
+
+            'study_days.array'           => 'حقل أيام الدراسة يجب أن يكون قائمة.',
+            'study_days.*.in'            => 'القيمة المختارة في أيام الدراسة غير صحيحة.',
+
+            'students.required'          => 'يجب إضافة طالب واحد على الأقل.',
+            'students.array'             => 'حقل الطلاب يجب أن يكون قائمة.',
+            'students.min'               => 'يجب إضافة طالب واحد على الأقل.',
+
+            'students.*.student_id.required' => 'حقل الطالب مطلوب.',
+            'students.*.student_id.integer'  => 'حقل الطالب يجب أن يكون رقمًا صحيحًا.',
+            'students.*.student_id.exists'   => 'القيمة المختارة في حقل الطالب غير موجودة.',
+
+            'activities.*.activity_type.string' => 'حقل نوع النشاط يجب أن يكون نصًا.',
+            'activities.*.activity_type.max'    => 'حقل نوع النشاط يجب ألا يزيد عن 255 حرفًا.',
+
+            'activities.*.activity_name.string' => 'حقل اسم النشاط يجب أن يكون نصًا.',
+            'activities.*.activity_name.max'    => 'حقل اسم النشاط يجب ألا يزيد عن 255 حرفًا.',
+
+            'activities.*.activity_date.date'   => 'حقل تاريخ النشاط يجب أن يكون تاريخًا صحيحًا.',
+
+            // General fallback messages for remaining fields
+            'required'                   => 'هذا الحقل مطلوب.',
+            'integer'                    => 'هذا الحقل يجب أن يكون رقمًا صحيحًا.',
+            'string'                     => 'هذا الحقل يجب أن يكون نصًا.',
+            'array'                      => 'هذا الحقل يجب أن يكون قائمة.',
+            'min'                        => 'هذا الحقل يجب ألا يقل عن :min.',
+            'max'                        => 'هذا الحقل يجب ألا يزيد عن :max حرفًا.',
+            'date'                       => 'هذا الحقل يجب أن يكون تاريخًا صحيحًا.',
+            'date_format'                => 'صيغة هذا الحقل غير صحيحة.',
+            'after_or_equal'             => 'هذا الحقل يجب أن يكون بعد أو مساويًا للقيمة المحددة.',
+            'exists'                     => 'القيمة المختارة غير موجودة.',
+            'in'                         => 'القيمة المختارة غير صحيحة.',
         ];
     }
 }

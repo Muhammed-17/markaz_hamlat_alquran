@@ -70,8 +70,6 @@
     <div class="overflow-x-auto">
         <table class="w-full text-sm">
             @php
-            // ⚠️ helper بسيط لبناء رابط الفرز مع الحفاظ على باقي
-            // query string (الفلاتر الحالية) وعكس الاتجاه لو نفس العمود.
             $currentSort = request('sort', 'test_date');
             $currentDir = request('dir', 'desc');
             $sortLink = fn($field) => $filterAction . '?' . http_build_query(
@@ -147,16 +145,22 @@
 
                     <td class="px-3 py-3">
                         <div class="flex items-center justify-center gap-2">
+                            @can('view surah tests')
                             <a href="{{ route('surah-tests.show', $test) }}"
                                 class="text-[#0a5c36] hover:underline text-xs font-medium">عرض</a>
+                            @endcan
+                            @can('edit surah tests')
                             <a href="{{ route('surah-tests.edit', $test) }}"
                                 class="text-blue-600 hover:underline text-xs font-medium">تعديل</a>
+                            @endcan
+                            @can('delete surah tests')
                             <form action="{{ route('surah-tests.destroy', $test) }}" method="POST"
                                 onsubmit="return confirm('هل أنت متأكد من حذف هذا الاختبار؟');" class="inline">
                                 @csrf
                                 @method('DELETE')
                                 <button type="submit" class="text-red-600 hover:underline text-xs font-medium">حذف</button>
                             </form>
+                            @endcan
                         </div>
                     </td>
                 </tr>

@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Spatie\Permission\Traits\HasRoles;
 
 /**
  * @property int $id
@@ -35,13 +34,7 @@ use Spatie\Permission\Traits\HasRoles;
  */
 class SubscriptionPrice extends Model
 {
-    use HasRoles;
     protected $fillable = ['circle_level', 'education_stage', 'school_grade', 'amount'];
-
-    protected static function booted(): void
-    {
-        static::addGlobalScope(new \App\Models\Scopes\CenterScope());
-    }
 
     protected $casts = [
         'amount' => 'decimal:2',

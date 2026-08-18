@@ -94,7 +94,9 @@
                         <th class="px-6 py-4 text-sm font-bold text-gray-600">النوع</th>
                         <th class="px-6 py-4 text-sm font-bold text-gray-600">المستوى</th>
                         <th class="px-6 py-4 text-sm font-bold text-gray-600">المركز</th>
+                        @canany(['edit competition participants', 'delete competition participants'])
                         <th class="px-6 py-4 text-sm font-bold text-gray-600 text-left">الإجراءات</th>
+                        @endcanany
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100">
@@ -112,9 +114,11 @@
                         </td>
                         <td class="px-6 py-4 text-gray-600">{{ $participant->competitionLevel->level->name ?? '-' }}</td>
                         <td class="px-6 py-4 text-gray-600">{{ $participant->center->name ?? '-' }}</td>
+
+                        @canany(['edit competition participants', 'delete competition participants'])
                         <td class="px-6 py-4 text-left">
                             <div class="flex items-center justify-end gap-3">
-                                @can('update competition participants')
+                                @can('edit competition participants')
                                 <a href="{{ route('competitions.participants.edit', [$competition, $participant]) }}"
                                     class="text-emerald-500 hover:text-emerald-700 transition inline-block">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -140,6 +144,7 @@
                                 @endcan
                             </div>
                         </td>
+                        @endcanany
                     </tr>
                     @empty
                     <tr>

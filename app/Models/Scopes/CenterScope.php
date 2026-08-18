@@ -73,8 +73,8 @@ class CenterScope implements Scope
             return;
         }
 
-        if ($table === 'teachers') {
-            $builder->where('teachers.center_id', $teacher->center_id);
+        if ($table === 'teachers' || $table === 'educational_lessons') {
+            $builder->where("{$table}.center_id", $teacher->center_id);
             return;
         }
 
@@ -90,33 +90,34 @@ class CenterScope implements Scope
 
     private function applySupervisorTeachersScope(Builder $builder, string $table, Teacher $teacher): void
     {
-        if ($table === 'teachers') {
-            if (is_null($teacher->center_id)) {
-                $builder->whereRaw('1 = 0');
-                return;
-            }
-            $builder->where("{$table}.center_id", $teacher->center_id);
-            return;
-        }
-        $builder->whereRaw('1 = 0');
-    }
-
-    // Refactored: استقبال Teacher جاهز بدل استدعاء $access->teacher($user) مرة تانية
-    private function applyTeacherScope(Builder $builder, string $table, User $user, Teacher $teacher, UserAccessService $access): void
-    {
-        $circleIds = $access->teacherCircleIdsWithinCenter($user);
-
-        if ($circleIds->isEmpty()) {
+        if (is_null($teacher->center_id)) {
             $builder->whereRaw('1 = 0');
             return;
         }
 
-        if ($table === 'teachers') {
+        if ($table === 'teachers' || $table === 'educational_lessons') {
+            $builder->where("{$table}.center_id", $teacher->center_id);
+            return;
+        }
+
+        $builder->whereRaw('1 = 0');
+    }
+
+    private function applyTeacherScope(Builder $builder, string $table, User $user, Teacher $teacher, UserAccessService $access): void
+    {
+        if ($table === 'teachers' || $table === 'educational_lessons') {
             if (is_null($teacher->center_id)) {
                 $builder->whereRaw('1 = 0');
                 return;
             }
             $builder->where("{$table}.center_id", $teacher->center_id);
+            return;
+        }
+
+        $circleIds = $access->teacherCircleIdsWithinCenter($user);
+
+        if ($circleIds->isEmpty()) {
+            $builder->whereRaw('1 = 0');
             return;
         }
 
@@ -127,7 +128,6 @@ class CenterScope implements Scope
 
         $access->applyScopeByCircleIds($builder, $table, $circleIds);
     }
-
     // Refactored: حُذفت applyScopeByCircleIds المحلية بالكامل — انتقلت لـ UserAccessService
 
     public static function clearCache(): void

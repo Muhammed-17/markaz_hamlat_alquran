@@ -61,7 +61,7 @@
             :readonly="status !== 'pending'"
             :class="status !== 'pending' ? 'bg-gray-50 text-gray-500 pointer-events-none' : ''"
             value="{{ old('incident_at', isset($behavioralNote->incident_at) ? $behavioralNote->incident_at->format('Y-m-d\TH:i') : now()->format('Y-m-d\TH:i')) }}"
-            class="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-[#0a5c36] outline-none @error('incident_at') border-red-300 @enderror" required>
+            class="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-[#0a5c36] outline-none @error('incident_at') border-red-300 @enderror">
         @error('incident_at')<p class="text-red-500 text-xs mt-1">{{ $message }}</p>@enderror
     </div>
     <!-- وصف السلوك -->
@@ -71,7 +71,7 @@
             :readonly="status !== 'pending'"
             :class="status !== 'pending' ? 'bg-gray-50 text-gray-500' : ''"
             placeholder="صف الحادثة أو الملاحظة السلوكية بالتفصيل..."
-            class="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-[#0a5c36] outline-none @error('behavior') border-red-300 @enderror" required>{{ old('behavior', $behavioralNote->behavior ?? '') }}</textarea>
+            class="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-[#0a5c36] outline-none @error('behavior') border-red-300 @enderror">{{ old('behavior', $behavioralNote->behavior ?? '') }}</textarea>
         @error('behavior')<p class="text-red-500 text-xs mt-1">{{ $message }}</p>@enderror
     </div>
 

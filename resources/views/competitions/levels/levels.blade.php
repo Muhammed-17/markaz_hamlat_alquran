@@ -14,6 +14,7 @@
                 </svg>
                 رجوع للمسابقة
             </a>
+            @can('manage competitions')
             <a href="{{ route('competitions.levels.select', $competition) }}"
                 class="w-full md:w-auto px-6 py-3 bg-emerald-500 hover:bg-emerald-400 text-white font-bold rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg hover:shadow-emerald-500/20 active:scale-95">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -21,6 +22,7 @@
                 </svg>
                 إضافة مستوى
             </a>
+            @endcan
         </div>
 
         <div class="absolute -right-10 -bottom-10 w-40 h-40 bg-white/10 rounded-full blur-3xl"></div>
@@ -66,12 +68,15 @@
                         <td class="px-6 py-4 text-gray-600">{{ $competitionLevel->competition_examiner_levels_count }}</td>
                         <td class="px-6 py-4 text-left">
                             <div class="flex items-center justify-end gap-3">
+                                @can('view level questions')
                                 <a href="{{ route('competitions.level-questions', [$competition, 'level_id' => $competitionLevel->id]) }}"
                                     class="text-emerald-600 hover:text-emerald-800 transition" title="أسئلة المستوى">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                     </svg>
                                 </a>
+                                @endcan
+                                @can('manage competitions')
                                 <form action="{{ route('competitions.levels.destroy', [$competition, $competitionLevel]) }}" method="POST"
                                     onsubmit="confirmDelete(event, { name: '{{ e($competitionLevel->level->name ?? 'المستوى') }}', type: 'المستوى' })"
                                     class="text-red-400 hover:text-red-600 transition">
@@ -84,6 +89,7 @@
                                         </svg>
                                     </button>
                                 </form>
+                                @endcan
                             </div>
                         </td>
                     </tr>

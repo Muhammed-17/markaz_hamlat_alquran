@@ -23,29 +23,23 @@ class StoreGuardianAccountsRequest extends FormRequest
         ];
     }
 
-    public function attributes(): array
-    {
-        return [
-            'name'      => 'الاسم',
-            'email'     => 'البريد الإلكتروني',
-            'center_id' => 'الفرع',
-            'password'  => 'كلمة المرور',
-        ];
-    }
-
     public function messages(): array
     {
         return [
-            'name.required'       => 'حقل :attribute مطلوب.',
-            'name.max'            => 'يجب ألا يتجاوز :attribute :max حرفاً.',
-            'email.required'      => 'حقل :attribute مطلوب.',
-            'email.email'         => 'يجب أن يكون :attribute عنوان بريد إلكتروني صالحاً.',
-            'email.max'           => 'يجب ألا يتجاوز :attribute :max حرفاً.',
-            'email.unique'        => 'هذا :attribute مستخدم بالفعل.',
-            'center_id.exists'    => 'الفرع المحدد غير موجود.',
-            'password.required'   => 'حقل :attribute مطلوب.',
-            'password.confirmed'  => 'تأكيد :attribute غير متطابق.',
-            'password.min'        => 'يجب أن تكون :attribute على الأقل :min أحرف.',
+            'name.required' => 'الاسم مطلوب.',
+            'name.string'   => 'الاسم يجب أن يكون نصًا.',
+            'name.max'      => 'الاسم يجب ألا يتجاوز :max حرفًا.',
+
+            'email.required' => 'البريد الإلكتروني مطلوب.',
+            'email.email'    => 'البريد الإلكتروني يجب أن يكون عنوانًا صالحًا.',
+            'email.max'      => 'البريد الإلكتروني يجب ألا يتجاوز :max حرفًا.',
+            'email.unique'   => 'هذا البريد الإلكتروني مستخدم بالفعل.',
+
+            'center_id.exists' => 'الفرع المحدد غير موجود.',
+
+            'password.required'  => 'كلمة المرور مطلوبة.',
+            'password.confirmed' => 'تأكيد كلمة المرور غير متطابق.',
+            'password.min'       => 'كلمة المرور يجب أن تكون على الأقل :min أحرف.',
         ];
     }
 }

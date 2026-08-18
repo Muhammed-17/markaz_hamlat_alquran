@@ -49,6 +49,7 @@
     @if ($activeLevelId)
     <div class="flex items-center justify-between mb-4">
         <h2 class="text-lg font-bold text-gray-800">أسئلة هذا المستوى</h2>
+        @canall(['view level questions', 'create level questions'])
         <a href="{{ route('competitions.level-questions.create', [$competition, 'level_id' => $activeLevelId]) }}"
             class="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-white font-bold rounded-xl flex items-center gap-2 transition-all text-sm shadow-md">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -56,6 +57,7 @@
             </svg>
             إضافة سؤال جديد للمستوى
         </a>
+        @endcanall
     </div>
 
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
@@ -74,7 +76,7 @@
                     @forelse ($questions as $question)
                     @php
                     $otherExaminers = $question->competitionExaminers->reject(
-                        fn($ce) => $ce->id === $competitionExaminer->id
+                    fn($ce) => $ce->id === $competitionExaminer->id
                     );
                     $claimedByMe = $question->competitionExaminers->contains('id', $competitionExaminer->id);
                     $claimedByOthers = $otherExaminers->isNotEmpty();
@@ -101,16 +103,18 @@
                             </div>
                         </td>
                         <td class="px-6 py-4 text-left">
+                            @can('select examiner questions')
                             <form action="{{ route('competitions.questions.toggle-claim', [$competition, $competitionExaminer, $question]) }}" method="POST">
                                 @csrf
                                 <button type="submit"
                                     class="px-4 py-1.5 rounded-lg text-xs font-bold transition
-                                        {{ $claimedByMe
-                                            ? 'bg-red-50 text-red-600 hover:bg-red-100'
-                                            : 'bg-[#0a5c36] text-white hover:bg-[#084d2d]' }}">
+                                {{ $claimedByMe
+                                ? 'bg-red-50 text-red-600 hover:bg-red-100'
+                                : 'bg-[#0a5c36] text-white hover:bg-[#084d2d]' }}">
                                     {{ $claimedByMe ? 'إلغاء الاختيار' : 'اختيار السؤال' }}
                                 </button>
                             </form>
+                            @endcan
                         </td>
                     </tr>
                     @empty

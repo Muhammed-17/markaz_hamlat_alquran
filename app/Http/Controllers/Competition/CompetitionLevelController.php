@@ -15,7 +15,7 @@ class CompetitionLevelController extends Controller
      */
     public function index(Competition $competition)
     {
-        $this->authorize('update', $competition);
+        $this->authorize('view competitions');
 
         $competitionLevels = $competition->competitionLevels()
             ->with('level')
@@ -30,7 +30,7 @@ class CompetitionLevelController extends Controller
      */
     public function edit(Competition $competition)
     {
-        $this->authorize('update', $competition);
+        $this->authorize('manage competitions');
 
         $levels = Level::orderBy('name')->get();
         $selectedLevelIds = $competition->levels()->pluck('levels.id')->toArray();
@@ -40,7 +40,7 @@ class CompetitionLevelController extends Controller
 
     public function update(Request $request, Competition $competition)
     {
-        $this->authorize('update', $competition);
+        $this->authorize('manage competitions');
 
         $data = $request->validate([
             'level_ids'   => ['nullable', 'array'],
@@ -85,7 +85,7 @@ class CompetitionLevelController extends Controller
      */
     public function destroy(Competition $competition, CompetitionLevel $competitionLevel)
     {
-        $this->authorize('update', $competition);
+        $this->authorize('manage competitions');
 
         abort_unless($competitionLevel->competition_id === $competition->id, 404);
 

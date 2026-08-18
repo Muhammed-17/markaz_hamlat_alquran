@@ -11,6 +11,7 @@ use App\Http\Middleware\CheckUserStatus;
 use App\Http\Middleware\EnsureNotGuardian;
 use \App\Http\Middleware\UpdateLastSeen;
 use \App\Http\Middleware\PreventBackHistoryCache;
+use Illuminate\Support\Facades\Auth;
 
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -62,17 +63,17 @@ return Application::configure(basePath: dirname(__DIR__))
             }
 
             // ✅ Fallback حسب الدور — بدون أي رسالة
-            $user = auth()->user();
+            $user = Auth::user();
 
             $fallback = match (true) {
                 !$user                            => route('login'),
                 $user->hasRole('guardian')        => route('guardian.dashboard'),
                 $user->hasRole('admin')           => route('dashboard'),
-                $user->hasRole('general_manager') => route('dashboard'),
-                $user->hasRole('manager')         => route('dashboard'),
+                $user->hasRole('general_manager') => route('students.index'),
+                $user->hasRole('manager')         => route('students.index'),
                 $user->hasRole('supervisor')      => route('students.index'),
                 $user->hasRole('teacher')         => route('students.index'),
-                $user->hasRole('examiner')        => route('examiner.dashboard'), // ✅ أضف السطر ده
+                $user->hasRole('examiner')        => route('examiner.dashboard'),
                 default                           => route('login'),
             };
 

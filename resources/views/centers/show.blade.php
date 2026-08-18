@@ -42,17 +42,6 @@
         <div class="absolute -right-10 -bottom-10 w-40 h-40 bg-white/10 rounded-full blur-3xl"></div>
     </div>
 
-    <!-- @if(session('success'))
-    <div class="mb-6 p-4 bg-emerald-50 text-emerald-700 rounded-xl text-sm font-medium">
-        {{ session('success') }}
-    </div>
-    @endif
-    @if(session('error'))
-    <div class="mb-6 p-4 bg-red-50 text-red-700 rounded-xl text-sm font-medium">
-        {{ session('error') }}
-    </div>
-    @endif -->
-
     {{-- ─── تبويبات التنقل ─── --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 mb-6" id="center-tabs">
         <div class="flex border-b border-gray-100 overflow-x-auto">

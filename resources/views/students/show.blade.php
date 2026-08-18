@@ -1101,7 +1101,7 @@
                     <div class="p-6 lg:p-8 border-b border-gray-50 flex flex-wrap items-center justify-between gap-4">
                         <h3 class="text-[#0a5c36] font-black text-xl">اختبارات السور</h3>
                         @can('create', \App\Models\SurahTest::class)
-                        <a href="{{ route('surah-tests.create', ['type' => 'individual']) }}"
+                        <a href="{{ route('surah-tests.create.individual') }}"
                             class="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 rounded-xl text-white font-bold transition-all flex items-center gap-2 text-sm shadow-lg shadow-emerald-900/20">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />

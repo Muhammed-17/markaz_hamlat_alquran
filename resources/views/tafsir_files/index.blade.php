@@ -3,25 +3,31 @@
     <div class="max-w-6xl mx-auto py-6 px-4">
 
         {{-- Header --}}
-        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+        <div dir="rtl"
+            class="bg-[#0b3d2c] rounded-3xl p-6 lg:p-8 text-white relative overflow-hidden flex flex-col md:flex-row justify-between items-center shadow-xl gap-6 mb-8">
 
-            <div>
-                <h1 class="text-2xl font-bold text-gray-800">
-                    ملفات التفسير
-                </h1>
-
-                <p class="text-sm text-gray-500 mt-1">
+            <div class="text-right w-full md:w-auto z-10">
+                <h1 class="text-3xl font-black mb-2">ملفات التفسير</h1>
+                <p class="text-emerald-100/80 text-sm font-medium">
+                    @if($tafsirFiles->total())
+                    {{ $tafsirFiles->total() }} ملف تفسير مسجل في النظام
+                    @else
                     إدارة ملفات التفسير المستخدمة في المسابقات
+                    @endif
                 </p>
             </div>
 
-            <a href="{{ route('tafsir-files.create') }}"
-                class="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-[#0a5c36] hover:bg-[#084d2d] text-white rounded-xl font-bold transition-all shadow-sm">
+            <div class="flex flex-wrap items-center gap-4 w-full md:w-auto z-10">
+                <a href="{{ route('tafsir-files.create') }}"
+                    class="w-full md:w-auto px-6 py-3 bg-emerald-500 hover:bg-emerald-400 text-white font-bold rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg hover:shadow-emerald-500/20 active:scale-95">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                    </svg>
+                    إضافة ملف تفسير
+                </a>
+            </div>
 
-                <span class="text-lg">+</span>
-                إضافة ملف تفسير
-            </a>
-
+            <div class="absolute -right-10 -bottom-10 w-40 h-40 bg-white/10 rounded-full blur-3xl"></div>
         </div>
 
         {{-- Table --}}
@@ -96,7 +102,7 @@
 
                                     <form action="{{ route('tafsir-files.destroy', $tafsirFile) }}"
                                         method="POST"
-                                        onsubmit="return confirm('هل أنت متأكد من حذف ملف التفسير؟');">
+                                        onsubmit="confirmDelete(event, { name: '{{ e($tafsirFile->name) }}', type: 'ملف التفسير' })">
 
                                         @csrf
                                         @method('DELETE')

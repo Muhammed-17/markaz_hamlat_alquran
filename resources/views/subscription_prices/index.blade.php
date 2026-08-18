@@ -58,15 +58,6 @@
                     </button>
                 </div>
             </form>
-            @if ($errors->any())
-            <div class="mt-4 p-3 bg-red-50 text-red-700 rounded-lg text-sm">
-                <ul class="list-disc list-inside">
-                    @foreach ($errors->all() as $error)
-                    <li>{{ $error }}</li>
-                    @endforeach
-                </ul>
-            </div>
-            @endif
         </div>
 
         <!-- Prices Table -->

@@ -48,10 +48,14 @@
 
                 <div class="space-y-1">
                     <p class="text-sm font-bold text-gray-500">الحالة</p>
-                    @if ($question->competition_examiner_id)
-                    <span class="inline-block px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-[#0a5c36]">
-                        مُختار — {{ $question->competitionExaminer->examiner->user->name ?? '-' }}
-                    </span>
+                    @if ($question->competitionExaminers->isNotEmpty())
+                    <div class="flex flex-wrap gap-1">
+                        @foreach ($question->competitionExaminers as $competitionExaminer)
+                        <span class="inline-block px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-[#0a5c36]">
+                            {{ $competitionExaminer->examiner->user->name ?? '-' }}
+                        </span>
+                        @endforeach
+                    </div>
                     @else
                     <span class="inline-block px-2.5 py-1 rounded-full text-xs font-bold bg-yellow-50 text-yellow-700">متاح</span>
                     @endif
@@ -92,7 +96,7 @@
         </div>
 
         <div class="flex justify-end gap-4 border-t border-gray-100 pt-6">
-            @can('delete competitions')
+            @can('delete level questions')
             <form method="POST" action="{{ route('competitions.level-questions.destroy', [$competition, $question]) }}"
                 onsubmit="confirmDelete(event, { name: '{{ e($question->name) }}', type: 'السؤال' })">
                 @csrf
@@ -104,7 +108,7 @@
             </form>
             @endcan
 
-            @can('update', $competition)
+            @can('edit level questions')
             <a href="{{ route('competitions.level-questions.edit', [$competition, $question]) }}"
                 class="px-8 py-2.5 bg-[#0a5c36] hover:bg-[#084d2d] text-white rounded-xl font-bold transition-all shadow-md">
                 تعديل السؤال

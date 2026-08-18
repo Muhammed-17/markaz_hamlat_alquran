@@ -22,16 +22,9 @@ class AppServiceProvider extends ServiceProvider
         \App\Models\GroupSessionPlan::class => \App\Policies\GroupSessionPlanPolicy::class,
         \App\Models\Teacher::class => \App\Policies\TeacherPolicy::class,
         \App\Models\StudentWeeklyFollowup::class => \App\Policies\StudentWeeklyFollowupPolicy::class,
-        \App\Models\StudentConstructionDetail::class => \App\Policies\StudentConstructionDetailPolicy::class,
         \App\Models\Recommendation::class => \App\Policies\RecommendationPolicy::class,
         \App\Models\CollectionRound::class => \App\Policies\CollectionRoundPolicy::class,
         \App\Models\Competition::class => \App\Policies\CompetitionPolicy::class,
-        \App\Models\CompetitionParticipant::class => \App\Policies\CompetitionParticipantPolicy::class,
-        \App\Models\Examiner::class => \App\Policies\ExaminerPolicy::class,
-        \App\Models\CompetitionAnswer::class => \App\Policies\CompetitionAnswerPolicy::class,
-        \App\Models\CompetitionResult::class => \App\Policies\CompetitionResultPolicy::class,
-        \App\Models\TafsirFile::class => \App\Policies\TafsirFilePolicy::class,
-        \App\Models\ExternalParticipant::class => \App\Policies\ExternalParticipantPolicy::class,
 
     ];
 

@@ -24,7 +24,6 @@ class StoreCompetitionQuestionRequest extends FormRequest
 
     public function rules(): array
     {
-
         return [
             'competition_level_id' => ['required', 'integer', 'exists:competition_levels,id'],
             'name'  => ['required', 'string', 'max:255'],
@@ -44,52 +43,34 @@ class StoreCompetitionQuestionRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'competition_level_id.required' => 'يجب اختيار المستوى.',
-            'competition_level_id.integer'  => 'المستوى غير صالح.',
-            'competition_level_id.exists'   => 'المستوى المحدد غير موجود.',
+            'competition_level_id.required' => 'يجب اختيار مستوى المسابقة.',
+            'competition_level_id.integer'  => 'مستوى المسابقة غير صالح.',
+            'competition_level_id.exists'   => 'مستوى المسابقة المحدد غير موجود.',
 
-            'name.required' => 'اسم السؤال مطلوب.',
-            'name.string'   => 'اسم السؤال يجب أن يكون نصًا.',
-            'name.max'      => 'اسم السؤال يجب ألا يتجاوز :max حرفًا.',
+            'name.required' => 'عنوان السؤال مطلوب.',
+            'name.string'   => 'عنوان السؤال يجب أن يكون نصًا.',
+            'name.max'      => 'عنوان السؤال يجب ألا يتجاوز :max حرفًا.',
 
             'type.required' => 'نوع السؤال مطلوب.',
             'type.string'   => 'نوع السؤال غير صالح.',
             'type.in'       => 'نوع السؤال المحدد غير صالح.',
 
-            'score.required' => 'الدرجة مطلوبة.',
-            'score.numeric'  => 'الدرجة يجب أن تكون رقمًا.',
-            'score.min'      => 'الدرجة يجب ألا تقل عن :min.',
+            'score.required' => 'درجة السؤال مطلوبة.',
+            'score.numeric'  => 'درجة السؤال يجب أن تكون رقمًا.',
+            'score.min'      => 'درجة السؤال يجب ألا تقل عن :min.',
 
-            'memorization_from_surah_id.integer' => 'السورة (من) غير صالحة.',
-            'memorization_from_surah_id.exists'   => 'السورة المحددة (من) غير موجودة.',
-            'memorization_from_ayah.integer'      => 'رقم الآية (من) يجب أن يكون رقمًا صحيحًا.',
-            'memorization_from_ayah.min'          => 'رقم الآية (من) يجب ألا يقل عن :min.',
+            'memorization_from_surah_id.integer' => 'بداية السورة غير صالحة.',
+            'memorization_from_surah_id.exists'  => 'بداية السورة المحددة غير موجودة.',
+            'memorization_from_ayah.integer'     => 'بداية الآية يجب أن تكون رقمًا صحيحًا.',
+            'memorization_from_ayah.min'         => 'بداية الآية يجب ألا تقل عن :min.',
 
-            'memorization_to_surah_id.integer' => 'السورة (إلى) غير صالحة.',
-            'memorization_to_surah_id.exists'   => 'السورة المحددة (إلى) غير موجودة.',
-            'memorization_to_ayah.integer'      => 'رقم الآية (إلى) يجب أن يكون رقمًا صحيحًا.',
-            'memorization_to_ayah.min'          => 'رقم الآية (إلى) يجب ألا يقل عن :min.',
+            'memorization_to_surah_id.integer' => 'نهاية السورة غير صالحة.',
+            'memorization_to_surah_id.exists'  => 'نهاية السورة المحددة غير موجودة.',
+            'memorization_to_ayah.integer'     => 'نهاية الآية يجب أن تكون رقمًا صحيحًا.',
+            'memorization_to_ayah.min'         => 'نهاية الآية يجب ألا تقل عن :min.',
 
-            'content.string' => 'المحتوى يجب أن يكون نصًا.',
-            'notes.string'   => 'الملاحظات يجب أن تكون نصًا.',
-        ];
-    }
-
-    public function attributes(): array
-    {
-        return [
-            'competition_level_id' => 'المستوى',
-            'name'  => 'اسم السؤال',
-            'type'  => 'نوع السؤال',
-            'score' => 'الدرجة',
-
-            'memorization_from_surah_id' => 'السورة (من)',
-            'memorization_from_ayah'     => 'الآية (من)',
-            'memorization_to_surah_id'   => 'السورة (إلى)',
-            'memorization_to_ayah'       => 'الآية (إلى)',
-
-            'content' => 'المحتوى',
-            'notes'   => 'الملاحظات',
+            'content.string' => 'نص المحتوى يجب أن يكون نصًا.',
+            'notes.string'   => 'الملاحظات الإضافية يجب أن تكون نصًا.',
         ];
     }
 }

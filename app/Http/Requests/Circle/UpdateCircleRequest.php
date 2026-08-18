@@ -42,38 +42,18 @@ class UpdateCircleRequest extends FormRequest
             'teacher_id' => [
                 'required',
                 'exists:teachers,id',
-                $this->validateSameCenter($centerId, 'المعلم الرئيسي'),
             ],
 
             'assistant_teacher_id' => [
                 'nullable',
                 'exists:teachers,id',
-                $this->validateSameCenter($centerId, 'المعلم المساعد'),
             ],
 
             'supervisor_ids' => 'required|array|min:1',
             'supervisor_ids.*' => [
                 'exists:teachers,id',
-                $this->validateSameCenter($centerId, 'المشرف'),
             ],
         ];
-    }
-
-    private function validateSameCenter(int $centerId, string $roleName)
-    {
-        return function ($attribute, $value, $fail) use ($centerId, $roleName) {
-            if (!$value) return;
-
-            // ✅ السماح للـ admin بتعيين أي معلم
-            if (auth()->user()->hasRole(['admin', 'general_manager'])) {
-                return;
-            }
-
-            $teacher = \App\Models\Teacher::find($value);
-            if ($teacher && $teacher->center_id != $centerId) {
-                $fail("{$roleName} يجب أن يكون في نفس الفرع.");
-            }
-        };
     }
 
     public function messages(): array

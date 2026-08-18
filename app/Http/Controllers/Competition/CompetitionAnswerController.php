@@ -21,6 +21,7 @@ class CompetitionAnswerController extends Controller
      */
     public function competitions(): View
     {
+        $this->authorize('examine competition participants');
         $competitions = Competition::query()
             ->withCount(['competitionLevels'])
             ->latest()
@@ -34,6 +35,7 @@ class CompetitionAnswerController extends Controller
      */
     public function levels(Competition $competition): View
     {
+        $this->authorize('examine competition participants');
         $levels = $competition->competitionLevels()
             ->with('level')
             ->withCount(['competitionParticipants as participantsCount'])
@@ -54,6 +56,7 @@ class CompetitionAnswerController extends Controller
      */
     public function participants(Request $request, CompetitionLevel $competitionLevel): View
     {
+        $this->authorize('examine competition participants');
         $participants = $competitionLevel->competitionParticipants()
             ->with([
                 'student' => fn($query) => $query->withoutGlobalScope(CenterScope::class),
@@ -80,13 +83,6 @@ class CompetitionAnswerController extends Controller
             } else {
                 $participant->exam_status = 'testing';
             }
-
-            /*
-             * علامة "نتيجة يدوية": يعني في صف competition_results
-             * لكن بدون أي إجابات أسئلة خلفه — أي أن الأدمن أدخلها مباشرة
-             * وليست ناتجة عن اختبار فعلي. لو بدأ اختبار الأسئلة بعد كده
-             * وتم اعتماد النتيجة، هذه القيمة اليدوية ستُستبدل تلقائيًا.
-             */
             $participant->is_manual_result = $participant->competitionResult && $answeredCount === 0;
 
             return $participant;
@@ -100,6 +96,7 @@ class CompetitionAnswerController extends Controller
      */
     public function result(CompetitionParticipant $participant): View
     {
+        $this->authorize('examine competition participants');
         $totalQuestions = CompetitionQuestion::query()
             ->where('competition_level_id', $participant->competition_level_id)
             ->count();
@@ -129,6 +126,7 @@ class CompetitionAnswerController extends Controller
      */
     public function manualResultForm(CompetitionParticipant $participant): View
     {
+        $this->authorize('manage competitions');
         $this->authorize('examine', $participant);
 
         return view('competitions.results.manual', compact('participant'));

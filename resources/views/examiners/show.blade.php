@@ -22,7 +22,6 @@
             </div>
 
             <div class="flex flex-wrap items-center gap-3">
-                @can('edit examiners')
                 <a href="{{ route('examiners.edit', $examiner) }}"
                     class="px-5 py-2.5 bg-white/10 hover:bg-white/20 text-white font-bold rounded-xl flex items-center gap-2 transition-all">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -30,7 +29,6 @@
                     </svg>
                     تعديل المختبر
                 </a>
-                @endcan
                 <a href="{{ route('examiners.index') }}"
                     class="px-5 py-2.5 bg-white/10 hover:bg-white/20 text-white font-bold rounded-xl flex items-center gap-2 transition-all">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

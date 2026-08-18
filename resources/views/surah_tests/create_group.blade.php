@@ -3,7 +3,7 @@
 
         <div class="flex items-center justify-between">
             <h2 class="text-xl font-bold text-gray-800">إنشاء اختبار سورة (جماعي)</h2>
-            <a href="{{ route('surah-tests.create', ['type' => 'individual']) }}"
+            <a href="{{ route('surah-tests.create.individual') }}"
                 class="text-sm text-[#0a5c36] hover:underline">تحويل إلى اختبار فردي</a>
         </div>
 
@@ -20,7 +20,7 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                     </svg>
                     إلغاء
-                </>
+                </a>
                 <button type="submit"
                     class="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-[#0a5c36] text-white font-semibold hover:bg-[#0d7a48] transition-colors shadow-sm">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

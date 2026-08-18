@@ -22,23 +22,36 @@ class UpdateCompetitionAnswerRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'answered'               => ['required', 'boolean'],
-            'score'                  => ['required_if:answered,1', 'nullable', 'numeric', 'min:0', 'max:100'],
-            'memorization_mistakes'  => ['nullable', 'string', 'max:2000'],
-            'tashkeel_mistakes'      => ['nullable', 'string', 'max:2000'],
-            'notes'                  => ['nullable', 'string', 'max:2000'],
+            'answered'              => ['required', 'boolean'],
+            'score'                 => ['required_if:answered,1', 'nullable', 'numeric', 'min:0', 'max:100'],
+            'memorization_mistakes' => ['nullable', 'string', 'max:2000'],
+            'tashkeel_mistakes'     => ['nullable', 'string', 'max:2000'],
+            'notes'                 => ['nullable', 'string', 'max:2000'],
         ];
     }
 
     /**
      * @return array<string, string>
      */
-    public function attributes(): array
+    public function messages(): array
     {
         return [
-            'score'                 => 'الدرجة',
-            'memorization_mistakes' => 'أخطاء الحفظ',
-            'tashkeel_mistakes'     => 'أخطاء التشكيل',
+            'answered.required' => 'تحديد حالة الإجابة مطلوب.',
+            'answered.boolean'  => 'حالة الإجابة غير صالحة.',
+
+            'score.required_if' => 'الدرجة مطلوبة عند الإجابة على السؤال.',
+            'score.numeric'     => 'الدرجة يجب أن تكون رقمًا.',
+            'score.min'         => 'الدرجة يجب ألا تقل عن :min.',
+            'score.max'         => 'الدرجة يجب ألا تتجاوز :max.',
+
+            'memorization_mistakes.string' => 'أخطاء الحفظ يجب أن تكون نصًا.',
+            'memorization_mistakes.max'    => 'أخطاء الحفظ يجب ألا تتجاوز :max حرفًا.',
+
+            'tashkeel_mistakes.string' => 'أخطاء التشكيل يجب أن تكون نصًا.',
+            'tashkeel_mistakes.max'    => 'أخطاء التشكيل يجب ألا تتجاوز :max حرفًا.',
+
+            'notes.string' => 'الملاحظات يجب أن تكون نصًا.',
+            'notes.max'    => 'الملاحظات يجب ألا تتجاوز :max حرفًا.',
         ];
     }
 }

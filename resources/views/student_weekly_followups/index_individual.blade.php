@@ -1,31 +1,36 @@
 <x-layouts.markaz-layout>
     <div class="max-w-7xl mx-auto space-y-6">
         <!-- Header -->
-        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div>
-                <h2 class="text-2xl font-bold text-gray-900 flex items-center gap-3">
-                    <span class="w-10 h-10 rounded-lg bg-sky-600 text-white flex items-center justify-center">
+        <div class="bg-[#0b3d2c] rounded-3xl p-6 lg:p-8 text-white relative overflow-hidden flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shadow-xl">
+            <div class="relative z-10">
+                <h2 class="text-2xl font-bold text-white flex items-center gap-3">
+                    <span class="w-10 h-10 rounded-lg bg-white/10 text-white flex items-center justify-center">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                         </svg>
                     </span>
                     المتابعات الأسبوعية — فردي
                 </h2>
-                <p class="text-gray-500 mt-1 text-sm">إدارة خطط الحفظ والمراجعة الأسبوعية لكل طالب</p>
+                <p class="text-emerald-100/80 mt-1 text-sm">إدارة خطط الحفظ والمراجعة الأسبوعية لكل طالب</p>
             </div>
-            <div class="flex items-center gap-3">
+            <div class="flex items-center gap-3 relative z-10">
+                @can('create student weekly followups')
                 <a href="{{ route('student-weekly-followups.create-individual') }}"
-                    class="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-sky-600 text-white font-medium hover:bg-sky-700 transition-colors shadow-sm">
+                    class="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-white font-bold transition-colors shadow-lg hover:shadow-emerald-500/20 active:scale-95">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
                     </svg>
                     متابعة فردية جديدة
                 </a>
+                @if($circleAccess['group'])
                 <a href="{{ route('student-weekly-followups.index-group') }}"
-                    class="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border border-[#0a5c36] text-[#0a5c36] font-medium hover:bg-[#0a5c36]/5 transition-colors">
+                    class="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-white/10 hover:bg-white/20 text-white font-bold transition-all border border-white/20 active:scale-95">
                     عرض المتابعات الجماعية
                 </a>
+                @endif
             </div>
+
+            <div class="absolute -right-10 -bottom-10 w-40 h-40 bg-white/10 rounded-full blur-3xl"></div>
         </div>
 
         <!-- Stats Cards -->
@@ -90,12 +95,14 @@
                     searchPlaceholder="ابحث عن حلقة..."
                     :defaultValue="request('circle_id', '')" />
 
+                @if (auth()->user()->hasAnyRole(['admin', 'general_manager', 'manager', 'supervisor']))
                 <x-searchable-select
                     name="teacher_id"
                     :options="$filters['teachers']->map(fn($t) => ['value' => $t->id, 'label' => $t->user->name ?? $t->name])->values()"
                     placeholder="كل المعلمين"
                     searchPlaceholder="ابحث عن معلم..."
                     :defaultValue="request('teacher_id', '')" />
+                @endif
                 <input type="date" name="week_start"
                     class="rounded-lg border-gray-300 focus:border-[#0a5c36] focus:ring-[#0a5c36] text-sm"
                     value="{{ request('week_start') }}" placeholder="من تاريخ">

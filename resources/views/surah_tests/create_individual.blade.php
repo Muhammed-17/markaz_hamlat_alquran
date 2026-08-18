@@ -3,7 +3,7 @@
 
         <div class="flex items-center justify-between">
             <h2 class="text-xl font-bold text-gray-800">إنشاء اختبار سورة (فردي)</h2>
-            <a href="{{ route('surah-tests.create', ['type' => 'group']) }}"
+            <a href="{{ route('surah-tests.create.group') }}"
                 class="text-sm text-[#0a5c36] hover:underline">تحويل إلى اختبار جماعي</a>
         </div>
 

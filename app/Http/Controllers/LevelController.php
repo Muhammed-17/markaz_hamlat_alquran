@@ -16,13 +16,11 @@ use Illuminate\View\View;
  */
 class LevelController extends Controller
 {
-    // public function __construct()
-    // {
-    //     $this->authorizeResource(Level::class, 'level');
-    // }
 
     public function index(Request $request): View
     {
+        $this->authorize('manage competitions');
+
         $sort = $request->get('sort', 'name');
         $dir  = $request->get('dir', 'asc') === 'desc' ? 'desc' : 'asc';
 
@@ -45,11 +43,15 @@ class LevelController extends Controller
 
     public function create(): View
     {
+        $this->authorize('manage competitions');
+
         return view('levels.create');
     }
 
     public function store(StoreLevelRequest $request): RedirectResponse
     {
+        $this->authorize('manage competitions');
+
         Level::create($request->validated());
 
         return redirect()
@@ -59,6 +61,8 @@ class LevelController extends Controller
 
     public function show(Level $level): View
     {
+        $this->authorize('manage competitions');
+
         $level->loadCount('competitionLevels');
 
         return view('levels.show', compact('level'));
@@ -66,11 +70,15 @@ class LevelController extends Controller
 
     public function edit(Level $level): View
     {
+        $this->authorize('manage competitions');
+
         return view('levels.edit', compact('level'));
     }
 
     public function update(UpdateLevelRequest $request, Level $level): RedirectResponse
     {
+        $this->authorize('manage competitions');
+
         $level->update($request->validated());
 
         return redirect()
@@ -80,6 +88,8 @@ class LevelController extends Controller
 
     public function destroy(Level $level): RedirectResponse
     {
+        $this->authorize('manage competitions');
+
         if ($level->competitionLevels()->exists()) {
             return redirect()
                 ->route('levels.index')

@@ -99,12 +99,12 @@
                 <!-- ═══════════════ القسم العام (Non-Guardian) ═════════════════════ -->
                 <!-- ═══════════════════════════════════════════════════════════════ -->
 
-                @can('view dashboard')
+                @if (Auth::user()->hasRole('admin'))
                 <a href="{{ route('dashboard') }}"
                     class="block px-4 py-2 rounded-lg {{ request()->routeIs('dashboard') ? 'bg-[#0d7a48]' : 'hover:bg-[#0d7a48]' }}">
                     لوحة التحكم
                 </a>
-                @endcan
+                @endif
 
                 @can('view students')
                 <a href="{{ route('students.index') }}"
@@ -152,6 +152,21 @@
                 <!-- ═══════════════ قسم المتابعة   (student-weekly-followups) ══════════════════ -->
                 <!-- ═══════════════════════════════════════════════════════════════ -->
                 {{-- قسم المتابعة --}}
+                @php
+                $user = Auth::user();
+                $isCircleBoundRole = $user->hasRole(['teacher', 'supervisor']) && !$user->hasRole(['admin', 'general_manager', 'manager']);
+
+                if ($isCircleBoundRole) {
+                $circleTypes = app(\App\Services\UserAccessService::class)->teacherCircleTypes($user);
+                $canSeeGroupFollowup = $circleTypes->contains('group');
+                $canSeeIndividualFollowup = $circleTypes->contains('individual');
+                } else {
+                // admin / general_manager / manager: يشوفوا الاثنين دايماً (نطاقهم أوسع من حلقاتهم فقط)
+                $canSeeGroupFollowup = true;
+                $canSeeIndividualFollowup = true;
+                }
+                @endphp
+
                 @canany(['view student weekly followups', 'view behavioral notes'])
                 <div x-data="{ open: {{ request()->routeIs(['student-weekly-followups.*', 'group-session-plans.*', 'behavioral-notes.*']) ? 'true' : 'false' }} }" class="space-y-1">
                     <button @click="open = !open"
@@ -166,17 +181,21 @@
 
                     <div x-show="open" x-cloak class="pr-3 space-y-1 border-r border-white/10 mr-1">
                         @can('view student weekly followups')
+                        @if($canSeeGroupFollowup)
                         <a href="{{ route('student-weekly-followups.index-group') }}"
                             class="block px-4 py-2 rounded-lg text-[13px] {{ request()->routeIs('student-weekly-followups.index-group') ? 'bg-[#0d7a48] font-bold' : 'hover:bg-[#0d7a48]' }}">
                             المتابعة الجماعية
                         </a>
+                        @endif
                         @endcan
 
                         @can('view student weekly followups')
+                        @if($canSeeIndividualFollowup)
                         <a href="{{ route('student-weekly-followups.index-individual') }}"
                             class="block px-4 py-2 rounded-lg text-[13px] {{ request()->routeIs('student-weekly-followups.index-individual') ? 'bg-[#0d7a48] font-bold' : 'hover:bg-[#0d7a48]' }}">
                             المتابعة الفردية
                         </a>
+                        @endif
                         @endcan
 
                         @can('view behavioral notes')
@@ -219,9 +238,9 @@
                 @endcan
 
                 @can('view competitions')
-                <div x-data="{ open: {{ request()->routeIs(['competitions.*', 'levels.*', 'examiners.*', 'External-participants.*']) ? 'true' : 'false' }} }" class="space-y-1">
+                <div x-data="{ open: {{ request()->routeIs(['competitions.*', 'levels.*', 'examiners.*', 'external-participants.*','tafsir-files.*']) ? 'true' : 'false' }} }" class="space-y-1">
                     <button @click="open = !open"
-                        class="w-full flex items-center justify-between px-4 py-2 rounded-lg hover:bg-[#0d7a48] transition-colors focus:outline-none {{ request()->routeIs(['competitions.*', 'levels.*', 'examiners.*', 'External-participants.*']) ? 'bg-[#0d7a48]' : '' }}">
+                        class="w-full flex items-center justify-between px-4 py-2 rounded-lg hover:bg-[#0d7a48] transition-colors focus:outline-none {{ request()->routeIs(['competitions.*', 'levels.*', 'examiners.*', 'external-participants.*','tafsir-files.*']) ? 'bg-[#0d7a48]' : '' }}">
                         <span class="flex items-center gap-2">
                             <span>المسابقات</span>
                         </span>
@@ -236,10 +255,15 @@
                             class="block px-4 py-2 rounded-lg {{ request()->routeIs('competitions.*') ? 'bg-[#0d7a48]' : 'hover:bg-[#0d7a48]' }}">
                             المسابقة
                         </a>
-
+                        @can('manage competitions')
                         <a href="{{ route('levels.index') }}"
                             class="block px-4 py-2 rounded-lg text-[13px] {{ request()->routeIs('levels.*') ? 'bg-[#0d7a48] font-bold' : 'hover:bg-[#0d7a48]' }}">
                             المستويات
+                        </a>
+
+                        <a href="{{ route('tafsir-files.index') }}"
+                            class="block px-4 py-2 rounded-lg text-[13px] {{ request()->routeIs('tafsir-files.*') ? 'bg-[#0d7a48] font-bold' : 'hover:bg-[#0d7a48]' }}">
+                            ملفات التفسير
                         </a>
 
                         <a href="{{ route('examiners.index') }}"
@@ -251,12 +275,7 @@
                             class="block px-4 py-2 rounded-lg text-[13px] {{ request()->routeIs('external-participants.*') ? 'bg-[#0d7a48] font-bold' : 'hover:bg-[#0d7a48]' }}">
                             المشاركون الخارجيون
                         </a>
-
-                        <a href="{{ route('tafsir-files.index') }}"
-                            class="block px-4 py-2 rounded-lg text-[13px] {{ request()->routeIs('tafsir-files.*') ? 'bg-[#0d7a48] font-bold' : 'hover:bg-[#0d7a48]' }}">
-                            ملفات التفسير
-                        </a>
-
+                        @endcan
                     </div>
                 </div>
                 @endcan
@@ -279,13 +298,7 @@
                 <!-- ═══════════════════════════════════════════════════════════════ -->
                 <!-- ═══════════════ قسم الإعدادات (Settings) ═════════════════════ -->
                 <!-- ═══════════════════════════════════════════════════════════════ -->
-                @canany([
-                'manage guardians',
-                'edit profile',
-                'view centers',
-                'view subscription prices',
-                'manage roles',
-                ])
+                @if(auth()->user()->hasAnyRole('admin') || auth()->user()->canAny(['manage guardians', 'edit profile', 'view subscription prices', 'manage roles']))
                 <div x-data="{ open: {{ (request()->routeIs('guardians.*') || request()->routeIs('profile.*') || request()->routeIs('centers.*') || request()->routeIs('subscription-prices.*') || request()->routeIs('admin.roles.*')) ? 'true' : 'false' }} }" class="space-y-1">
                     <button @click="open = !open"
                         class="w-full flex items-center justify-between px-4 py-2 rounded-lg hover:bg-[#0d7a48] transition-colors focus:outline-none {{ (request()->routeIs('guardians.*') || request()->routeIs('profile.*') || request()->routeIs('centers.*') || request()->routeIs('subscription-prices.*') || request()->routeIs('admin.roles.*')) ? 'bg-[#0d7a48]' : '' }}">
@@ -308,12 +321,12 @@
                             الملف الشخصي
                         </a>
                         @endcan
-                        @can('view centers')
+                        @role('admin')
                         <a href="{{ route('centers.index') }}"
                             class="block px-4 py-2 rounded-lg text-[13px] {{ request()->routeIs('centers.*') ? 'bg-[#0d7a48] font-bold' : 'hover:bg-[#0d7a48]' }}">
                             الفروع
                         </a>
-                        @endcan
+                        @endrole
                         @can('view subscription prices')
                         <a href="{{ route('subscription-prices.index') }}"
                             class="block px-4 py-2 rounded-lg text-[13px] {{ request()->routeIs('subscription-prices.*') ? 'bg-[#0d7a48] font-bold' : 'hover:bg-[#0d7a48]' }}">
@@ -328,7 +341,7 @@
                         @endcan
                     </div>
                 </div>
-                @endcanany
+                @endif
                 @endif
 
                 <div class="pt-6 border-t border-white/10 mt-6">

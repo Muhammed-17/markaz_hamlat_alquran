@@ -27,36 +27,19 @@ class UpdateExternalParticipantRequest extends FormRequest
         $externalParticipant = $this->route('external_participant');
 
         return [
-            'name'             => ['required', 'string', 'max:255'],
-            'national_id'      => [
+            'name'            => ['required', 'string', 'max:255'],
+            'national_id'     => [
                 'nullable',
                 'string',
                 'max:20',
                 Rule::unique('external_participants', 'national_id')->ignore($externalParticipant->id),
             ],
-            'phone'            => ['nullable', 'string', 'max:20'],
-            'secondary_phone'  => ['nullable', 'string', 'max:20'],
-            'address'          => ['nullable', 'string', 'max:255'],
-            'date_of_birth'    => ['nullable', 'date', 'before:today'],
-            'gender'           => ['nullable', 'string', Rule::in(['male', 'female'])],
-            'notes'            => ['nullable', 'string'],
-        ];
-    }
-
-    /**
-     * @return array<string, string>
-     */
-    public function attributes(): array
-    {
-        return [
-            'name'            => 'الاسم',
-            'national_id'     => 'الرقم القومي',
-            'phone'           => 'رقم الهاتف',
-            'secondary_phone' => 'رقم الهاتف الإضافي',
-            'address'         => 'العنوان',
-            'date_of_birth'   => 'تاريخ الميلاد',
-            'gender'          => 'النوع',
-            'notes'           => 'ملاحظات',
+            'phone'           => ['nullable', 'string', 'max:20'],
+            'secondary_phone' => ['nullable', 'string', 'max:20'],
+            'address'         => ['nullable', 'string', 'max:255'],
+            'date_of_birth'   => ['date', 'before:today'],
+            'gender'          => ['string', Rule::in(['male', 'female'])],
+            'notes'           => ['nullable', 'string'],
         ];
     }
 
@@ -66,7 +49,30 @@ class UpdateExternalParticipantRequest extends FormRequest
     public function messages(): array
     {
         return [
+            'name.required' => 'الاسم مطلوب.',
+            'name.string'   => 'الاسم يجب أن يكون نصًا.',
+            'name.max'      => 'الاسم يجب ألا يتجاوز :max حرفًا.',
+
+            'national_id.string' => 'الرقم القومي يجب أن يكون نصًا.',
+            'national_id.max'    => 'الرقم القومي يجب ألا يتجاوز :max حرفًا.',
             'national_id.unique' => 'هذا الرقم القومي مسجَّل بالفعل لمشارك آخر.',
+
+            'phone.string' => 'رقم الهاتف يجب أن يكون نصًا.',
+            'phone.max'    => 'رقم الهاتف يجب ألا يتجاوز :max حرفًا.',
+
+            'secondary_phone.string' => 'رقم الهاتف الإضافي يجب أن يكون نصًا.',
+            'secondary_phone.max'    => 'رقم الهاتف الإضافي يجب ألا يتجاوز :max حرفًا.',
+
+            'address.string' => 'العنوان يجب أن يكون نصًا.',
+            'address.max'    => 'العنوان يجب ألا يتجاوز :max حرفًا.',
+
+            'date_of_birth.date'   => 'تاريخ الميلاد يجب أن يكون تاريخًا صحيحًا.',
+            'date_of_birth.before' => 'تاريخ الميلاد يجب أن يكون تاريخًا سابقًا لليوم.',
+
+            'gender.string' => 'النوع غير صالح.',
+            'gender.in'     => 'النوع المحدد غير صالح.',
+
+            'notes.string' => 'الملاحظات يجب أن تكون نصًا.',
         ];
     }
 }

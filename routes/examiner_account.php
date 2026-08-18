@@ -6,7 +6,7 @@ use App\Http\Controllers\Examiner\CompetitionExamController;
 use Illuminate\Support\Facades\Route;
 
 // ══════════════════ لوحة المختبر ══════════════════
-Route::middleware(['auth', 'role:examiner'])
+Route::middleware(['auth', 'verified','role:examiner'])
     ->prefix('examiner')
     ->name('examiner.')
     ->group(function () {

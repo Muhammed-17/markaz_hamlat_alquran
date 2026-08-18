@@ -13,7 +13,7 @@ class CompetitionLevelQuestionController extends Controller
 {
     public function index(Competition $competition, Request $request)
     {
-        $this->authorize('update', $competition);
+        $this->authorize('view level questions');
 
         $levels = $competition->competitionLevels()->with('level')->get();
         $activeLevelId = $request->get('level_id');
@@ -23,7 +23,7 @@ class CompetitionLevelQuestionController extends Controller
         if ($activeLevelId) {
             $questions = CompetitionQuestion::query()
                 ->where('competition_level_id', $activeLevelId)
-                ->with('competitionExaminer.examiner.user')
+                ->with('competitionExaminers.examiner.user')
                 ->latest()
                 ->get();
         }
@@ -38,7 +38,7 @@ class CompetitionLevelQuestionController extends Controller
 
     public function create(Competition $competition, Request $request)
     {
-        $this->authorize('update', $competition);
+        $this->authorize('create level question');
 
         return view('competitions.level_questions.create_level_question', [
             'competition'     => $competition,
@@ -50,7 +50,7 @@ class CompetitionLevelQuestionController extends Controller
 
     public function store(StoreCompetitionQuestionRequest $request, Competition $competition)
     {
-        $this->authorize('update', $competition);
+        $this->authorize('create level question');
 
         $levelId = $request->get('competition_level_id');
 
@@ -73,12 +73,17 @@ class CompetitionLevelQuestionController extends Controller
 
     public function show(Competition $competition, CompetitionQuestion $question)
     {
-        $this->authorize('update', $competition);
+        $this->authorize('view level question');
 
         $this->ensureQuestionBelongsToCompetition($competition, $question);
 
-        $question->load(['competitionLevel.level', 'competitionExaminer.examiner.user', 'memorizationFromSurah', 'memorizationToSurah']);
-
+        $question->load([
+            'competitionLevel.level',
+            'competitionExaminers.examiner.user',
+            'memorizationFromSurah',
+            'memorizationToSurah',
+        ]);
+        
         return view('competitions.level_questions.show_level_question', [
             'competition' => $competition,
             'question'    => $question,
@@ -87,7 +92,7 @@ class CompetitionLevelQuestionController extends Controller
 
     public function edit(Competition $competition, CompetitionQuestion $question)
     {
-        $this->authorize('update', $competition);
+        $this->authorize('edit level questions');
 
         $this->ensureQuestionBelongsToCompetition($competition, $question);
 
@@ -100,7 +105,7 @@ class CompetitionLevelQuestionController extends Controller
     }
     public function update(StoreCompetitionQuestionRequest $request, Competition $competition, CompetitionQuestion $question)
     {
-        $this->authorize('update', $competition);
+        $this->authorize('edit level questions');
 
         $this->ensureQuestionBelongsToCompetition($competition, $question);
 
@@ -124,7 +129,7 @@ class CompetitionLevelQuestionController extends Controller
 
     public function destroy(Competition $competition, CompetitionQuestion $question)
     {
-        $this->authorize('update', $competition);
+        $this->authorize('delete level questions');
 
         $this->ensureQuestionBelongsToCompetition($competition, $question);
 

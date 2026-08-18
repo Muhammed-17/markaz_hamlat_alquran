@@ -42,37 +42,53 @@ class StoreCircleRequest extends FormRequest
                 'exists:centers,id',
                 Rule::in($accessibleCenterIds),
             ],
-
-            'teacher_id' => [
+                        'teacher_id' => [
                 'required',
                 'exists:teachers,id',
-                $this->validateSameCenter('المعلم الرئيسي'),
             ],
 
             'assistant_teacher_id' => [
                 'nullable',
                 'exists:teachers,id',
-                $this->validateSameCenter('المعلم المساعد'),
             ],
 
             'supervisor_ids' => 'required|array|min:1',
             'supervisor_ids.*' => [
                 'exists:teachers,id',
-                $this->validateSameCenter('المشرف'),
             ],
         ];
     }
 
-    private function validateSameCenter(string $roleName)
-    {
-        return function ($attribute, $value, $fail) use ($roleName) {
-            if (!$value) return;
-            $teacher = \App\Models\Teacher::find($value);
-            if ($teacher && $teacher->center_id != $this->center_id) {
-                $fail("{$roleName} يجب أن يكون في نفس الفرع.");
-            }
-        };
-    }
+    //         'teacher_id' => [
+    //             'required',
+    //             'exists:teachers,id',
+    //             $this->validateSameCenter('المعلم الرئيسي'),
+    //         ],
+
+    //         'assistant_teacher_id' => [
+    //             'nullable',
+    //             'exists:teachers,id',
+    //             $this->validateSameCenter('المعلم المساعد'),
+    //         ],
+
+    //         'supervisor_ids' => 'required|array|min:1',
+    //         'supervisor_ids.*' => [
+    //             'exists:teachers,id',
+    //             $this->validateSameCenter('المشرف'),
+    //         ],
+    //     ];
+    // }
+
+    // private function validateSameCenter(string $roleName)
+    // {
+    //     return function ($attribute, $value, $fail) use ($roleName) {
+    //         if (!$value) return;
+    //         $teacher = \App\Models\Teacher::find($value);
+    //         if ($teacher && $teacher->center_id != $this->center_id) {
+    //             $fail("{$roleName} يجب أن يكون في نفس الفرع.");
+    //         }
+    //     };
+    // }
 
     public function messages(): array
     {

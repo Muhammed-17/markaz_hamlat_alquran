@@ -5,11 +5,9 @@ namespace App\Routes;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\BehavioralNoteController;
 
-Route::middleware(['auth', 'verified'])->group(function () {
-    Route::middleware('permission:view behavioral notes')->group(function () {
-        Route::get('/behavioral-notes', [BehavioralNoteController::class, 'index'])
-            ->name('behavioral-notes.index');
-    });
+Route::middleware(['auth', 'verified', 'permission:view behavioral notes'])->group(function () {
+    Route::get('/behavioral-notes', [BehavioralNoteController::class, 'index'])
+        ->name('behavioral-notes.index');
 
     Route::middleware('permission:create behavioral notes')->group(function () {
         Route::get('/behavioral-notes/create', [BehavioralNoteController::class, 'create'])
@@ -18,10 +16,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->name('behavioral-notes.store');
     });
 
-    Route::middleware('permission:view behavioral notes')->group(function () {
-        Route::get('/behavioral-notes/{behavioralNote}', [BehavioralNoteController::class, 'show'])
-            ->name('behavioral-notes.show');
-    });
+    Route::get('/behavioral-notes/{behavioralNote}', [BehavioralNoteController::class, 'show'])
+        ->name('behavioral-notes.show');
 
     Route::middleware('permission:edit behavioral notes')->group(function () {
         Route::get('/behavioral-notes/{behavioralNote}/edit', [BehavioralNoteController::class, 'edit'])

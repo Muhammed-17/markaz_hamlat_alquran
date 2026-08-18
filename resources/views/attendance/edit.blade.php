@@ -3,22 +3,6 @@
 
     <div class="max-w-2xl mx-auto py-8 px-4">
 
-        @if(session('success'))
-        <div class="mb-4 p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-700 font-bold">
-            {{ session('success') }}
-        </div>
-        @endif
-
-        @if($errors->any())
-        <div class="mb-4 p-4 bg-red-50 border border-red-200 rounded-xl">
-            <ul class="list-disc list-inside text-red-700 text-sm font-bold space-y-1">
-                @foreach($errors->all() as $error)
-                <li>{{ $error }}</li>
-                @endforeach
-            </ul>
-        </div>
-        @endif
-
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <h1 class="text-2xl font-bold text-gray-900 mb-6">تعديل سجل الحضور</h1>
 

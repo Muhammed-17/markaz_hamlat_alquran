@@ -4,13 +4,15 @@
         <div class="flex items-center justify-between">
             <h2 class="text-xl font-bold text-gray-800">اختبارات السور — جماعي</h2>
             <div class="flex gap-2">
-                <a href="{{ route('surah-tests.create', ['type' => 'group']) }}"
+                @can('create surah tests')
+                <a href="{{ route('surah-tests.create.group') }}"
                     class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#0a5c36] text-white text-sm font-semibold hover:bg-[#0d7a48] transition-colors shadow-sm">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
                     </svg>
                     اختبار جماعي جديد
                 </a>
+                @endcan
                 <a href="{{ route('surah-tests.index.individual') }}"
                     class="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-[#0a5c36] text-[#0a5c36] text-sm font-semibold hover:bg-[#0a5c36]/5 transition-colors">
                     عرض الاختبارات الفردية

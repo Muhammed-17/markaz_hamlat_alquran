@@ -23,7 +23,7 @@ $hasFilters = request()->anyFilled([
         {{-- Header --}}
         <div class="bg-[#0b3d2c] rounded-3xl p-6 lg:p-8 text-white relative overflow-hidden flex flex-col md:flex-row justify-between items-center shadow-xl gap-6">
             <div class="order-2 md:order-2 flex flex-wrap items-center gap-4 w-full md:w-auto">
-                @can('view students')
+                @can('create students')
                 <a href="{{ route('students.export', request()->query()) }}"
                     class="w-full md:w-auto px-6 py-3 bg-white/10 hover:bg-white/20 text-white font-bold rounded-2xl flex items-center justify-center gap-2 transition-all border border-white/20 active:scale-95">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -39,9 +39,6 @@ $hasFilters = request()->anyFilled([
                     </svg>
                     مراجعة مستثناة
                 </a>
-                @endcan
-
-                @can('create students')
                 <a href="{{ route('students.create') }}"
                     class="w-full md:w-auto px-6 py-3 bg-emerald-500 hover:bg-emerald-400 text-white font-bold rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg hover:shadow-emerald-500/20 active:scale-95">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -95,6 +92,7 @@ $hasFilters = request()->anyFilled([
             </div>
 
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                @if(auth()->check() && auth()->user()->hasAnyRole(['admin', 'general_manager', 'manager', 'supervisor']))
                 <div>
                     <label class="block text-xs font-bold text-gray-500 mb-1">الحالة</label>
                     <select name="status" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#10b981]/50">
@@ -104,17 +102,23 @@ $hasFilters = request()->anyFilled([
                         <option value="مسافر" @selected(request('status')==='مسافر' )>مسافر</option>
                     </select>
                 </div>
+                @endif
+
+                @if(auth()->check() && auth()->user()->hasAnyRole(['admin', 'general_manager', 'manager', 'supervisor']))
+                @if($circles->count() > 1)
                 <div>
                     <label class="block text-xs font-bold text-gray-500 mb-1">الحلقة</label>
-                    <select name="circle_id" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#10b981]/50">
-                        <option value="">كل الحلقات</option>
-                        @foreach($circles as $circle)
-                        <option value="{{ $circle->id }}" @selected((string) request('circle_id')===(string) $circle->id)>
-                            {{ $circle->name }}
-                        </option>
-                        @endforeach
-                    </select>
+                    <x-searchable-select
+                        name="circle_id"
+                        :options="$circles->map(fn($circle) => ['value' => (string) $circle->id, 'label' => $circle->name])->toArray()"
+                        placeholder="كل الحلقات"
+                        searchPlaceholder="ابحث عن حلقة..."
+                        :defaultValue="request('circle_id', '')" />
                 </div>
+                @endif
+                @endif
+
+                @if(auth()->check() && auth()->user()->hasAnyRole(['admin', 'general_manager', 'manager', 'supervisor','teacher']))
                 <div>
                     <label class="block text-xs font-bold text-gray-500 mb-1">المرحلة الدراسية</label>
                     <select name="educational_stage" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#10b981]/50">
@@ -124,9 +128,11 @@ $hasFilters = request()->anyFilled([
                         @endforeach
                     </select>
                 </div>
+                @endif
             </div>
 
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                @role('admin')
                 @if($centers->count() > 1)
                 <div>
                     <label class="block text-xs font-bold text-gray-500 mb-1">الفرع</label>
@@ -153,7 +159,9 @@ $hasFilters = request()->anyFilled([
                             class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#10b981]/50">
                     </div>
                 </div>
+                @endrole
 
+                @if(auth()->check() && auth()->user()->hasAnyRole(['admin', 'general_manager', 'manager', 'supervisor','teacher']))
                 <div>
                     <label class="block text-xs font-bold text-gray-500 mb-1">الصف الدراسي</label>
                     <select name="school_grade" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#10b981]/50">
@@ -163,11 +171,14 @@ $hasFilters = request()->anyFilled([
                         @endforeach
                     </select>
                 </div>
+                @endif
             </div>
 
+
             {{-- فلتر قرار الإدارة — للأدوار الإدارية فقط --}}
-            @if($canViewStudents)
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                @role('admin')
+                @if($canViewStudents)
                 <div>
                     <label class="block text-xs font-bold text-gray-500 mb-1">قرار الإدارة</label>
                     <select name="decision" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#10b981]/50">
@@ -177,8 +188,19 @@ $hasFilters = request()->anyFilled([
                         <option value="مرفوض" @selected(request('decision')==='مرفوض' )>مرفوض</option>
                     </select>
                 </div>
+                @endif
+                @endrole
+                @if(auth()->check() && auth()->user()->hasAnyRole(['admin', 'general_manager', 'manager', 'supervisor','teacher']))
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 mb-1">الجنس</label>
+                    <select name="gender" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#10b981]/50">
+                        <option value="">الكل</option>
+                        <option value="male" @selected(request('gender')==='male' )>ذكر</option>
+                        <option value="female" @selected(request('gender')==='female' )>أنثى</option>
+                    </select>
+                </div>
+                @endif
             </div>
-            @endif
 
         </form>
 

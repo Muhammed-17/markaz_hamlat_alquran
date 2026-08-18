@@ -21,12 +21,21 @@ $groupLabels = [
 
 ];
 
-$protectedRoles = ['admin', 'general_manager', 'manager', 'supervisor', 'teacher', 'guardian'];
+$protectedRoles = ['admin', 'general_manager', 'manager', 'supervisor', 'teacher', 'examiner', 'guardian'];
 @endphp
 
 <x-layouts.markaz-layout>
     <div class="max-w-7xl mx-auto space-y-8">
-<!-- 
+        @if($errors->any())
+        <div class="bg-red-50 text-red-700 p-4 rounded-xl border border-red-200">
+            <ul class="list-disc pr-5 space-y-1">
+                @foreach($errors->all() as $error)
+                <li class="text-sm">{{ $error }}</li>
+                @endforeach
+            </ul>
+        </div>
+        @endif
+        <!-- 
         {{-- ──────────────────────────────────────── --}}
         {{-- Section A: Create New Role               --}}
         {{-- ──────────────────────────────────────── --}}

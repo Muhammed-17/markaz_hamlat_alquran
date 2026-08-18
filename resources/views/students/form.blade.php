@@ -36,20 +36,6 @@ $isNextYearReg = ($regMonth >= 7 && $regMonth <= 9);
     @endphp
 
     <div id="student-form" class="space-y-8">
-
-        @if ($errors->any())
-        <div class="bg-red-50 border border-red-100 rounded-2xl p-5 space-y-3">
-            <div class="flex items-center justify-between gap-3">
-                <p class="text-red-700 font-bold text-sm">تعذر حفظ النموذج. راجع الحقول المطلوبة ثم أعد المحاولة.</p>
-            </div>
-            <ul class="text-red-700 text-sm list-disc pr-5 space-y-1">
-                @foreach ($errors->all() as $error)
-                <li>{{ $error }}</li>
-                @endforeach
-            </ul>
-        </div>
-        @endif
-
         <!-- ───────────────── بيانات المشرف والالتحاق ───────────────── -->
         <div id="step-1" class="bg-white rounded-3xl shadow-sm border border-gray-100 p-8 space-y-6">
             <div class="flex items-center gap-3 mb-6 border-b border-gray-50 pb-4">
@@ -102,6 +88,9 @@ $isNextYearReg = ($regMonth >= 7 && $regMonth <= 9);
                     @endif
 
                     <span data-error-for="supervisor_id" class="hidden text-red-500 text-xs font-medium">هذا الحقل مطلوب</span>
+                    @error('supervisor_id')
+                    <span class="text-red-500 text-xs mt-1 block font-semibold">{{ $message }}</span>
+                    @enderror
                 </div>
 
                 <div class="space-y-2">
@@ -110,6 +99,9 @@ $isNextYearReg = ($regMonth >= 7 && $regMonth <= 9);
                         value="{{ old('join_date', $student->join_date?->format('Y-m-d') ?? now()->format('Y-m-d')) }}"
                         class="w-full p-3 border rounded-2xl text-sm font-medium focus:outline-none focus:ring-1 transition-all">
                     <span data-error-for="join_date" class="hidden text-red-500 text-xs font-medium">هذا الحقل مطلوب</span>
+                    @error('join_date')
+                    <span class="text-red-500 text-xs mt-1 block font-semibold">{{ $message }}</span>
+                    @enderror
                 </div>
             </div>
         </div>
@@ -430,6 +422,9 @@ $isNextYearReg = ($regMonth >= 7 && $regMonth <= 9);
                                 value="{{ old('guardian_name') }}"
                                 placeholder="اسم ولي الأمر كاملًا"
                                 class="w-full p-3 bg-gray-50 border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36] focus:ring-1 focus:ring-[#0a5c36] transition-all">
+                            @error('guardian_name')
+                            <span class="text-red-500 text-xs mt-1 block font-semibold">{{ $message }}</span>
+                            @enderror
                         </div>
 
                         <div class="space-y-2">
@@ -444,6 +439,9 @@ $isNextYearReg = ($regMonth >= 7 && $regMonth <= 9);
                                 class="w-full p-3 bg-gray-50 border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36] focus:ring-1 focus:ring-[#0a5c36] transition-all">
                             {{-- ✅ نتيجة الفحص --}}
                             <div id="emailCheckResult" class="hidden text-xs font-medium mt-1"></div>
+                            @error('parent_email')
+                            <span class="text-red-500 text-xs mt-1 block font-semibold">{{ $message }}</span>
+                            @enderror
                         </div>
 
                         <div class="space-y-2">
@@ -452,6 +450,9 @@ $isNextYearReg = ($regMonth >= 7 && $regMonth <= 9);
                             <input type="password" name="password" id="passwordInput"
                                 placeholder="اتركها فارغة للتوليد التلقائي"
                                 class="w-full p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36] focus:ring-1 focus:ring-[#0a5c36] transition-all">
+                            @error('password')
+                            <span class="text-red-500 text-xs mt-1 block font-semibold">{{ $message }}</span>
+                            @enderror
                         </div>
                     </div>
                 </div>
@@ -641,6 +642,9 @@ $isNextYearReg = ($regMonth >= 7 && $regMonth <= 9);
                             </label>
                             @endforeach
                         </div>
+                        @error('reading')
+                        <span class="text-red-500 text-xs mt-1 block font-semibold">{{ $message }}</span>
+                        @enderror
                     </div>
 
                     <div class="space-y-4 pt-2">
@@ -676,6 +680,9 @@ $isNextYearReg = ($regMonth >= 7 && $regMonth <= 9);
                                 <span class="text-xs text-gray-500 mt-2 mr-5">مجالس الإجازات، القراءات والسند المتصل</span>
                             </label>
                         </div>
+                        @error('center_entry_level')
+                        <span class="text-red-500 text-xs mt-1 block font-semibold">{{ $message }}</span>
+                        @enderror
                     </div>
                 </div>
 
@@ -723,6 +730,9 @@ $isNextYearReg = ($regMonth >= 7 && $regMonth <= 9);
                             </option>
                             @endforeach
                         </select>
+                        @error('circle_id')
+                        <span class="text-red-500 text-xs mt-1 block font-semibold">{{ $message }}</span>
+                        @enderror
                     </div>
 
                     {{-- بطاقة معلومات خطة الحلقة الجماعية (عرض فقط، تساعد المشرف على القرار) --}}
@@ -754,6 +764,9 @@ $isNextYearReg = ($regMonth >= 7 && $regMonth <= 9);
                                 </option>
                                 @endforeach
                             </select>
+                            @error('current_surah_id')
+                            <span class="text-red-500 text-xs mt-1 block font-semibold">{{ $message }}</span>
+                            @enderror
                         </div>
 
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -763,6 +776,9 @@ $isNextYearReg = ($regMonth >= 7 && $regMonth <= 9);
                                     value="{{ old('new_memorization_plan', $construction->new_memorization_plan ?? '') }}"
                                     placeholder="مثال: 5 سطور يومياً"
                                     class="w-full p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36] focus:ring-1 focus:ring-[#0a5c36] transition-all">
+                                @error('new_memorization_plan')
+                                <span class="text-red-500 text-xs mt-1 block font-semibold">{{ $message }}</span>
+                                @enderror
                             </div>
                             <div class="space-y-2">
                                 <label class="block text-sm font-bold text-gray-700">خطة المراجعة <span class="text-red-500">*</span></label>
@@ -770,6 +786,9 @@ $isNextYearReg = ($regMonth >= 7 && $regMonth <= 9);
                                     value="{{ old('revision_plan', $construction->revision_plan ?? '') }}"
                                     placeholder="مثال: وجه يومياً"
                                     class="w-full p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36] focus:ring-1 focus:ring-[#0a5c36] transition-all">
+                                @error('revision_plan')
+                                <span class="text-red-500 text-xs mt-1 block font-semibold">{{ $message }}</span>
+                                @enderror
                             </div>
                             <div class="space-y-2">
                                 <label class="block text-sm font-bold text-gray-700">خطة الحفظ القديم <span class="text-red-500">*</span></label>
@@ -777,6 +796,9 @@ $isNextYearReg = ($regMonth >= 7 && $regMonth <= 9);
                                     value="{{ old('old_memorization_plan', $construction->old_memorization_plan ?? '') }}"
                                     placeholder="مثال: حزب أسبوعياً"
                                     class="w-full p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36] focus:ring-1 focus:ring-[#0a5c36] transition-all">
+                                @error('old_memorization_plan')
+                                <span class="text-red-500 text-xs mt-1 block font-semibold">{{ $message }}</span>
+                                @enderror
                             </div>
                         </div>
                     </div>
@@ -787,6 +809,9 @@ $isNextYearReg = ($regMonth >= 7 && $regMonth <= 9);
                         <textarea name="placement_evaluation" data-field="placement_evaluation" rows="3"
                             placeholder="نتائج تقييم التسكين..."
                             class="w-full p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-[#0a5c36] focus:ring-1 focus:ring-[#0a5c36] transition-all">{{ old('placement_evaluation', $construction->placement_evaluation ?? '') }}</textarea>
+                        @error('placement_evaluation')
+                        <span class="text-red-500 text-xs mt-1 block font-semibold">{{ $message }}</span>
+                        @enderror
                     </div>
                 </div>
 
@@ -808,6 +833,9 @@ $isNextYearReg = ($regMonth >= 7 && $regMonth <= 9);
                                 value="{{ old('previous_memorization_side', $itqan->previous_memorization_side ?? '') }}"
                                 placeholder="اسم المسجد، المركز، أو الشيخ السابق"
                                 class="w-full p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all">
+                            @error('previous_memorization_side')
+                            <span class="text-red-500 text-xs mt-1 block font-semibold">{{ $message }}</span>
+                            @enderror
                         </div>
                         <div class="space-y-2">
                             <label class="block text-sm font-bold text-gray-700">عدد الختمات السابقة <span class="text-red-500">*</span></label>
@@ -815,6 +843,9 @@ $isNextYearReg = ($regMonth >= 7 && $regMonth <= 9);
                                 value="{{ old('previous_khatamat_count', $itqan->previous_khatamat_count ?? '') }}"
                                 placeholder="مثال: ختمة واحدة أو أكثر"
                                 class="w-full p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all">
+                            @error('previous_khatamat_count')
+                            <span class="text-red-500 text-xs mt-1 block font-semibold">{{ $message }}</span>
+                            @enderror
                         </div>
                     </div>
 
@@ -824,6 +855,9 @@ $isNextYearReg = ($regMonth >= 7 && $regMonth <= 9);
                             value="{{ old('current_review_amount', $itqan->current_review_amount ?? '') }}"
                             placeholder="مثال: جزء يوميًّا، حزب، نصف جزء..."
                             class="w-full p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all">
+                        @error('current_review_amount')
+                        <span class="text-red-500 text-xs mt-1 block font-semibold">{{ $message }}</span>
+                        @enderror
                     </div>
 
                     <div class="space-y-2">
@@ -835,6 +869,9 @@ $isNextYearReg = ($regMonth >= 7 && $regMonth <= 9);
                                 <option value="{{ $i }}" @selected(old('self_evaluation', $itqan?->self_evaluation ?? 0) == $i)>{{ $i }}</option>
                                 @endfor
                         </select>
+                        @error('self_evaluation')
+                        <span class="text-red-500 text-xs mt-1 block font-semibold">{{ $message }}</span>
+                        @enderror
                     </div>
 
                     <div class="space-y-2">
@@ -844,6 +881,9 @@ $isNextYearReg = ($regMonth >= 7 && $regMonth <= 9);
                             :options="['لا يوجد', 'تحفة الأطفال', 'المقدمة الجزرية']"
                             :value="old('tajweed_matn', $itqan->tajweed_matn ?? '')"
                             placeholder="اختر أو اكتب متن التجويد..." />
+                        @error('tajweed_matn')
+                        <span class="text-red-500 text-xs mt-1 block font-semibold">{{ $message }}</span>
+                        @enderror
                     </div>
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -858,6 +898,9 @@ $isNextYearReg = ($regMonth >= 7 && $regMonth <= 9);
                                 </label>
                                 @endforeach
                             </div>
+                            @error('desired_path')
+                            <span class="text-red-500 text-xs mt-1 block font-semibold">{{ $message }}</span>
+                            @enderror
                         </div>
                         <div class="space-y-2">
                             <label class="block text-sm font-bold text-gray-700">الوقت المناسب للمجلس <span class="text-red-500">*</span></label>
@@ -871,6 +914,9 @@ $isNextYearReg = ($regMonth >= 7 && $regMonth <= 9);
                                 </label>
                                 @endforeach
                             </div>
+                            @error('preferred_time')
+                            <span class="text-red-500 text-xs mt-1 block font-semibold">{{ $message }}</span>
+                            @enderror
                         </div>
                     </div>
 
@@ -885,6 +931,9 @@ $isNextYearReg = ($regMonth >= 7 && $regMonth <= 9);
                         </option>
                         @endforeach
                     </select>
+                    @error('teacher_name')
+                    <span class="text-red-500 text-xs mt-1 block font-semibold">{{ $message }}</span>
+                    @enderror
                 </div>
 
                 <!-- ───────────────── مستوى الإبداع ───────────────── -->
@@ -903,6 +952,9 @@ $isNextYearReg = ($regMonth >= 7 && $regMonth <= 9);
                         <textarea name="previous_licenses_and_chains"
                             placeholder="يرجى ذكر الإجازات، اسم الشيخ المجيز، والمتن..."
                             class="w-full p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all min-h-25">{{ old('previous_licenses_and_chains', $ibda->previous_licenses_and_chains ?? '') }}</textarea>
+                        @error('previous_licenses_and_chains')
+                        <span class="text-red-500 text-xs mt-1 block font-semibold">{{ $message }}</span>
+                        @enderror
                     </div>
 
                     <div class="space-y-2">
@@ -911,6 +963,9 @@ $isNextYearReg = ($regMonth >= 7 && $regMonth <= 9);
                             value="{{ old('desired_narration_and_path', $ibda->desired_narration_and_path ?? '') }}"
                             placeholder="مثال: رواية ورش عن نافع، القراءات العشر..."
                             class="w-full p-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all">
+                        @error('desired_narration_and_path')
+                        <span class="text-red-500 text-xs mt-1 block font-semibold">{{ $message }}</span>
+                        @enderror
                     </div>
 
                     <div class="space-y-2">
@@ -936,6 +991,9 @@ $isNextYearReg = ($regMonth >= 7 && $regMonth <= 9);
                             </option>
                             @endforeach
                         </select>
+                        @error('supervisor_name')
+                        <span class="text-red-500 text-xs mt-1 block font-semibold">{{ $message }}</span>
+                        @enderror
                     </div>
                 </div>
             </div>
@@ -962,6 +1020,9 @@ $isNextYearReg = ($regMonth >= 7 && $regMonth <= 9);
                             value="{{ old('subscription_fees', $student->subscription_fees ?? '') }}"
                             placeholder="مثال: 150"
                             class="w-full p-3 bg-gray-50 border border-gray-200 rounded-2xl text-sm">
+                        @error('subscription_fees')
+                        <span class="text-red-500 text-xs mt-1 block font-semibold">{{ $message }}</span>
+                        @enderror
                     </div>
                     <div class="space-y-2">
                         <label class="block text-xs font-black text-gray-600">الأدوات والكتب المستلمة</label>
@@ -972,6 +1033,9 @@ $isNextYearReg = ($regMonth >= 7 && $regMonth <= 9);
                             <option value="{{ $val }}" @selected(old('received_tools', $student->received_tools ?? '') == $val)>{{ $lbl }}</option>
                             @endforeach
                         </select>
+                        @error('received_tools')
+                        <span class="text-red-500 text-xs mt-1 block font-semibold">{{ $message }}</span>
+                        @enderror
                     </div>
                 </div>
 
@@ -984,6 +1048,9 @@ $isNextYearReg = ($regMonth >= 7 && $regMonth <= 9);
                             <option value="{{ $statusOption }}" @selected(old('status', $student->status ?? 'مقيد') == $statusOption)>{{ $statusOption }}</option>
                             @endforeach
                         </select>
+                        @error('status')
+                        <span class="text-red-500 text-xs mt-1 block font-semibold">{{ $message }}</span>
+                        @enderror
                     </div>
                     @else
                     <input type="hidden" name="status" value="{{ old('status', $student->status ?? 'مقيد') }}">
@@ -997,6 +1064,9 @@ $isNextYearReg = ($regMonth >= 7 && $regMonth <= 9);
                             <option value="{{ $decisionOption }}" @selected(old('decision', $student->decision ?? 'تحت الاختبار') == $decisionOption)>{{ $decisionOption }}</option>
                             @endforeach
                         </select>
+                        @error('decision')
+                        <span class="text-red-500 text-xs mt-1 block font-semibold">{{ $message }}</span>
+                        @enderror
                     </div>
                     @else
                     <div class="space-y-2">
@@ -1021,6 +1091,9 @@ $isNextYearReg = ($regMonth >= 7 && $regMonth <= 9);
                     <textarea name="notes" data-field="notes"
                         placeholder="اكتب التوصيات الخاصة بمخارج الحروف والتجويد..."
                         class="w-full p-3 bg-gray-50 border border-gray-200 rounded-2xl text-sm min-h-25">{{ old('notes', $student->notes ?? '') }}</textarea>
+                    @error('notes')
+                    <span class="text-red-500 text-xs mt-1 block font-semibold">{{ $message }}</span>
+                    @enderror
                 </div>
             </div>
 

@@ -3,8 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Student\EditStudentRequest;
-use App\Http\Requests\Student\CreateStudentRequest;
+use App\Http\Requests\Student\UpdateStudentRequest;
+use App\Http\Requests\Student\StoreStudentRequest;
 use App\Models\Student;
 use App\Models\Circle;
 use App\Models\User;
@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use App\Traits\ResolvesUserScope;
 use \App\Services\EducationStageExclusionService;
+
 class StudentController extends Controller
 {
     use ResolvesUserScope;
@@ -91,7 +92,7 @@ class StudentController extends Controller
         $this->authorize('viewAny', Student::class);
 
         $user  = Auth::user();
-        $query = Student::query()
+                $query = Student::query()
             ->select([
                 'id',
                 'name',
@@ -104,6 +105,7 @@ class StudentController extends Controller
                 'student_code',
                 'whatsapp_number',
                 'school_grade',
+                'gender',
             ])
             ->with('circle:id,name');
 
@@ -127,6 +129,7 @@ class StudentController extends Controller
             ->when($request->center_id,         fn($q, $v) => $q->where('center_id', $v))
             ->when($request->educational_stage, fn($q, $v) => $q->where('educational_stage', $v))
             ->when($request->school_grade,      fn($q, $v) => $q->where('school_grade', $v))
+            ->when($request->gender,            fn($q, $v) => $q->where('gender', $v))
             ->when($request->decision,          fn($q, $v) => $q->where('decision', $v))
             ->when($request->age_min, fn($q, $v) => $q->whereRaw(
                 'TIMESTAMPDIFF(YEAR, date_of_birth, CURDATE()) >= ?',
@@ -166,9 +169,15 @@ class StudentController extends Controller
         $this->authorize('viewAny', Student::class);
 
         $filters = $request->only([
-            'q', 'status', 'circle_id', 'center_id',
-            'educational_stage', 'school_grade', 'decision',
-            'age_min', 'age_max',
+            'q',
+            'status',
+            'circle_id',
+            'center_id',
+            'educational_stage',
+            'school_grade',
+            'decision',
+            'age_min',
+            'age_max',
         ]);
 
         $fileName = 'الطلاب-' . now()->format('Y-m-d') . '.xlsx';
@@ -211,7 +220,7 @@ class StudentController extends Controller
         ]);
     }
     // ─────────────────────────────────────────
-    public function store(CreateStudentRequest $request)
+    public function store(StoreStudentRequest $request)
     {
         $this->authorize('create', Student::class);
 
@@ -393,7 +402,7 @@ class StudentController extends Controller
     }
 
     // ─────────────────────────────────────────
-    public function update(EditStudentRequest $request, $id)
+    public function update(UpdateStudentRequest $request, $id)
     {
         $student = Student::withoutGlobalScope(CenterScope::class)->findOrFail($id);
         $this->authorize('update', $student);

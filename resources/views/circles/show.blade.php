@@ -112,7 +112,7 @@
                 @if($groupPlan)
                 <div class="flex items-center gap-2">
                     {{-- تعديل خطة الحلقة الجماعية --}}
-                    @can('edit student construction details')
+                    @can('edit students')
                     <a href="{{ route('student-construction-details.edit', $groupPlan) }}"
                         class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-lg flex items-center gap-2 transition-all">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -141,7 +141,7 @@
                 </div>
                 @else
                 {{-- إضافة خطة للحلقة الجماعية --}}
-                @can('create student construction details')
+                @can('create students')
                 <a href="{{ route('student-construction-details.create', ['circle_id' => $circle->id]) }}"
                     class="px-4 py-2 bg-[#0a5c36] hover:bg-[#08492a] text-white text-sm font-bold rounded-lg flex items-center gap-2 transition-all">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

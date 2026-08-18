@@ -69,7 +69,7 @@ class RolePermissionController extends Controller
                 Rule::notIn(self::PROTECTED_ROLES), // لا يُنشئ role باسم محمي
             ],
             'display_name'  => 'nullable|string|max:100',
-            'permissions'   => 'nullable|array|max:50',
+            'permissions'   => 'nullable|array',
             'permissions.*' => ['integer', 'exists:permissions,id'],
         ], [
             'name.regex'    => 'اسم الدور يجب أن يحتوي على حروف إنجليزية صغيرة وشرطة سفلية فقط',
@@ -109,7 +109,7 @@ class RolePermissionController extends Controller
 
         // ① Validation
         $request->validate([
-            'permissions'   => 'nullable|array|max:50',
+            'permissions'   => 'nullable|array',
             'permissions.*' => ['integer', 'exists:permissions,id'],
         ]);
 

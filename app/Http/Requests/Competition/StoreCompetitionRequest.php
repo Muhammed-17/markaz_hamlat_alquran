@@ -20,12 +20,18 @@ class StoreCompetitionRequest extends FormRequest
         ];
     }
 
-    public function attributes(): array
+    public function messages(): array
     {
         return [
-            'name'        => 'اسم المسابقة',
-            'description' => 'الوصف',
-            'status'      => 'الحالة',
+            'name.required' => 'اسم المسابقة مطلوب.',
+            'name.string'   => 'اسم المسابقة يجب أن يكون نصًا.',
+            'name.max'      => 'اسم المسابقة يجب ألا يتجاوز :max حرفًا.',
+
+            'description.string' => 'الوصف يجب أن يكون نصًا.',
+
+            'status.required' => 'حالة المسابقة مطلوبة.',
+            'status.string'   => 'حالة المسابقة غير صالحة.',
+            'status.in'       => 'حالة المسابقة المحددة غير صالحة.',
         ];
     }
 }

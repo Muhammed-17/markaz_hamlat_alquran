@@ -13,7 +13,7 @@ class TafsirFileController extends Controller
      */
     public function index()
     {
-        $this->authorize('viewAny', TafsirFile::class);
+        $this->authorize('manage competitions');
 
         $tafsirFiles = TafsirFile::query()
             ->orderBy('name')
@@ -27,7 +27,7 @@ class TafsirFileController extends Controller
      */
     public function create()
     {
-        $this->authorize('create', TafsirFile::class);
+        $this->authorize('manage competitions');
 
         return view('tafsir_files.create');
     }
@@ -37,7 +37,7 @@ class TafsirFileController extends Controller
      */
     public function store(StoreTafsirFileRequest $request)
     {
-        $this->authorize('create', TafsirFile::class);
+        $this->authorize('manage competitions');
 
         TafsirFile::create($request->validated());
 
@@ -51,7 +51,7 @@ class TafsirFileController extends Controller
      */
     public function edit(TafsirFile $tafsirFile)
     {
-        $this->authorize('update', $tafsirFile);
+        $this->authorize('manage competitions');
 
         return view('tafsir_files.edit', compact('tafsirFile'));
     }
@@ -63,7 +63,7 @@ class TafsirFileController extends Controller
         UpdateTafsirFileRequest $request,
         TafsirFile $tafsirFile
     ) {
-        $this->authorize('update', $tafsirFile);
+        $this->authorize('manage competitions');
 
         $tafsirFile->update($request->validated());
 
@@ -77,7 +77,7 @@ class TafsirFileController extends Controller
      */
     public function destroy(TafsirFile $tafsirFile)
     {
-        $this->authorize('delete', $tafsirFile);
+        $this->authorize('manage competitions');
 
         $tafsirFile->delete();
 
