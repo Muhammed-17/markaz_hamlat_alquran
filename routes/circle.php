@@ -6,13 +6,13 @@ use App\Http\Controllers\CircleController;
 Route::middleware(['auth', 'verified', 'permission:view circles'])->group(function () {
 
     Route::get('/circles', [CircleController::class, 'index'])->name('circles.index');
-    Route::get('/circles/{circle}/group-plan', [CircleController::class, 'groupPlan'])->name('circles.group-plan');
-    Route::get('/circles/{circle}', [CircleController::class, 'show'])->name('circles.show');
 
     Route::middleware('permission:create circles')->group(function () {
         Route::get('/circles/create', [CircleController::class, 'create'])->name('circles.create');
         Route::post('/circles', [CircleController::class, 'store'])->name('circles.store');
     });
+
+    Route::get('/circles/{circle}/group-plan', [CircleController::class, 'groupPlan'])->name('circles.group-plan');
 
     Route::middleware('permission:edit circles')->group(function () {
         Route::get('/circles/{circle}/edit', [CircleController::class, 'edit'])->name('circles.edit');
@@ -22,4 +22,7 @@ Route::middleware(['auth', 'verified', 'permission:view circles'])->group(functi
     Route::middleware('permission:delete circles')->group(function () {
         Route::delete('/circles/{circle}', [CircleController::class, 'destroy'])->name('circles.destroy');
     });
+
+    // ✅ show({circle}) في الآخر عشان ميتقطش أي route ثابت زي create
+    Route::get('/circles/{circle}', [CircleController::class, 'show'])->name('circles.show');
 });

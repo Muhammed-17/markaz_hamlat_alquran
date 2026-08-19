@@ -66,10 +66,11 @@ return new class extends Migration
                 });
             }
 
-            // 3) احذف الـ index العادي المتبقي على العمود (لو موجود) - ده مش FK حقيقي
+            // 3) احذف الـ foreign key الأول (لازم قبل أي محاولة لحذف الـ index/العمود
+            //    لأن MySQL بيرفض حذف index مرتبط بـ FK constraint - error 1553)
             if (collect(DB::select("SHOW INDEX FROM competition_questions WHERE Key_name = 'competition_questions_competition_examiner_id_foreign'"))->isNotEmpty()) {
                 Schema::table('competition_questions', function (Blueprint $table) {
-                    $table->dropIndex('competition_questions_competition_examiner_id_foreign');
+                    $table->dropForeign('competition_questions_competition_examiner_id_foreign');
                 });
             }
 
