@@ -92,7 +92,7 @@ class StudentController extends Controller
         $this->authorize('viewAny', Student::class);
 
         $user  = Auth::user();
-                $query = Student::query()
+        $query = Student::query()
             ->select([
                 'id',
                 'name',
@@ -402,6 +402,7 @@ class StudentController extends Controller
     }
 
     // ─────────────────────────────────────────
+    // ─────────────────────────────────────────
     public function update(UpdateStudentRequest $request, $id)
     {
         $student = Student::withoutGlobalScope(CenterScope::class)->findOrFail($id);
@@ -443,6 +444,12 @@ class StudentController extends Controller
                 } elseif ($studentData['status'] !== 'متوقف') {
                     $studentData['suspended_at'] = null;
                 }
+            }
+
+
+            if (!$this->hasStudentChanges($student, $studentData, $data)) {
+                DB::rollBack();
+                return redirect()->route('students.index')->with('info', 'لم يتم إجراء أي تعديل.');
             }
 
             // ✅ حفظ الحلقة القديمة قبل التحديث لمقارنتها بعده
@@ -652,5 +659,69 @@ class StudentController extends Controller
         $guardian->update([
             'status' => $hasActiveStudents ? 'active' : 'inactive',
         ]);
+    }
+
+    // ✅ FIX: مقارنة بيانات الطالب الأساسية + تفاصيل المستوى الحالي (بناء/إتقان/إبداع)
+    // مقابل البيانات المُرسَلة، لتحديد هل يوجد تغيير فعلي يستحق التحديث
+    private function hasStudentChanges(Student $student, array $studentData, array $rawData): bool
+    {
+        // 1) مقارنة أعمدة جدول students مباشرة
+        foreach ($studentData as $key => $value) {
+            $current = $student->{$key};
+
+            // ✅ hobbies مخزّن كـ JSON/array — قارن بعد التطبيع
+            if ($key === 'hobbies') {
+                $currentArr = is_string($current) ? (json_decode($current, true) ?? []) : (array) ($current ?? []);
+                $incomingArr = is_string($value) ? (json_decode($value, true) ?? []) : (array) ($value ?? []);
+                sort($currentArr);
+                sort($incomingArr);
+                if ($currentArr !== $incomingArr) {
+                    return true;
+                }
+                continue;
+            }
+
+            // ✅ التواريخ (date_of_birth, join_date, suspended_at) قد تكون Carbon instances
+            if ($current instanceof \Illuminate\Support\Carbon) {
+                $currentStr = $current->format('Y-m-d');
+                $incomingStr = $value ? \Illuminate\Support\Carbon::parse($value)->format('Y-m-d') : null;
+                if ($currentStr !== $incomingStr) {
+                    return true;
+                }
+                continue;
+            }
+
+            if ((string) ($current ?? '') !== (string) ($value ?? '')) {
+                return true;
+            }
+        }
+
+        // 2) مقارنة تفاصيل المستوى الحالي (construction / mastery / creativity)
+        $entryLevel = $rawData['center_entry_level'] ?? $student->center_entry_level;
+
+        $detailMap = [
+            'construction' => ['relation' => 'constructionDetail', 'fields' => $this->constructionFields],
+            'mastery'      => ['relation' => 'itqanDetail',        'fields' => $this->itqanFields],
+            'creativity'   => ['relation' => 'ibdaDetail',         'fields' => $this->ibdaFields],
+        ];
+
+        if (isset($detailMap[$entryLevel])) {
+            $relation = $detailMap[$entryLevel]['relation'];
+            $fields   = $detailMap[$entryLevel]['fields'];
+            $detail   = $student->{$relation};
+
+            foreach ($fields as $field) {
+                if (!array_key_exists($field, $rawData)) continue;
+
+                $current  = $detail?->{$field};
+                $incoming = $rawData[$field];
+
+                if ((string) ($current ?? '') !== (string) ($incoming ?? '')) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 }

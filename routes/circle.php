@@ -23,6 +23,5 @@ Route::middleware(['auth', 'verified', 'permission:view circles'])->group(functi
         Route::delete('/circles/{circle}', [CircleController::class, 'destroy'])->name('circles.destroy');
     });
 
-    // ✅ show({circle}) في الآخر عشان ميتقطش أي route ثابت زي create
     Route::get('/circles/{circle}', [CircleController::class, 'show'])->name('circles.show');
 });

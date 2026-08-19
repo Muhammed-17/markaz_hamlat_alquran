@@ -846,6 +846,13 @@ class SubscriptionController extends Controller
             'notes'          => $validated['notes'] ?? null,
         ];
 
+        // ✅ FIX: طبقة حماية إضافية (server-side) — لو مفيش أي تغيير فعلي
+        // على بيانات الاشتراك، تجاهل التحديث بدل عمل UPDATE + Job (CalculateUnpaidMonths) غير ضروريين.
+        // ده احتياطي فقط؛ المنع الأساسي المفروض يكون بالـ JS في subscriptions/edit.blade.php
+        if (!$this->hasSubscriptionChanges($subscription, $data)) {
+            return redirect()->route('subscriptions.index')->with('info', 'لم يتم إجراء أي تعديل.');
+        }
+
         $collectionRoundItem = $subscription->collectionRoundItem;
         $isLockedByConfirmedRound = $collectionRoundItem && $collectionRoundItem->collectionRound?->status === 'confirmed';
 
@@ -864,6 +871,42 @@ class SubscriptionController extends Controller
         CalculateUnpaidMonths::dispatch($validated['student_id']);
 
         return redirect()->route('subscriptions.index')->with('success', 'تم تحديث الاشتراك بنجاح');
+    }
+
+    // ✅ FIX: مقارنة بيانات الاشتراك الحالية مقابل المُرسَلة لتحديد وجود تغيير فعلي
+    private function hasSubscriptionChanges(Subscription $subscription, array $data): bool
+    {
+        $comparableFields = [
+            'student_id',
+            'circle_id',
+            'teacher_id',
+            'status',
+            'amount',
+            'payment_method',
+            'collected_by',
+            'notes',
+        ];
+
+        foreach ($comparableFields as $field) {
+            $current  = $subscription->{$field};
+            $incoming = $data[$field] ?? null;
+
+            if ((string) ($current ?? '') !== (string) ($incoming ?? '')) {
+                return true;
+            }
+        }
+
+        // ✅ month مخزّن كـ date — قارن بصيغة موحدة
+        $currentMonth  = $subscription->month instanceof \Illuminate\Support\Carbon
+            ? $subscription->month->format('Y-m-d')
+            : (string) $subscription->month;
+        $incomingMonth = (string) ($data['month'] ?? '');
+
+        if ($currentMonth !== $incomingMonth) {
+            return true;
+        }
+
+        return false;
     }
 
     public function destroy(Subscription $subscription)

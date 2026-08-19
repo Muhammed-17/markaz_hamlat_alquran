@@ -18,6 +18,17 @@ class SubscriptionPriceController extends Controller
     {
         $validated = $request->validated();
 
+        $existing = SubscriptionPrice::where('circle_level', $validated['circle_level'])
+            ->where('education_stage', $validated['education_stage'])
+            ->first();
+
+        // ✅ FIX: طبقة حماية إضافية (server-side) — لو السعر موجود فعلاً بنفس القيمة،
+        // تجاهل التحديث بدل عمل UPDATE query غير ضروري.
+        // ده احتياطي فقط؛ المنع الأساسي المفروض يكون بالـ JS في subscription_prices/index.blade.php
+        if ($existing && (string) $existing->amount === (string) $validated['amount']) {
+            return redirect()->route('subscription-prices.index')->with('info', 'لم يتم إجراء أي تعديل على السعر.');
+        }
+
         SubscriptionPrice::updateOrCreate(
             [
                 'circle_level'    => $validated['circle_level'],

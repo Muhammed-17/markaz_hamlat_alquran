@@ -29,7 +29,7 @@
         ];
         @endphp
 
-        <form action="{{ route('student-weekly-followups.update', $studentWeeklyFollowup) }}" method="POST" class="space-y-6">
+        <form action="{{ route('student-weekly-followups.update', $studentWeeklyFollowup) }}" method="POST" id="weekly-followup-edit-form" class="space-y-6">
             @csrf
             @method('PUT')
 
@@ -148,4 +148,34 @@
             </div>
         </form>
     </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.querySelector('#weekly-followup-edit-form');
+            if (!form) return;
+
+            function serializeForm(formEl) {
+                const data = new FormData(formEl);
+                const obj = {};
+                for (const [key, value] of data.entries()) {
+                    if (obj[key] !== undefined) {
+                        obj[key] = Array.isArray(obj[key]) ? [...obj[key], value] : [obj[key], value];
+                    } else {
+                        obj[key] = value;
+                    }
+                }
+                return JSON.stringify(obj);
+            }
+
+            const initialSnapshot = serializeForm(form);
+
+            form.addEventListener('submit', function(e) {
+                const currentSnapshot = serializeForm(form);
+                if (currentSnapshot === initialSnapshot) {
+                    e.preventDefault();
+                    alert('لم تقم بأي تعديل على البيانات.');
+                }
+            });
+        });
+    </script>
 </x-layouts.markaz-layout>

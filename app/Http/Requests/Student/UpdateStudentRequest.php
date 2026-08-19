@@ -137,7 +137,6 @@ class UpdateStudentRequest extends FormRequest
             'parent_email.required_if' => 'البريد الإلكتروني مطلوب عند إضافة ولي أمر جديد',
             'parent_email.email'       => 'صيغة البريد الإلكتروني غير صحيحة',
             'circle_id.required_if'    => 'الحلقة مطلوبة لمستوى البناء',
-            'placement_evaluation.required_if' => 'تقييم التسكين مطلوب لمستوى البناء',
             'study_system.required_if' => 'نظام الدراسة مطلوب لمستوى البناء',
             'new_memorization_plan.required_if' => 'خطة الحفظ الجديد مطلوبة للنظام الفردي',
             'revision_plan.required_if'         => 'خطة المراجعة مطلوبة للنظام الفردي',

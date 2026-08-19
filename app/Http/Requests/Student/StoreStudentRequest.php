@@ -77,7 +77,6 @@ class StoreStudentRequest extends FormRequest
             'center_entry_level' => 'required|in:construction,mastery,creativity',
 
             // Step 6 - Construction
-            // ✅ FIX: بقت مطلوبة (فقط لمستوى البناء) بناءً على طلبك
             'placement_evaluation'  => 'required_if:center_entry_level,construction|nullable|string',
             'current_surah_id'      => 'nullable|integer|exists:surahs,id',
             'new_memorization_plan' => 'required_if:study_system,individual|nullable|string',
@@ -145,7 +144,6 @@ class StoreStudentRequest extends FormRequest
             'center_entry_level.in'     => 'مستوى الالتحاق غير صحيح',
             'study_system.required_if'  => 'نظام الدراسة مطلوب لمستوى البناء',
             'circle_id.required_if'     => 'الحلقة مطلوبة لمستوى البناء',
-            'placement_evaluation.required_if' => 'تقييم التسكين مطلوب لمستوى البناء',
             'new_memorization_plan.required_if' => 'خطة الحفظ الجديد مطلوبة للنظام الفردي',
             'revision_plan.required_if'         => 'خطة المراجعة مطلوبة للنظام الفردي',
             'old_memorization_plan.required_if' => 'خطة الحفظ القديم مطلوبة للنظام الفردي',

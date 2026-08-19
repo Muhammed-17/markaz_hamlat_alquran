@@ -209,13 +209,7 @@ class TeacherController extends Controller
     {
         $this->authorize('update', $teacher);
 
-        // منع تعديل الحساب المعطل إلا لمن لديه صلاحية خاصة
-        if ($teacher->user->status === 'inactive' && !$request->user()->can('activate inactive accounts')) {
-            return back()->with('error', 'لا يمكن تعديل حساب معطل. يرجى تفعيله أولاًّ.');
-        }
-
         DB::transaction(function () use ($request, $teacher) {
-
 
             // 1. تحديث بيانات المعلم
             $teacher->update([

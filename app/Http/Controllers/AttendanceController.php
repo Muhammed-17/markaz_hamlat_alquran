@@ -258,6 +258,14 @@ class AttendanceController extends Controller
 
         $validated = $request->validated();
 
+        // ✅ FIX: طبقة حماية إضافية (server-side) — لو مفيش أي تغيير فعلي
+        // على status/notes/date، تجاهل التحديث بدل عمل UPDATE query غير ضروري.
+        // ده احتياطي فقط؛ المنع الأساسي المفروض يكون بالـ JS في attendance/edit.blade.php
+        if (!$this->hasAttendanceChanges($attendance, $validated)) {
+            return redirect()->route('attendance.index')
+                ->with('info', 'لم يتم إجراء أي تعديل.');
+        }
+
         // ✅ التحقق من عدم وجود سجل آخر بنفس (student_id, date)
         if ($validated['date'] !== $attendance->date->format('Y-m-d')) {
             $exists = Attendance::where('student_id', $attendance->student_id)
@@ -280,6 +288,26 @@ class AttendanceController extends Controller
 
         return redirect()->route('attendance.index')
             ->with('success', 'تم تحديث سجل الحضور بنجاح');
+    }
+
+    // ✅ FIX: مقارنة status/notes/date الحالية مقابل المُرسَلة لتحديد وجود تغيير فعلي
+    private function hasAttendanceChanges(Attendance $attendance, array $validated): bool
+    {
+        if ($attendance->status !== $validated['status']) {
+            return true;
+        }
+
+        $currentNotes  = $attendance->notes ?? '';
+        $incomingNotes = $validated['notes'] ?? '';
+        if ((string) $currentNotes !== (string) $incomingNotes) {
+            return true;
+        }
+
+        if ($attendance->date->format('Y-m-d') !== $validated['date']) {
+            return true;
+        }
+
+        return false;
     }
 
     // ─────────────────────────────────────────

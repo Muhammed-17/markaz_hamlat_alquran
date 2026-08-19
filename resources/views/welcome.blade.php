@@ -140,7 +140,7 @@
                     <h3 class="text-2xl font-bold text-gray-900 mb-4 group-hover:text-emerald-700 transition-colors">
                         تقارير الإنجاز</h3>
                     <p class="text-gray-500 leading-relaxed font-medium">لوحة تحكم شاملة تعرض إحصائيات دقيقة حول مستوى
-                        الحفظ والالتزام لكل طالب وحلقة بشكل تفاعلي.</p>
+                        الحفظ والالتزام لكل طالب وحلقته بشكل تفاعلي.</p>
                 </div>
 
                 <!-- Feature 4 -->

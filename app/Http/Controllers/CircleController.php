@@ -237,6 +237,7 @@ class CircleController extends Controller
 
     // ─────────────────────────────────────────
     // ✅ FIX: IDOR - نفس الإصلاح لـ update()
+    
     public function update(UpdateCircleRequest $request, string $id)
     {
         $user = Auth::user();
@@ -279,10 +280,62 @@ class CircleController extends Controller
             $updateData['level'] = $request->level;
         }
 
+        if (!$this->hasCircleChanges($circle, $updateData, $request)) {
+            return redirect()->route('circles.index')->with('info', 'لم يتم إجراء أي تعديل.');
+        }
+
         $circle->update($updateData);
         $this->syncCircleStaff($circle, $request);
 
         return redirect()->route('circles.index')->with('success', 'تم تحديث الحلقة بنجاح');
+    }
+
+    // ─────────────────────────────────────────
+    // ✅ FIX: مقارنة بيانات الحلقة الأساسية + الطاقم الحالي مقابل المُرسَل
+    private function hasCircleChanges(Circle $circle, array $updateData, Request $request): bool
+    {
+        // 1) مقارنة الأعمدة الأساسية (name / type / level / center_id)
+        foreach ($updateData as $key => $value) {
+            if ((string) $circle->{$key} !== (string) $value) {
+                return true;
+            }
+        }
+
+        // 2) مقارنة الطاقم الحالي (معلم رئيسي/مساعد/مشرفين) بالمُرسَل
+        $current = DB::table('circle_teacher')
+            ->where('circle_id', $circle->id)
+            ->select('teacher_id', 'role')
+            ->get();
+
+        $currentMain       = optional($current->firstWhere('role', 'main'))->teacher_id;
+        $currentAssistant  = optional($current->firstWhere('role', 'assistant'))->teacher_id;
+        $currentSupervisors = $current->where('role', 'supervisor')
+            ->pluck('teacher_id')
+            ->map(fn($id) => (string) $id)
+            ->sort()
+            ->values()
+            ->all();
+
+        $incomingMain      = $request->teacher_id ? (string) $request->teacher_id : null;
+        $incomingAssistant = $request->assistant_teacher_id ? (string) $request->assistant_teacher_id : null;
+        $incomingSupervisors = array_unique(array_filter(
+            (array) ($request->supervisor_ids ?? []),
+            fn($id) => $id !== null && $id !== ''
+        ));
+        sort($incomingSupervisors);
+        $incomingSupervisors = array_values(array_map('strval', $incomingSupervisors));
+
+        if ((string) $currentMain !== (string) $incomingMain) {
+            return true;
+        }
+        if ((string) $currentAssistant !== (string) $incomingAssistant) {
+            return true;
+        }
+        if ($currentSupervisors !== $incomingSupervisors) {
+            return true;
+        }
+
+        return false;
     }
 
     // ─────────────────────────────────────────
@@ -346,6 +399,15 @@ class CircleController extends Controller
                 ->pluck('id')
                 ->toArray();
         }
+
+        // ✅ FIX: اسمح بالمعلمين/المشرفين المعيّنين أصلاً على الحلقة يعدّوا من غير فحص صلاحية،
+        // عشان "حفظ التعديلات" بدون تغيير أي حقل ميرميش استثناء لو الفورم بيبعت نفس القيم القديمة
+        $currentlyAssignedTeacherIds = DB::table('circle_teacher')
+            ->where('circle_id', $circle->id)
+            ->pluck('teacher_id')
+            ->toArray();
+
+        $accessibleTeacherIds = array_unique(array_merge($accessibleTeacherIds, $currentlyAssignedTeacherIds));
 
         // ✅ التحقق من المعلم الرئيسي
         if ($request->teacher_id) {

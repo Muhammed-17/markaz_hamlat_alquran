@@ -172,7 +172,8 @@ $roleColors = [
                         </td>
                         <td class="py-4 px-6">
                             @can('toggle', $teacher)
-                            <form method="POST" action="{{ route('teachers.toggle', $teacher) }}" onsubmit="return confirm('تغيير حالة الحساب؟')">
+                            <form method="POST" action="{{ route('teachers.toggle', $teacher) }}"
+                                onsubmit="confirmToggleStatus(event, { name: '{{ e($teacher->name) }}', isActive: {{ $teacher->user_status === 'active' ? 'true' : 'false' }} })">
                                 @csrf
                                 @method('PATCH')
                                 <button type="submit"
@@ -237,4 +238,36 @@ $roleColors = [
             <x-pagination :paginator="$teachers" />
         </div>
     </div>
+    <script>
+        function confirmToggleStatus(event, {
+            name,
+            isActive
+        }) {
+            event.preventDefault();
+            const form = event.target;
+
+            const actionText = isActive ? 'إيقاف' : 'تفعيل';
+            const actionColor = isActive ? '#ef4444' : '#10b981';
+
+            Swal.fire({
+                title: `${actionText} حساب ${name}؟`,
+                text: isActive ?
+                    'سيتم إيقاف حساب هذا المعلم ولن يتمكن من الدخول للنظام.' :
+                    'سيتم إعادة تفعيل حساب هذا المعلم.',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: actionColor,
+                cancelButtonColor: '#6b7280',
+                confirmButtonText: actionText,
+                cancelButtonText: 'إلغاء',
+                reverseButtons: true,
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    form.submit();
+                }
+            });
+
+            return false;
+        }
+    </script>
 </x-layouts.markaz-layout>

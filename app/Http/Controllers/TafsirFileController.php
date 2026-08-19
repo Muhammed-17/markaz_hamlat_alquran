@@ -65,7 +65,18 @@ class TafsirFileController extends Controller
     ) {
         $this->authorize('manage competitions');
 
-        $tafsirFile->update($request->validated());
+        $validated = $request->validated();
+
+        // ✅ FIX: طبقة حماية إضافية (server-side) — لو مفيش أي تغيير فعلي
+        // على بيانات ملف التفسير، تجاهل التحديث بدل عمل UPDATE query غير ضروري.
+        // ده احتياطي فقط؛ المنع الأساسي المفروض يكون بالـ JS في tafsir_files/edit.blade.php
+        if (!$this->hasTafsirFileChanges($tafsirFile, $validated)) {
+            return redirect()
+                ->route('tafsir-files.index')
+                ->with('info', 'لم يتم إجراء أي تعديل.');
+        }
+
+        $tafsirFile->update($validated);
 
         return redirect()
             ->route('tafsir-files.index')
@@ -84,5 +95,16 @@ class TafsirFileController extends Controller
         return redirect()
             ->route('tafsir-files.index')
             ->with('success', 'تم حذف ملف التفسير بنجاح.');
+    }
+
+    private function hasTafsirFileChanges(TafsirFile $tafsirFile, array $validated): bool
+    {
+        foreach ($validated as $key => $value) {
+            if ((string) ($tafsirFile->{$key} ?? '') !== (string) ($value ?? '')) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }
