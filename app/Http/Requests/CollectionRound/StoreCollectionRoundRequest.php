@@ -2,12 +2,11 @@
 
 namespace App\Http\Requests\CollectionRound;
 
-use App\Traits\ResolvesUserScope;
+use App\Services\UserAccessService;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreCollectionRoundRequest extends FormRequest
 {
-    use ResolvesUserScope;
 
     /**
      * تحديد ما إذا كان المستخدم مصرّحًا له بتقديم هذا الطلب
@@ -54,7 +53,7 @@ class StoreCollectionRoundRequest extends FormRequest
 
                     // تحقق إضافي: هل المنشئ المختار فعليًا مسؤول عن هذه الحلقة تحديدًا؟
                     $circleId = (int) $this->input('circle_id');
-                    if ($circleId && !$this->getAccessibleCircleIds($selectedUser)->contains($circleId)) {
+                    if ($circleId && !app(UserAccessService::class)->canAccessCircle($selectedUser, $circleId)) {
                         $fail('المنشئ المختار ليس مسؤولاً عن هذه الحلقة، لا يمكن تسجيل التحصيل باسمه.');
                     }
                 },

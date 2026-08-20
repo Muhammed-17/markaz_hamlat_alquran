@@ -4,12 +4,11 @@ namespace App\Http\Requests\Circle;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
-use App\Traits\ResolvesUserScope;
+use App\Services\UserAccessService;
 use App\Models\Circle;
 
 class StoreCircleRequest extends FormRequest
 {
-    use ResolvesUserScope;
 
 
     public function authorize(): bool
@@ -19,14 +18,18 @@ class StoreCircleRequest extends FormRequest
 
     public function rules(): array
     {
-        $user = $this->user();
-        $accessibleCenterIds = $this->getAccessibleCenters($user)->pluck('id');
+        $user   = $this->user();
+        $access = app(UserAccessService::class);
+        $accessibleCenterIds = $access->accessibleCenters($user)->pluck('id');
 
-        // ✅ FIX: للمشرف — أضف center_id من الحلقات التي يشرف عليها
+        // ✅ FIX: للمشرف — أضف مراكز الحلقات التي يشرف عليها (عبر الفرع، بعد إن circles.center_id اتشال)
         if ($user->hasRole('supervisor') && !$user->hasRole(['manager', 'admin', 'general_manager'])) {
-            $teacher = $this->getTeacherRecord($user);
+            $teacher = $access->teacher($user);
             $supervisorCenterIds = \App\Models\Circle::whereHas('supervisors', fn($q) => $q->where('teachers.id', $teacher?->id))
-                ->pluck('center_id')
+                ->with('branch')
+                ->get()
+                ->pluck('branch.center_id')
+                ->filter()
                 ->unique()
                 ->values();
             $accessibleCenterIds = $accessibleCenterIds->merge($supervisorCenterIds);
@@ -42,7 +45,7 @@ class StoreCircleRequest extends FormRequest
                 'exists:centers,id',
                 Rule::in($accessibleCenterIds),
             ],
-                        'teacher_id' => [
+            'teacher_id' => [
                 'required',
                 'exists:teachers,id',
             ],
@@ -116,8 +119,9 @@ class StoreCircleRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
-        $user = $this->user();
-        $teacher = $this->getTeacherRecord($user);
+        $user    = $this->user();
+        $access  = app(UserAccessService::class);
+        $teacher = $access->teacher($user);
 
         if (!$this->input('center_id')) {
             $centerId = $teacher?->center_id;
@@ -125,7 +129,7 @@ class StoreCircleRequest extends FormRequest
             if (!$centerId && $user->hasRole('supervisor')) {
                 $firstCircle = Circle::whereHas('supervisors', fn($q) => $q->where('teachers.id', $teacher?->id))
                     ->first();
-                $centerId = $firstCircle?->center_id;
+                $centerId = $firstCircle?->center_id; // عبر accessor في Circle model — آمن (property access مش query)
             }
 
             if ($centerId) {

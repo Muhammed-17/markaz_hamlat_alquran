@@ -4,12 +4,11 @@ namespace App\Http\Requests\Circle;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
-use App\Traits\ResolvesUserScope;
+use App\Services\UserAccessService;
 use App\Models\Circle;
 
 class UpdateCircleRequest extends FormRequest
 {
-    use ResolvesUserScope;
 
     public function authorize(): bool
     {
@@ -21,15 +20,15 @@ class UpdateCircleRequest extends FormRequest
     public function rules(): array
     {
         $circleId = $this->route('circle');
-        $circle = Circle::find($circleId);
+        $circle   = Circle::find($circleId);
+        $access   = app(UserAccessService::class);
 
         // ✅ تحديد المركز حسب الدور
         $centerId = $this->user()->hasRole(['admin', 'general_manager'])
             ? ($this->center_id ?? $circle?->center_id)
             : ($circle?->center_id ?? $this->center_id);
 
-        $accessibleCenterIds = $this->getAccessibleCenters($this->user())->pluck('id');
-
+        $accessibleCenterIds = $access->accessibleCenters($this->user())->pluck('id');
         return [
             'name' => ['sometimes', 'required', 'string', 'max:255', 'unique:circles,name,' . $circleId],
             'type' => 'sometimes|required|string',
