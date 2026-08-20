@@ -87,7 +87,7 @@ class SurahTestController extends Controller
             ->withAvg('results', 'percentage')
             ->where('test_type', $fixedType)
             ->when($request->filled('center_id'), fn($q) => $q->whereHas(
-                'circle',
+                'circle.branch',
                 fn($cq) => $cq->where('center_id', $request->center_id)
             ))
             ->when($request->filled('circle_id'), fn($q) => $q->where('circle_id', $request->circle_id))
@@ -128,19 +128,9 @@ class SurahTestController extends Controller
             ->where('level', 'إعادة');
 
         if (!$user->hasAnyRole(['admin', 'general_manager'])) {
-            if ($user->hasRole('manager')) {
-                $query->whereHas('student.circle', fn($cq) => $cq->where('center_id', $user->center_id));
-            } elseif ($user->hasRole('supervisor')) {
-                $teacher = Teacher::where('user_id', $user->id)->first();
+            $accessibleCircleIds = $access->accessibleCircles($user)->pluck('id');
 
-                $supervisedCircleIds = $teacher
-                    ? Circle::circleIdsForTeacher($teacher->id, ['supervisor'])
-                    : collect();
-
-                $query->whereHas('student', fn($sq) => $sq->whereIntegerInRaw('circle_id', $supervisedCircleIds));
-            } else {
-                $query->whereRaw('1 = 0');
-            }
+            $query->whereHas('student', fn($sq) => $sq->whereIntegerInRaw('circle_id', $accessibleCircleIds));
         }
 
         $results = $query
@@ -233,7 +223,7 @@ class SurahTestController extends Controller
         }
 
         $centerId = Circle::withoutGlobalScope(CenterScope::class)
-            ->find($circleId)?->center_id;
+            ->find($circleId)?->branch?->center_id;
 
         if (!$centerId) {
             return back()
@@ -370,7 +360,7 @@ class SurahTestController extends Controller
         }
 
         $centerId = Circle::withoutGlobalScope(CenterScope::class)
-            ->find($validated['circle_id'])?->center_id;
+            ->find($validated['circle_id'])?->branch?->center_id;
 
         if (!$centerId) {
             return back()

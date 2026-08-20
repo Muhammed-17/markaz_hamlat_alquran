@@ -4,11 +4,11 @@ namespace App\Policies;
 
 use App\Models\Subscription;
 use App\Models\User;
-use App\Traits\ResolvesUserScope;
+use App\Services\UserAccessService;
 
 class SubscriptionPolicy
 {
-    use ResolvesUserScope;
+    public function __construct(protected UserAccessService $access) {}
 
     public function viewAny(User $user): bool
     {
@@ -46,17 +46,12 @@ class SubscriptionPolicy
     }
 
     private function canAccessSubscription(User $user, Subscription $subscription): bool
+        private function canAccessSubscription(User $user, Subscription $subscription): bool
     {
         if ($user->hasAnyRole(['admin', 'general_manager'])) return true;
 
-        $teacher = $this->getTeacherRecord($user);
-        if (!$teacher) return false;
+        if (!$subscription->student->circle_id) return false;
 
-        if ($user->hasRole('manager')) {
-            return $subscription->student->circle?->center_id === $teacher->center_id;
-        }
-
-        return $this->getAccessibleCircleIds($user)
-            ->contains($subscription->student->circle_id);
+        return $this->access->canAccessCircle($user, $subscription->student->circle_id);
     }
 }

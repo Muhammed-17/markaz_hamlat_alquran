@@ -3,11 +3,12 @@
 namespace App\Policies;
 
 use App\Models\User as UserModel;
-use App\Traits\ResolvesUserScope;
+use App\Models\Teacher;
+use App\Services\UserAccessService;
 
 class UserPolicy
 {
-    use ResolvesUserScope;
+    public function __construct(protected UserAccessService $access) {}
 
     public function viewAny(UserModel $user): bool
     {
@@ -21,9 +22,12 @@ class UserPolicy
         if (!$user->can('view users')) return false;
         if ($user->hasRole('admin')) return true;
 
-        // manager → مستخدمي فرعه بس
-        $record = $this->getTeacherRecord($user);
-        return $record && $model->center_id === $record->center_id;
+        // manager → مستخدمي فرعه بس (عبر سجل Teacher المرتبط بكل طرف)
+        $record = $this->access->teacher($user);
+        if (!$record) return false;
+
+        $modelTeacher = Teacher::where('user_id', $model->id)->first();
+        return $modelTeacher && $modelTeacher->center_id === $record->center_id;
     }
 
     public function create(UserModel $user): bool
@@ -38,9 +42,12 @@ class UserPolicy
         if (!$user->can('edit users')) return false;
         if ($user->hasRole('admin')) return true;
 
-        // manager → مستخدمي فرعه بس
-        $record = $this->getTeacherRecord($user);
-        return $record && $model->center_id === $record->center_id;
+        // manager → مستخدمي فرعه بس (عبر سجل Teacher المرتبط بكل طرف)
+        $record = $this->access->teacher($user);
+        if (!$record) return false;
+
+        $modelTeacher = Teacher::where('user_id', $model->id)->first();
+        return $modelTeacher && $modelTeacher->center_id === $record->center_id;
     }
 
     public function delete(UserModel $user, UserModel $model): bool

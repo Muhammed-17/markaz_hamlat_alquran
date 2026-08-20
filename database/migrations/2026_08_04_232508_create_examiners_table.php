@@ -18,6 +18,8 @@ return new class extends Migration
                 ->constrained()
                 ->cascadeOnDelete();
 
+            $table->foreignId('center_id')->nullable()->constrained('centers')->nullOnDelete();
+
             $table->unsignedBigInteger('phone')->nullable();
             $table->unsignedBigInteger('secondary_phone')->nullable();
 

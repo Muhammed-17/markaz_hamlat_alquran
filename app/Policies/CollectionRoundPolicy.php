@@ -4,11 +4,11 @@ namespace App\Policies;
 
 use App\Models\CollectionRound;
 use App\Models\User;
-use App\Traits\ResolvesUserScope;
+use App\Services\UserAccessService;
 
 class CollectionRoundPolicy
 {
-    use ResolvesUserScope;
+    public function __construct(protected UserAccessService $access) {}
 
     public function viewAny(User $user): bool
     {
@@ -75,6 +75,6 @@ class CollectionRoundPolicy
 
     private function userCanAccessCircle(User $user, int $circleId): bool
     {
-        return $this->getAccessibleCircleIds($user)->contains($circleId);
+        return $this->access->canAccessCircle($user, $circleId);
     }
 }

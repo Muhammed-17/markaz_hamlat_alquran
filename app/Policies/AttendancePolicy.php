@@ -4,11 +4,11 @@ namespace App\Policies;
 
 use App\Models\Attendance;
 use App\Models\User;
-use App\Traits\ResolvesUserScope;
+use App\Services\UserAccessService;
 
 class AttendancePolicy
 {
-    use ResolvesUserScope;
+    public function __construct(protected UserAccessService $access) {}
 
     public function viewAny(User $user): bool
     {
@@ -54,19 +54,11 @@ class AttendancePolicy
 
         return true;
     }
-    
+
     private function userCanManageAttendance(User $user, Attendance $attendance): bool
     {
-        $teacher = $this->getTeacherRecord($user);
-        if (!$teacher) return false;
+        if (!$attendance->student->circle_id) return false;
 
-        // manager → طلاب فرعه
-        if ($user->hasRole('manager')) {
-            return $attendance->student->center_id === $teacher->center_id;
-        }
-
-        // supervisor/teacher → حلقاتهم
-        $circleIds = $this->getAccessibleCircleIds($user);
-        return $circleIds->contains($attendance->student->circle_id);
+        return $this->access->canAccessCircle($user, $attendance->student->circle_id);
     }
 }
