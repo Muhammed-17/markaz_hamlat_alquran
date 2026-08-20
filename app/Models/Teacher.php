@@ -39,6 +39,7 @@ class Teacher extends Model
         'name',
         'user_id',
         'center_id',
+        'branch_id',
     ];
 
     protected static function booted(): void
@@ -48,6 +49,24 @@ class Teacher extends Model
     public function center()
     {
         return $this->belongsTo(Center::class);
+    }
+
+    /**
+     * الفرع اللي المعلم تابع له مباشرة (branch_id على teachers).
+     */
+    public function branch()
+    {
+        return $this->belongsTo(Branch::class);
+    }
+
+    /**
+     * الفروع اللي المعلم مشرف عليها (many-to-many عبر branch_teacher).
+     * معلم واحد ممكن يشرف على أكتر من فرع.
+     */
+    public function supervisedBranches()
+    {
+        return $this->belongsToMany(Branch::class, 'branch_teacher')
+            ->withTimestamps();
     }
 
     // علاقة: المعلم ← مستخدمه

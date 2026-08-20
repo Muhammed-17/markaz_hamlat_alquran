@@ -64,6 +64,13 @@ class Circle extends Model
      */
     public function supervisors(): BelongsToMany
     {
+        // لو الحلقة معندهاش فرع (branch_id لسه NULL)، رجّع علاقة فاضية آمنة
+        // بدل ما ننهار على null->supervisors().
+        if (!$this->branch_id) {
+            return $this->belongsToMany(Teacher::class, 'branch_teacher', 'branch_id', 'teacher_id')
+                ->whereRaw('1 = 0');
+        }
+
         return $this->branch->supervisors();
     }
 
