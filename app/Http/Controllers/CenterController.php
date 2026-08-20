@@ -30,8 +30,9 @@ class CenterController extends Controller
         $request->merge(['name' => $cleanName]);
 
         $validated = $request->validate([
-            'id'   => 'nullable|exists:centers,id',
-            'name' => 'required|string|max:255|unique:centers,name,' . $request->id,
+            'id'              => 'nullable|exists:centers,id',
+            'name'            => 'required|string|max:255|unique:centers,name,' . $request->id,
+            'established_at'  => 'nullable|date',
         ], [
             'name.required' => 'حقل الاسم مطلوب.',
             'name.unique'   => 'هذا الفرع مسجل بالفعل.',
@@ -39,10 +40,16 @@ class CenterController extends Controller
 
         if (!empty($validated['id'])) {
             $center = Center::findOrFail($validated['id']);
-            $center->update(['name' => $validated['name']]);
+            $center->update([
+                'name'           => $validated['name'],
+                'established_at' => $validated['established_at'] ?? null,
+            ]);
             $msg = 'تم تحديث الفرع بنجاح';
         } else {
-            Center::create(['name' => $validated['name']]);
+            Center::create([
+                'name'           => $validated['name'],
+                'established_at' => $validated['established_at'] ?? null,
+            ]);
             $msg = 'تم إضافة الفرع بنجاح';
         }
 

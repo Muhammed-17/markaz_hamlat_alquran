@@ -10,6 +10,21 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Collection;
 
+/**
+ * @property int $id
+ * @property string $name
+ * @property string $type
+ * @property string $level
+ * @property int $center_id
+ * @property int|null $branch_id
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Circle newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Circle newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Circle query()
+ * @mixin \Eloquent
+ */
+
 class Circle extends Model
 {
     use HasFactory;
@@ -19,6 +34,7 @@ class Circle extends Model
         'type',
         'level',
         'center_id',
+        'branch_id',
     ];
 
     // ─── العلاقات الجديدة ───
@@ -89,6 +105,11 @@ class Circle extends Model
         return $this->belongsTo(Center::class);
     }
 
+    public function branch(): BelongsTo
+    {
+        return $this->belongsTo(Branch::class);
+    }
+
     public function getLevelArabicAttribute(): string
     {
         return match ($this->level) {
@@ -102,8 +123,8 @@ class Circle extends Model
     public function getTypeArabicAttribute(): string
     {
         return match ($this->type) {
-            'group'      => 'جماعية',
-            'individual' => 'فردية',
+            'group'      => 'جماعي',
+            'individual' => 'فردي',
             default      => $this->type,
         };
     }

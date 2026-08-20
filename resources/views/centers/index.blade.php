@@ -19,9 +19,14 @@
                 @csrf
                 <input type="hidden" name="id" id="centerId">
 
-                <div class="md:col-span-3">
+                <div class="md:col-span-2">
                     <x-custom-input name="name" id="centerName" type="text" value="{{ old('name') }}" placeholder="مثال: الفرع الرئيسي"
                         label="اسم الفرع *" />
+                </div>
+
+                <div class="md:col-span-1">
+                    <x-custom-input name="established_at" id="centerEstablishedAt" type="date" value="{{ old('established_at') }}"
+                        label="تاريخ الإنشاء الفعلي" />
                 </div>
 
                 <div class="flex gap-2 w-full">
@@ -51,7 +56,7 @@
                     @forelse($centers as $center)
                     <tr class="hover:bg-gray-50/50">
                         <td class="py-4 px-6 text-gray-800 font-medium">{{ $center->name }}</td>
-                        <td class="py-4 px-6 text-gray-400 text-sm">{{ $center->created_at?->format('Y/m/d') ?? '—' }}</td>
+                        <td class="py-4 px-6 text-gray-400 text-sm">{{ $center->established_at?->format('Y/m/d') ?? '—' }}</td>
                         <td class="py-4 px-6 flex items-center gap-3">
                             <a href="{{ route('centers.show', $center) }}"
                                 class="text-emerald-500 hover:text-emerald-700 transition" title="عرض">
@@ -61,7 +66,7 @@
                                 </svg>
                             </a>
                             <button
-                                onclick="editCenter('{{ $center->id }}', '{{ $center->name }}')"
+                                onclick="editCenter('{{ $center->id }}', '{{ $center->name }}', '{{ $center->established_at?->format('Y-m-d') }}')"
                                 class="text-blue-400 hover:text-blue-600 transition" title="تعديل">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none"
                                     viewBox="0 0 24 24" stroke="currentColor">
@@ -95,9 +100,10 @@
     </div>
 
     <script>
-        function editCenter(id, name) {
+        function editCenter(id, name, establishedAt) {
             document.getElementById('centerId').value = id;
             document.querySelector('[name="name"]').value = name;
+            document.getElementById('centerEstablishedAt').value = establishedAt ?? '';
             document.getElementById('formTitle').innerText = 'تعديل بيانات الفرع';
             document.getElementById('cancelBtn').classList.remove('hidden');
             document.getElementById('centerForm').scrollIntoView({
@@ -108,6 +114,7 @@
         function resetForm() {
             document.getElementById('centerId').value = '';
             document.querySelector('[name="name"]').value = '';
+            document.getElementById('centerEstablishedAt').value = '';
             document.getElementById('formTitle').innerText = 'إضافة فرع جديد';
             document.getElementById('cancelBtn').classList.add('hidden');
         }

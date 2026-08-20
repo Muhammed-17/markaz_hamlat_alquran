@@ -37,7 +37,6 @@
     <!-- ═══════════════════════════════════════════════════════════════ -->
     <script>
         (function() {
-            const circleSelect = document.getElementById('circle-select');
             const listEl = document.getElementById('group-results-list');
             const countEl = document.getElementById('group-students-count');
             const templateEl = document.getElementById('student-card-template');
@@ -115,12 +114,15 @@
                 countEl.textContent = `(${students.length} طالب)`;
             }
 
-            circleSelect.addEventListener('change', function() {
-                fetchStudents(this.value);
+            window.addEventListener('searchable-change', function(e) {
+                if (e.detail.name === 'circle_id') {
+                    fetchStudents(e.detail.value);
+                }
             });
 
-            if (circleSelect.value) {
-                fetchStudents(circleSelect.value);
+            const initialCircleId = document.querySelector('input[name="circle_id"]')?.value;
+            if (initialCircleId) {
+                fetchStudents(initialCircleId);
             }
         })();
     </script>

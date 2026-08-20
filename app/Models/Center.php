@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use \Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 
 /**
  * @property int $id
@@ -21,11 +22,15 @@ use \Illuminate\Database\Eloquent\Relations\HasMany;
  */
 class Center extends Model
 {
-    protected $fillable = ['name'];
+    protected $fillable = ['name', 'established_at'];
 
-    public function circles(): HasMany
+    protected $casts = [
+        'established_at' => 'date',
+    ];
+
+    public function circles(): HasManyThrough
     {
-        return $this->hasMany(Circle::class);
+        return $this->hasManyThrough(Circle::class, Branch::class);
     }
     public function educationalLessons(): HasMany
     {
@@ -35,5 +40,10 @@ class Center extends Model
     public function surahTests(): HasMany
     {
         return $this->hasMany(SurahTest::class);
+    }
+
+    public function branches(): HasMany
+    {
+        return $this->hasMany(Branch::class);
     }
 }

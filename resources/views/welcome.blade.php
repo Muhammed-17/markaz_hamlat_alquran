@@ -1,10 +1,13 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" dir="rtl" >
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" dir="rtl">
 
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{ config('app.name', 'مركز حملة القرآن') }}</title>
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="{{ asset('images/logo.png') }}">
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -17,73 +20,73 @@
 <body class="font-[Cairo] antialiased bg-gray-50 text-gray-900">
     <div class="relative min-h-screen">
 
-<!-- Hero Section -->
-<div id="hero" class="relative h-[550px] overflow-hidden">
+        <!-- Hero Section -->
+        <div id="hero" class="relative h-[550px] overflow-hidden">
 
-    <!-- الخلفية -->
-    <div class="absolute inset-0 z-0 rounded-sm">
-        <img src="{{ asset('images/hero.png') }}" alt="Markaz Hero" class="w-full h-full object-cover">
-        <div class="absolute inset-0 bg-gradient-to-l from-[#0a5c36]/90 via-[#0a5c36]/70 to-transparent"></div>
-    </div>
-
-    <!-- Header الثابت -->
-    <nav class="fixed top-0 left-0 right-0 z-50 bg-[#0a5c36]/90 backdrop-blur-md border-b border-emerald-900/20 shadow-md">
-        <div class="flex justify-between items-center px-6 lg:px-20 py-4">
-            <div class="flex items-center gap-3">
-                <div class="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-lg">
-                    <x-application-logo class="w-11 h-11 text-[#0a5c36] fill-current" />
-                </div>
-                <span class="text-xl font-extrabold text-white">مركز حملة القرآن</span>
+            <!-- الخلفية -->
+            <div class="absolute inset-0 z-0 rounded-sm">
+                <img src="{{ asset('images/hero.png') }}" alt="Markaz Hero" class="w-full h-full object-cover">
+                <div class="absolute inset-0 bg-gradient-to-l from-[#0a5c36]/90 via-[#0a5c36]/70 to-transparent"></div>
             </div>
 
-            <div class="flex items-center gap-4">
-                @if (Route::has('login'))
-                    @auth
+            <!-- Header الثابت -->
+            <nav class="fixed top-0 left-0 right-0 z-50 bg-[#0a5c36]/90 backdrop-blur-md border-b border-emerald-900/20 shadow-md">
+                <div class="flex justify-between items-center px-6 lg:px-20 py-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-lg">
+                            <x-application-logo class="w-11 h-11 text-[#0a5c36] fill-current" />
+                        </div>
+                        <span class="text-xl font-extrabold text-white">مركز حملة القرآن</span>
+                    </div>
+
+                    <div class="flex items-center gap-4">
+                        @if (Route::has('login'))
+                        @auth
                         <a href="{{ url('/dashboard') }}"
                             class="px-6 py-1.5 bg-white text-[#0a5c36] font-bold rounded-xl hover:bg-emerald-50 transition-all shadow">
                             لوحة التحكم
                         </a>
-                    @else
+                        @else
                         <a href="{{ route('login') }}"
                             class="px-6 py-1.5 bg-white text-[#0a5c36] font-bold rounded-xl hover:bg-emerald-50 transition-all shadow">
                             تسجيل الدخول
                         </a>
-                    @endauth
-                @endif
+                        @endauth
+                        @endif
+                    </div>
+                </div>
+            </nav>
+
+            <!-- Hero Content -->
+            <div class="flex flex-col lg:flex-row justify-start items-center w-full h-full px-6 lg:px-20 pt-28 text-center lg:text-right gap-5 lg:gap-7">
+
+                <!-- الشعار -->
+                <div>
+                    <img src="{{ asset('images/logo.png') }}" alt="شعار مركز حملة القرآن"
+                        class="w-40 h-40 lg:w-52 lg:h-52 object-contain rounded-xl drop-shadow-lg hover:scale-105 transition-transform duration-300 mx-auto lg:mx-0">
+                </div>
+
+                <!-- النصوص -->
+                <div
+                    class="relative z-10 flex flex-col items-center lg:items-start justify-center text-white select-none pointer-events-none space-y-4">
+
+                    <h1 class="text-3xl sm:text-4xl lg:text-5xl font-black leading-tight drop-shadow-2xl">
+                        مركز حملة القرآن
+                    </h1>
+
+                    <p class="text-base sm:text-lg lg:text-xl font-medium text-emerald-100 max-w-2xl leading-relaxed drop-shadow-lg pb-5">
+                        بناء الجيل القرآني المتميز من خلال بيئة تعليمية إبداعية متميزة تدمج بين الأصالة والتكنولوجيا الحديثة.
+                    </p>
+
+                    <div class=" pointer-events-auto">
+                        <a href="{{ route('login') }}"
+                            class="px-8 py-3 bg-orange-400 hover:bg-orange-500 text-white font-extrabold text-base lg:text-lg rounded-2xl transition-all hover:scale-105 active:scale-95 shadow-xl shadow-orange-900/20">
+                            ابدأ الآن
+                        </a>
+                    </div>
+                </div>
             </div>
         </div>
-    </nav>
-
-    <!-- Hero Content -->
-    <div class="flex flex-col lg:flex-row justify-start items-center w-full h-full px-6 lg:px-20 pt-28 text-center lg:text-right gap-5 lg:gap-7">
-
-        <!-- الشعار -->
-        <div>
-            <img src="{{ asset('images/logo.png') }}" alt="شعار مركز حملة القرآن"
-                class="w-40 h-40 lg:w-52 lg:h-52 object-contain rounded-xl drop-shadow-lg hover:scale-105 transition-transform duration-300 mx-auto lg:mx-0">
-        </div>
-
-        <!-- النصوص -->
-        <div
-            class="relative z-10 flex flex-col items-center lg:items-start justify-center text-white select-none pointer-events-none space-y-4">
-
-            <h1 class="text-3xl sm:text-4xl lg:text-5xl font-black leading-tight drop-shadow-2xl">
-                مركز حملة القرآن
-            </h1>
-
-            <p class="text-base sm:text-lg lg:text-xl font-medium text-emerald-100 max-w-2xl leading-relaxed drop-shadow-lg pb-5">
-                بناء الجيل القرآني المتميز من خلال بيئة تعليمية إبداعية متميزة تدمج بين الأصالة والتكنولوجيا الحديثة.
-            </p>
-
-            <div class=" pointer-events-auto">
-                <a href="{{ route('login') }}"
-                    class="px-8 py-3 bg-orange-400 hover:bg-orange-500 text-white font-extrabold text-base lg:text-lg rounded-2xl transition-all hover:scale-105 active:scale-95 shadow-xl shadow-orange-900/20">
-                    ابدأ الآن
-                </a>
-            </div>
-        </div>
-    </div>
-</div>
 
 
         <!-- Features Section -->
@@ -254,6 +257,35 @@
                         </div>
                     </div>
 
+                    <!-- Facebook Card -->
+                    <div
+                        class="bg-white p-10 rounded-[32px] shadow-lg border-2 border-blue-100 hover:border-blue-300 hover:shadow-2xl transition-all duration-300 group relative overflow-hidden">
+                        <!-- Decorative Background -->
+                        <div
+                            class="absolute top-0 right-0 w-32 h-32 bg-blue-50 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-500">
+                        </div>
+
+                        <div class="relative z-10">
+                            <div
+                                class="w-20 h-20 bg-gradient-to-br from-blue-500 to-blue-600 rounded-3xl flex items-center justify-center text-white mb-6 group-hover:scale-110 group-hover:rotate-6 transition-all duration-300 mx-auto shadow-lg">
+                                <svg class="w-10 h-10" fill="currentColor" viewBox="0 0 24 24">
+                                    <path
+                                        d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+                                </svg>
+                            </div>
+                            <h3 class="text-2xl font-black text-gray-900 mb-6 text-center">فيسبوك</h3>
+                            <a href="https://www.facebook.com/hmlt.alqran.305033" target="_blank"
+                                rel="noopener noreferrer"
+                                class="flex items-center justify-center gap-3 px-8 py-5 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-bold text-lg rounded-2xl transition-all shadow-lg hover:shadow-xl hover:scale-105">
+                                <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                                    <path
+                                        d="M9 8h-3v4h3v12h5v-12h3.642l.358-4h-4v-1.667c0-.955.192-1.333 1.115-1.333h2.885v-5h-3.808c-3.596 0-5.192 1.583-5.192 4.615v3.385z" />
+                                </svg>
+                                <span>تابعنا على فيسبوك</span>
+                            </a>
+                        </div>
+                    </div>
+
                     <!-- WhatsApp Card -->
                     <div
                         class="bg-white p-10 rounded-[32px] shadow-lg border-2 border-green-100 hover:border-green-300 hover:shadow-2xl transition-all duration-300 group relative overflow-hidden">
@@ -294,62 +326,82 @@
                         </div>
                     </div>
 
-                    <!-- Facebook Card -->
-                    <div
-                        class="bg-white p-10 rounded-[32px] shadow-lg border-2 border-blue-100 hover:border-blue-300 hover:shadow-2xl transition-all duration-300 group relative overflow-hidden">
-                        <!-- Decorative Background -->
-                        <div
-                            class="absolute top-0 right-0 w-32 h-32 bg-blue-50 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-500">
-                        </div>
-
-                        <div class="relative z-10">
-                            <div
-                                class="w-20 h-20 bg-gradient-to-br from-blue-500 to-blue-600 rounded-3xl flex items-center justify-center text-white mb-6 group-hover:scale-110 group-hover:rotate-6 transition-all duration-300 mx-auto shadow-lg">
-                                <svg class="w-10 h-10" fill="currentColor" viewBox="0 0 24 24">
-                                    <path
-                                        d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
-                                </svg>
-                            </div>
-                            <h3 class="text-2xl font-black text-gray-900 mb-6 text-center">فيسبوك</h3>
-                            <a href="https://www.facebook.com/hmlt.alqran.305033" target="_blank"
-                                rel="noopener noreferrer"
-                                class="flex items-center justify-center gap-3 px-8 py-5 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-bold text-lg rounded-2xl transition-all shadow-lg hover:shadow-xl hover:scale-105">
-                                <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                                    <path
-                                        d="M9 8h-3v4h3v12h5v-12h3.642l.358-4h-4v-1.667c0-.955.192-1.333 1.115-1.333h2.885v-5h-3.808c-3.596 0-5.192 1.583-5.192 4.615v3.385z" />
-                                </svg>
-                                <span>تابعنا على فيسبوك</span>
-                            </a>
-                        </div>
-                    </div>
-
-
                 </div>
 
                 <!-- Financial Support Section -->
-                <div class="mt-16">
-                    <div class="bg-gradient-to-r from-orange-500 to-orange-600 rounded-[40px] p-12 shadow-2xl">
-                        <div class="max-w-4xl mx-auto text-center">
-                            <div
-                                class="w-20 h-20 bg-white/20 rounded-3xl flex items-center justify-center mx-auto mb-6">
-                                <svg class="w-12 h-12 text-white" fill="none" stroke="currentColor"
-                                    viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                <div class="mt-16 px-4">
+                    <div class="bg-gradient-to-br from-emerald-500 via-teal-600 to-cyan-700 rounded-[40px] p-8 md:p-14 shadow-2xl relative overflow-hidden">
+                        <div class="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2"></div>
+                        <div class="absolute bottom-0 left-0 w-48 h-48 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2"></div>
+
+                        <div class="max-w-5xl mx-auto text-center relative z-10">
+                            <div class="w-24 h-24 bg-white/20 backdrop-blur-sm rounded-[32px] flex items-center justify-center mx-auto mb-8 shadow-inner border border-white/30">
+                                <svg class="w-14 h-14 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                 </svg>
                             </div>
-                            <h2 class="text-4xl font-black text-white mb-4">للدعم المالي</h2>
-                            <p class="text-xl text-orange-100 mb-8 leading-relaxed">
+
+                            <h2 class="text-4xl md:text-5xl font-black text-white mb-4 tracking-tight">للدعم المادي</h2>
+                            <p class="text-lg md:text-xl text-emerald-100 mb-10 leading-relaxed max-w-2xl mx-auto">
                                 ساهم في دعم مركز حملة القرآن وكن جزءاً من بناء جيل قرآني متميز
                             </p>
+
+                            <!-- Payment Methods Grid -->
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10 max-w-3xl mx-auto">
+
+                                <!-- Vodafone Cash -->
+                                <div class="bg-white/15 backdrop-blur-md rounded-3xl p-6 border border-white/20 shadow-xl hover:bg-white/20 transition-all">
+                                    <div class="flex items-center justify-center gap-3 mb-4">
+                                        <div class="w-10 h-10 bg-red-500 rounded-full flex items-center justify-center shadow-lg">
+                                            <span class="text-white font-bold text-xs">VC</span>
+                                        </div>
+                                        <h3 class="text-xl font-bold text-white">فودافون كاش</h3>
+                                    </div>
+                                    <div class="bg-white/20 rounded-2xl p-4 mb-3">
+                                        <p class="text-emerald-100 text-sm mb-1">رقم المحفظة</p>
+                                        <p class="text-2xl md:text-3xl font-black text-white tracking-wider" dir="ltr">0101 4863 112</p>
+                                    </div>
+                                    <p class="text-emerald-100 text-sm">
+                                        كود التحويل: <span class="font-bold text-white" dir="ltr">*9*7#</span>
+                                    </p>
+                                </div>
+
+                                <!-- InstaPay -->
+                                <div class="bg-white/15 backdrop-blur-md rounded-3xl p-6 border border-white/20 shadow-xl hover:bg-white/20 transition-all">
+                                    <div class="flex items-center justify-center gap-3 mb-4">
+                                        <div class="w-10 h-10 bg-indigo-500 rounded-full flex items-center justify-center shadow-lg">
+                                            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                            </svg>
+                                        </div>
+                                        <h3 class="text-xl font-bold text-white">انستا باي</h3>
+                                    </div>
+                                    <div class="bg-white/20 rounded-2xl p-4 mb-3">
+                                        <p class="text-emerald-100 text-sm mb-1">الرقم المسجل</p>
+                                        <p class="text-2xl md:text-3xl font-black text-white tracking-wider" dir="ltr">0120 3543 688</p>
+                                    </div>
+                                    <p class="text-emerald-100 text-sm">
+                                        التحويل عبر تطبيق <span class="font-bold text-white">InstaPay</span>
+                                    </p>
+                                </div>
+
+                            </div>
+
+                            <!-- Action Buttons -->
                             <div class="flex flex-col sm:flex-row gap-4 justify-center items-center">
                                 <a href="tel:+201014863112"
-                                    class="px-10 py-5 bg-white text-orange-600 font-black text-xl rounded-3xl transition-all hover:scale-105 active:scale-95 shadow-xl hover:shadow-2xl">
-                                    اتصل بنا للتبرع
+                                    class="w-full sm:w-auto px-8 py-4 bg-white text-teal-700 font-bold text-lg rounded-2xl transition-all hover:scale-105 active:scale-95 shadow-lg hover:shadow-xl flex items-center justify-center gap-2">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                                    </svg>
+                                    اتصل للتبرع
                                 </a>
                                 <a href="https://wa.me/201014863112" target="_blank" rel="noopener noreferrer"
-                                    class="px-10 py-5 bg-orange-700 text-white font-black text-xl rounded-3xl transition-all hover:scale-105 active:scale-95 shadow-xl hover:bg-orange-800">
-                                    راسلنا عبر واتساب
+                                    class="w-full sm:w-auto px-8 py-4 bg-green-500 text-white font-bold text-lg rounded-2xl transition-all hover:scale-105 active:scale-95 shadow-lg hover:bg-green-600 flex items-center justify-center gap-2">
+                                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                                        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+                                    </svg>
+                                    واتساب
                                 </a>
                             </div>
                         </div>
