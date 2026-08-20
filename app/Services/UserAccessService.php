@@ -57,7 +57,7 @@ class UserAccessService
     public function teacherCircleIdsWithinCenter(User $user): Collection
     {
         $teacher = $this->teacher($user);
-        if (!$teacher) {
+        if (!$teacher || !$teacher->center_id) {
             return collect();
         }
 
@@ -65,11 +65,14 @@ class UserAccessService
             "teacher_center_{$teacher->id}",
             fn() => $teacher->circles()
                 ->wherePivotIn('role', ['main', 'assistant'])
-                ->where('circles.center_id', $teacher->center_id)
+                ->whereHas('branch', fn($q) => $q->where('center_id', $teacher->center_id))
                 ->pluck('circles.id')
         );
     }
 
+    /**
+     * الحلقات التابعة للفروع التي يشرف عليها هذا المعلم (عبر branch_teacher).
+     */
     public function supervisorCircleIds(User $user): Collection
     {
         $teacher = $this->teacher($user);
@@ -79,9 +82,10 @@ class UserAccessService
 
         return $this->rememberCircleIds(
             "supervisor_{$teacher->id}",
-            fn() => $teacher->circles()
-                ->wherePivotIn('role', ['supervisor', 'main', 'assistant'])
-                ->pluck('circles.id')
+            fn() => Circle::whereHas(
+                'branch.supervisors',
+                fn($q) => $q->where('teachers.id', $teacher->id)
+            )->pluck('id')
         );
     }
 
@@ -94,7 +98,8 @@ class UserAccessService
 
         return $this->rememberCircleIds(
             "manager_{$teacher->center_id}",
-            fn() => Circle::where('center_id', $teacher->center_id)->pluck('id')
+            fn() => Circle::whereHas('branch', fn($q) => $q->where('center_id', $teacher->center_id))
+                ->pluck('id')
         );
     }
 
@@ -140,7 +145,8 @@ class UserAccessService
         }
 
         if ($user->hasRole('manager')) {
-            return Circle::where('center_id', $teacher->center_id)->orderBy('name');
+            return Circle::whereHas('branch', fn($q) => $q->where('center_id', $teacher->center_id))
+                ->orderBy('name');
         }
 
         if ($user->hasRole('supervisor')) {
