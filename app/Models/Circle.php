@@ -10,21 +10,6 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Collection;
 
-/**
- * @property int $id
- * @property string $name
- * @property string $type
- * @property string $level
- * @property int $center_id
- * @property int|null $branch_id
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Circle newModelQuery()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Circle newQuery()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Circle query()
- * @mixin \Eloquent
- */
-
 class Circle extends Model
 {
     use HasFactory;
@@ -33,9 +18,16 @@ class Circle extends Model
         'name',
         'type',
         'level',
-        'center_id',
         'branch_id',
     ];
+
+    // مصدر الحقيقة الوحيد للمركز أصبح عبر الفرع؛ عمود center_id اتشال نهائيًا من الجدول.
+    // هذا الـ accessor للتوافق الخلفي المؤقت مع أي كود قديم بيستخدم $circle->center_id مباشرة
+    // (لازم تُستبدل تدريجيًا بـ $circle->branch->center_id أو $circle->center).
+    public function getCenterIdAttribute(): ?int
+    {
+        return $this->branch?->center_id;
+    }
 
     // ─── العلاقات الجديدة ───
     public function groupSessionPlans(): HasMany
@@ -66,12 +58,13 @@ class Circle extends Model
         return $this->hasMany(Subscription::class);
     }
 
+    /**
+     * مشرفو الحلقة أصبحوا يُشتقّون من مشرفي الفرع التابعة له الحلقة،
+     * وليس من تخصيص فردي على مستوى الحلقة (role=supervisor في circle_teacher أصبح قديمًا/غير مستخدم).
+     */
     public function supervisors(): BelongsToMany
     {
-        return $this->belongsToMany(Teacher::class, 'circle_teacher')
-            ->wherePivot('role', 'supervisor')
-            ->withPivot('role')
-            ->withTimestamps();
+        return $this->branch->supervisors();
     }
 
     public function mainTeachers(): BelongsToMany
@@ -100,14 +93,19 @@ class Circle extends Model
         return $this->assistantTeachers->first();
     }
 
-    public function center(): BelongsTo
-    {
-        return $this->belongsTo(Center::class);
-    }
-
     public function branch(): BelongsTo
     {
         return $this->belongsTo(Branch::class);
+    }
+
+    /**
+     * المركز تبع الحلقة، عبر الفرع. للتوافق الخلفي مع أي كود قديم بيستخدم $circle->center.
+     * ملحوظة: دي مش علاقة Eloquent حقيقية (hasOneThrough) عشان تفادي تعقيد إضافي؛
+     * لو محتاج eager loading كفء استخدم ->with('branch.center') بدل ->with('center').
+     */
+    public function getCenterAttribute(): ?Center
+    {
+        return $this->branch?->center;
     }
 
     public function getLevelArabicAttribute(): string
@@ -123,8 +121,8 @@ class Circle extends Model
     public function getTypeArabicAttribute(): string
     {
         return match ($this->type) {
-            'group'      => 'جماعي',
-            'individual' => 'فردي',
+            'group'      => 'جماعية',
+            'individual' => 'فردية',
             default      => $this->type,
         };
     }
