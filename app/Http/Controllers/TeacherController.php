@@ -280,8 +280,8 @@ class TeacherController extends Controller
         }
 
         // منع تعطيل admin أو general_manager
-        if ($teacher->user->hasRole(['admin', 'general_manager'])) {
-            return back()->with('error', 'لا يمكن تعطيل حساب إداري رئيسي.');
+        if ($teacher->user->hasRole('admin')) {
+            return back()->with('error', 'لا يمكن تعطيل حساب إداري.');
         }
 
         $newStatus = $teacher->user->status === 'active' ? 'inactive' : 'active';

@@ -50,7 +50,7 @@ return new class extends Migration
 
             // 1) أضف الـ Unique الجديد أولاً (يبدأ بنفس عمود competition_level_id
             //    فهيفضل يدعم الـ FK بتاعه بدل القديم)
-            if (! collect(DB::select("SHOW INDEX FROM competition_questions WHERE Key_name = 'cp_questions_level_name_unique'"))->isNotEmpty()) {
+            if (! collect(DB::select("SHOW INDEX FROM competition_questions WHERE Key_name = ?", ['cp_questions_level_name_unique']))->isNotEmpty()) {
                 Schema::table('competition_questions', function (Blueprint $table) {
                     $table->unique(
                         ['competition_level_id', 'name'],

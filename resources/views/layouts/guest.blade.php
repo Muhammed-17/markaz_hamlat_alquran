@@ -45,7 +45,7 @@
 
         <!-- Default Footer -->
         <div class="bg-gray-50 p-4 text-center border-t border-gray-100">
-            <p class="text-xs text-gray-500">&copy; {{ date('Y') }} مركز التحفيظ. جميع الحقوق محفوظة.</p>
+            <p class="text-xs text-gray-500">&copy; {{ date('Y') }} مركز حملة القرآن. جميع الحقوق محفوظة.</p>
         </div>
     </div>
 </body>

@@ -33,7 +33,7 @@ class AuthenticatedSessionController extends Controller
             return redirect()->route('guardian.dashboard.own');
         }
 
-        if ($user->hasAnyRole(['supervisor', 'teacher'])) {
+        if ($user->hasAnyRole(['gernal_manager','manager','supervisor', 'teacher'])) {
             return redirect()->route('students.index');
         }
 

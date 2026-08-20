@@ -21,8 +21,16 @@ class LoginRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'email'    => ['required', 'string'],
-            'password' => ['required', 'string'],
+            'email'    => ['required', 'string', 'max:255'],
+            'password' => ['required', 'string', 'max:255'],
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'email.required'    => 'البريد الإلكتروني مطلوب.',
+            'password.required' => 'كلمة المرور مطلوب.',
         ];
     }
 
@@ -31,15 +39,8 @@ class LoginRequest extends FormRequest
         $this->ensureIsNotRateLimited();
 
         $loginValue = $this->input('email');
-        $isNumeric  = preg_match('/^[0-9+\- ]+$/', $loginValue);
 
-        $user = null;
-
-        if ($isNumeric) {
-            $user = User::where('email', $loginValue)->first();
-        } else {
-            $user = User::where('email', $loginValue)->first();
-        }
+        $user = User::whereRaw('LOWER(email) = ?', [Str::lower($loginValue)])->first();
 
         // ✅ دايماً اعمل hash check لمنع timing attacks
         $dummyHash = '$2y$12$invalidhashfortimingattackpreventioniiiiiiiiiiiiiiiiii';
@@ -56,7 +57,7 @@ class LoginRequest extends FormRequest
             // ✅ hit the rate limiter لمنع enumerate الحسابات المعطلة
             RateLimiter::hit($this->throttleKey());
             throw ValidationException::withMessages([
-                'email' => 'تم تعطيل حسابك. تواصل مع الإدارة.',
+                'email' => 'بيانات الدخول غير صحيحة',
             ]);
         }
 

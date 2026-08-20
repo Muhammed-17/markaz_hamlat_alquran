@@ -89,9 +89,10 @@ class TeacherPolicy
     {
         if (!$user->can('toggle teacher status')) return false;
         if ($user->id === $teacher->user_id) return false;
-        if ($teacher->user->hasRole(['admin', 'general_manager'])) return false;
 
         if ($user->hasRole(['admin', 'general_manager'])) return true;
+
+        if ($teacher->user->hasRole(['admin', 'general_manager'])) return false;
 
         $record = $this->access->teacher($user);
         if (!$record) return false;
