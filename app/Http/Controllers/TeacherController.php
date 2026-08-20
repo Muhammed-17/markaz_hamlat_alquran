@@ -6,8 +6,8 @@ use App\Http\Requests\Teacher\StoreTeacherRequest;
 use App\Http\Requests\Teacher\UpdateTeacherRequest;
 use App\Models\Teacher;
 use App\Models\User;
-use App\Traits\ResolvesUserScope;
 use App\Traits\HasAllowedRoles;
+use App\Services\UserAccessService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -16,8 +16,9 @@ use Illuminate\Support\Facades\DB;
 
 class TeacherController extends Controller
 {
-    use ResolvesUserScope;
     use HasAllowedRoles;
+
+    public function __construct(protected UserAccessService $access) {}
 
     // ─────────────────────────────────────────
     public function index(Request $request)
@@ -25,7 +26,7 @@ class TeacherController extends Controller
         $this->authorize('viewAny', Teacher::class);
 
         $user    = Auth::user();
-        $teacher = $this->getTeacherRecord($user);
+        $teacher = $this->access->teacher($user);
 
         $query = Teacher::query()
             ->join('users', 'teachers.user_id', '=', 'users.id')
@@ -41,8 +42,8 @@ class TeacherController extends Controller
                 $query->where(
                     fn($q) =>
                     $q->where('teachers.center_id', $teacher->center_id)
-                        ->orWhereHas('circles', fn($cq) =>
-                        $cq->where('circles.center_id', $teacher->center_id))
+                        ->orWhereHas('circles.branch', fn($cq) =>
+                        $cq->where('center_id', $teacher->center_id))
                 );
             } else {
                 $query->whereRaw('1 = 0');
@@ -105,7 +106,7 @@ class TeacherController extends Controller
         }
 
         $teachers = $query->paginate(20)->withQueryString();
-        $centers  = $this->getAccessibleCenters($user);
+        $centers  = $this->access->accessibleCenters($user)->get();
         $roles    = Role::orderBy('name')->get();
 
         return view('teachers.index', compact('teachers', 'centers', 'roles'));
@@ -117,7 +118,7 @@ class TeacherController extends Controller
         $this->authorize('create', Teacher::class);
 
         $user    = Auth::user();
-        $centers = $this->getAccessibleCenters($user);
+        $centers = $this->access->accessibleCenters($user)->get();
 
         $roles = $this->getAllowedRolesForCreate($user);
 
@@ -157,7 +158,7 @@ class TeacherController extends Controller
     public function show(string $id)
     {
         $user = Auth::user();
-        $record = $this->getTeacherRecord($user);
+        $record = $this->access->teacher($user);
 
         // ✅ فلترة أمان قبل الجلب
         $query = Teacher::withoutGlobalScope(\App\Models\Scopes\CenterScope::class)
@@ -175,7 +176,7 @@ class TeacherController extends Controller
         elseif ($record && $user->hasRole('manager')) {
             $query->where(function ($q) use ($record) {
                 $q->where('center_id', $record->center_id)
-                    ->orWhereHas('circles', fn($cq) => $cq->where('circles.center_id', $record->center_id));
+                    ->orWhereHas('circles.branch', fn($cq) => $cq->where('center_id', $record->center_id));
             });
         }
 
@@ -192,7 +193,7 @@ class TeacherController extends Controller
         $this->authorize('update', $teacher);
 
         $user    = Auth::user();
-        $centers = $this->getAccessibleCenters($user);
+        $centers = $this->access->accessibleCenters($user)->get();
 
         $teacher->load('user.roles');
 

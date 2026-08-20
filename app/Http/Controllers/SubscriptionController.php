@@ -11,7 +11,7 @@ use App\Models\CircleAssignmentHistory;
 use App\Jobs\CalculateUnpaidMonths;
 use App\Http\Requests\Subscription\StoreSubscriptionRequest;
 use App\Http\Requests\Subscription\UpdateSubscriptionRequest;
-use App\Traits\ResolvesUserScope;
+use App\Services\UserAccessService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
@@ -21,7 +21,7 @@ use Illuminate\Support\Facades\RateLimiter;
 
 class SubscriptionController extends Controller
 {
-    use ResolvesUserScope;
+    public function __construct(protected UserAccessService $access) {}
 
     // ─────────────────────────────────────────
     public function index(Request $request)
@@ -37,7 +37,7 @@ class SubscriptionController extends Controller
         $search         = $request->get('search');
         $statsMonth     = $selectedMonth ?? now()->format('Y-m');
 
-        $circles   = $this->getAccessibleCircles($user);
+        $circles   = $this->access->accessibleCircles($user)->get();
         $circleIds = $circles->pluck('id');
 
         $selectedCircleId = $request->get('circle_id');
@@ -440,7 +440,7 @@ class SubscriptionController extends Controller
         $this->authorize('create subscriptions');
 
         $user      = Auth::user();
-        $circles   = $this->getAccessibleCircles($user);
+        $circles   = $this->access->accessibleCircles($user)->get();
         $circleIds = $circles->pluck('id');
 
         $students = Student::withoutGlobalScopes()
@@ -488,7 +488,7 @@ class SubscriptionController extends Controller
         $isExempt  = $validated['status'] === 'معفي';
         $isUnpaid  = $validated['status'] === 'غير مدفوع';
 
-        $circleIds = $this->getAccessibleCircleIds($user);
+        $circleIds = $this->access->accessibleCircles($user)->pluck('id');
         if (!$circleIds->contains($validated['circle_id'])) {
             abort(403, 'ليس لديك صلاحية لإضافة اشتراك لهذه الحلقة.');
         }
@@ -628,7 +628,7 @@ class SubscriptionController extends Controller
         }
 
         if (!$user->hasRole(['admin', 'general_manager'])) {
-            $accessibleCircleIds = $this->getAccessibleCircleIds($user);
+            $accessibleCircleIds = $this->access->accessibleCircles($user)->pluck('id');
             if (!$accessibleCircleIds->contains($student->circle_id)) {
                 abort(403);
             }
@@ -769,7 +769,7 @@ class SubscriptionController extends Controller
         $this->authorize('update', $subscription);
 
         $user     = Auth::user();
-        $circles  = $this->getAccessibleCircles($user);
+        $circles  = $this->access->accessibleCircles($user)->get();
 
         $students = Student::withoutGlobalScopes()
             ->with(['circle', 'subscriptions'])
@@ -819,7 +819,7 @@ class SubscriptionController extends Controller
         $this->authorize('update', $subscription);
 
         $user      = Auth::user();
-        $circleIds = $this->getAccessibleCircleIds($user);
+        $circleIds = $this->access->accessibleCircles($user)->pluck('id');
         $validated = $request->validated();
 
         if (!$circleIds->contains($validated['circle_id'])) {
@@ -945,7 +945,7 @@ class SubscriptionController extends Controller
         $circleId  = $request->get('circle_id');
         $teacherId = $request->get('teacher_id');
 
-        $circles   = $this->getAccessibleCircles($user);
+        $circles   = $this->access->accessibleCircles($user)->get();
         $circleIds = $circles->pluck('id');
 
         // ─── فلتر الحلقات ───────────────────────────────────────
@@ -956,7 +956,7 @@ class SubscriptionController extends Controller
         }
 
         if ($centerId) {
-            $circlesQuery->where('center_id', $centerId);
+            $circlesQuery->whereHas('branch', fn($bq) => $bq->where('center_id', $centerId));
         }
 
         if ($teacherId) {

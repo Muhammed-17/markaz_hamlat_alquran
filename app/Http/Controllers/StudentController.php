@@ -14,12 +14,12 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
-use App\Traits\ResolvesUserScope;
+use App\Services\UserAccessService;
 use \App\Services\EducationStageExclusionService;
 
 class StudentController extends Controller
 {
-    use ResolvesUserScope;
+    public function __construct(protected UserAccessService $access) {}
 
     private array $constructionFields = [
         'circle_id',
@@ -157,8 +157,8 @@ class StudentController extends Controller
         // ✅ الفرق الجوهري: paginate() مباشرة + withQueryString() بدل JSON response
         $students = $query->paginate(30)->withQueryString();
 
-        $circles = $this->getAccessibleCircles($user);
-        $centers = $this->getAccessibleCenters($user);
+        $circles = $this->access->accessibleCircles($user)->get();
+        $centers = $this->access->accessibleCenters($user)->get();
 
         return view('students.index', compact('students', 'circles', 'centers'));
     }
@@ -206,14 +206,14 @@ class StudentController extends Controller
         $this->authorize('create', Student::class);
 
         $user    = Auth::user();
-        $teacher = $this->getTeacherRecord($user);
+        $teacher = $this->access->teacher($user);
 
         return view('students.create', [
             'student'            => new Student(),
-            'circles'            => $this->getAccessibleCircles($user),
-            'centers'            => $this->getAccessibleCenters($user),
-            'teachers'           => $this->getAccessibleTeachers($user, $teacher),
-            'supervisors'        => $this->getAccessibleSupervisors($user, $teacher),
+            'circles'            => $this->access->accessibleCircles($user)->get(),
+            'centers'            => $this->access->accessibleCenters($user)->get(),
+            'teachers'           => $this->access->accessibleTeachers($user)->get(),
+            'supervisors'        => $this->access->accessibleSupervisors($user)->get(),
             'guardians'          => User::role('guardian')->get(),
             'subscriptionPrices' => DB::table('subscription_prices')->get(),
             'surahs'             => \App\Models\Surah::orderBy('number')->get(),
@@ -371,11 +371,11 @@ class StudentController extends Controller
         $this->authorizeStudentCenter($student);
 
         $user    = Auth::user();
-        $teacher = $this->getTeacherRecord($user);
+        $teacher = $this->access->teacher($user);
 
         $student->load(['guardian', 'constructionDetail', 'itqanDetail', 'ibdaDetail', 'circle']);
 
-        $circles = $this->getAccessibleCircles($user);
+        $circles = $this->access->accessibleCircles($user)->get();
 
         // ✅ تأكد أن حلقة الطالب الحالية موجودة ضمن القائمة حتى لو خارج نطاق المستخدم
         $currentCircleId = $student->constructionDetail->circle_id ?? $student->circle_id ?? null;
@@ -389,9 +389,9 @@ class StudentController extends Controller
         return view('students.edit', [
             'student'            => $student,
             'circles'            => $circles,
-            'centers'            => $this->getAccessibleCenters($user),
-            'teachers'           => $this->getAccessibleTeachers($user, $teacher),
-            'supervisors'        => $this->getAccessibleSupervisors($user, $teacher),
+            'centers'            => $this->access->accessibleCenters($user)->get(),
+            'teachers'           => $this->access->accessibleTeachers($user)->get(),
+            'supervisors'        => $this->access->accessibleSupervisors($user)->get(),
             'guardians'          => User::role('guardian')->get(),
             'subscriptionPrices' => DB::table('subscription_prices')->get(),
             'construction'       => $student->constructionDetail,
@@ -521,7 +521,7 @@ class StudentController extends Controller
         if ($user->hasRole('admin')) return;
         if ($user->hasRole('guardian')) return;
 
-        $accessibleCenterIds = $this->getAccessibleCenters($user)->pluck('id');
+        $accessibleCenterIds = $this->access->accessibleCenters($user)->pluck('id');
 
         if ($accessibleCenterIds->isNotEmpty() && !$accessibleCenterIds->contains($student->center_id)) {
             abort(403, 'ليس لديك صلاحية الوصول لبيانات هذا الطالب');

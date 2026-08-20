@@ -6,7 +6,7 @@ use App\Http\Requests\CollectionRound\StoreCollectionRoundRequest;
 use App\Http\Requests\CollectionRound\UpdateCollectionRoundRequest;
 use App\Http\Requests\CollectionRound\ConfirmCollectionRoundRequest;
 use App\Services\CollectionRoundService;
-use App\Traits\ResolvesUserScope;
+use App\Services\UserAccessService;
 use App\Models\CollectionRound;
 use App\Models\Center;
 use App\Models\Circle;
@@ -18,13 +18,13 @@ use Carbon\Carbon;
 
 class CollectionRoundController extends Controller
 {
-    use ResolvesUserScope;
+    public function __construct(protected UserAccessService $access) {}
 
     public function create(Request $request)
     {
         $this->authorize('create', CollectionRound::class);
 
-        $circles = $this->getAccessibleCircles(Auth::user());
+        $circles = $this->access->accessibleCircles(Auth::user())->get();
         $selectedCircleId = $request->get('circle_id');
         $selectedMonth = $request->get('period_month', now()->format('Y-m'));
 
@@ -72,10 +72,9 @@ class CollectionRoundController extends Controller
 
         $validated = $request->validated();
 
-        if (! $this->getAccessibleCircleIds(Auth::user())->contains($validated['circle_id'])) {
+        if (! $this->access->canAccessCircle(Auth::user(), $validated['circle_id'])) {
             abort(403, 'ليس لديك صلاحية للوصول لهذه الحلقة.');
         }
-
         try {
             $round = app(CollectionRoundService::class)->storeRound([
                 'circle_id'                  => $validated['circle_id'],
@@ -119,7 +118,7 @@ class CollectionRoundController extends Controller
         $query = CollectionRound::with(['circle', 'center', 'createdBy', 'confirmedBy', 'logs.createdBy']);
 
         if (!$user->hasRole(['admin', 'general_manager'])) {
-            $query->whereIn('circle_id', $this->getAccessibleCircleIds($user));
+            $query->whereIn('circle_id', $this->access->accessibleCircles($user)->pluck('id'));
         }
 
         if ($request->filled('search')) {
@@ -208,7 +207,8 @@ class CollectionRoundController extends Controller
         if ($user->hasRole(['admin', 'general_manager'])) {
             $centers = Center::orderBy('name')->get(['id', 'name']);
 
-            $allCircles = Circle::orderBy('name')->get(['id', 'name', 'center_id']);
+            $allCircles = Circle::with('branch')->orderBy('name')->get(['id', 'name', 'branch_id'])
+                ->map(fn($c) => (object) ['id' => $c->id, 'name' => $c->name, 'center_id' => $c->branch?->center_id]);
             $circles = $allCircles;
 
             // ✅ لازم نجيب المستخدمين الأول
@@ -229,8 +229,9 @@ class CollectionRoundController extends Controller
             });
             $creators = $allCreators;
         } else {
-            $accessibleCircleIds = $this->getAccessibleCircleIds($user);
-            $circles = Circle::whereIn('id', $accessibleCircleIds)->orderBy('name')->get(['id', 'name', 'center_id']);
+            $accessibleCircleIds = $this->access->accessibleCircles($user)->pluck('id');
+            $circles = Circle::with('branch')->whereIn('id', $accessibleCircleIds)->orderBy('name')->get(['id', 'name', 'branch_id'])
+                ->map(fn($c) => (object) ['id' => $c->id, 'name' => $c->name, 'center_id' => $c->branch?->center_id]);
             $allCircles = $circles;
 
             $centerIds = $circles->pluck('center_id')->unique();
@@ -414,24 +415,25 @@ class CollectionRoundController extends Controller
         $centerId = $request->get('center_id');
         $circleId = $request->get('circle_id');
 
-        $accessibleCircleIds = $this->getAccessibleCircleIds($user);
+        $accessibleCircleIds = $this->access->accessibleCircles($user)->pluck('id');
 
-        $circlesQuery = Circle::whereIn('id', $accessibleCircleIds)->orderBy('name');
+        $circlesQuery = Circle::with('branch')->whereIn('id', $accessibleCircleIds)->orderBy('name');
         if ($centerId) {
-            $circlesQuery->where('center_id', $centerId);
+            $circlesQuery->whereHas('branch', fn($bq) => $bq->where('center_id', $centerId));
         }
 
         $centersQuery = Center::orderBy('name');
         if ($circleId) {
             $circle = Circle::find($circleId);
             if ($circle) {
-                $centersQuery->where('id', $circle->center_id);
+                $centersQuery->where('id', $circle->center_id); // عبر accessor — property access آمن
             }
         }
 
         return response()->json([
             'centers' => $centersQuery->get(['id', 'name']),
-            'circles' => $circlesQuery->get(['id', 'name', 'center_id']),
+            'circles' => $circlesQuery->get(['id', 'name', 'branch_id'])
+                ->map(fn($c) => ['id' => $c->id, 'name' => $c->name, 'center_id' => $c->branch?->center_id]),
         ]);
     }
 
@@ -444,7 +446,7 @@ class CollectionRoundController extends Controller
             'period_month'  => 'required|date_format:Y-m',
         ]);
 
-        if (! $this->getAccessibleCircleIds(Auth::user())->contains($validated['circle_id'])) {
+        if (! $this->access->canAccessCircle(Auth::user(), $validated['circle_id'])) {
             abort(403, 'ليس لديك صلاحية للوصول لهذه الحلقة.');
         }
 
@@ -489,14 +491,14 @@ class CollectionRoundController extends Controller
             'period_month' => 'required|date_format:Y-m',
         ]);
 
-        $circles = $this->getAccessibleCircles(Auth::user());
+        $circles = $this->access->accessibleCircles(Auth::user())->get();
         $circles = app(CollectionRoundService::class)->filterCirclesWithoutPendingRound($circles, $validated['period_month']);
 
         return response()->json([
             'circles' => $circles->map(fn($c) => ['value' => $c->id, 'label' => $c->name])->values(),
         ]);
     }
-        /**
+    /**
      * جلب الحلقات المتاحة لمستخدم معين (للـ dropdown الديناميكي)
      */
     public function getAvailableCirclesForUser(Request $request)
@@ -510,7 +512,7 @@ class CollectionRoundController extends Controller
 
         $user = User::findOrFail($validated['user_id']);
 
-        $circles = $this->getAccessibleCircles($user);
+        $circles = $this->access->accessibleCircles($user)->get();
         $circles = app(CollectionRoundService::class)->filterCirclesWithoutPendingRound($circles, $validated['period_month']);
 
         return response()->json([

@@ -8,7 +8,7 @@ use App\Models\Attendance;
 use App\Models\Student;
 use App\Models\User;
 use App\Notifications\SequentialAbsenceNotification;
-use App\Traits\ResolvesUserScope;
+use App\Services\UserAccessService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -21,7 +21,7 @@ use \Illuminate\Support\Collection;
 
 class AttendanceController extends Controller
 {
-    use ResolvesUserScope;
+    public function __construct(protected UserAccessService $access) {}
 
     // ─────────────────────────────────────────
     // Dashboard / Report
@@ -36,7 +36,7 @@ class AttendanceController extends Controller
         if ($user->hasRole('guardian')) {
             $query->whereHas('student', fn($q) => $q->where('guardian_id', $user->id));
         } elseif (!$user->hasRole(['admin', 'general_manager'])) {
-            $circleIds = $this->getAccessibleCircleIds($user);
+            $circleIds = $this->access->accessibleCircles($user)->pluck('id');
             $circleIds->isEmpty()
                 ? $query->whereRaw('1=0')
                 : $query->whereHas('student', fn($q) => $q->whereIn('circle_id', $circleIds));
@@ -100,7 +100,7 @@ class AttendanceController extends Controller
         $date   = $request->get('date', Carbon::today()->format('Y-m-d'));
         $selectedTeacherId = $request->get('teacher_id');
 
-        $circlesQuery = $this->getAccessibleCirclesQuery($user);
+        $circlesQuery = $this->access->accessibleCircles($user);
 
         // ✅ فلترة الحلقات حسب المعلم (user_id → teacher.user_id)
         if ($selectedTeacherId) {
@@ -132,7 +132,7 @@ class AttendanceController extends Controller
         })->orderBy('name');
 
         if (!$user->hasRole(['admin', 'general_manager'])) {
-            $accessibleCircleIds = $this->getAccessibleCircleIds($user);
+            $accessibleCircleIds = $this->access->accessibleCircles($user)->pluck('id');
             $teachersQuery->whereHas('teacher.circles', function ($q) use ($accessibleCircleIds) {
                 $q->whereIn('circles.id', $accessibleCircleIds);
             });
@@ -164,8 +164,7 @@ class AttendanceController extends Controller
         $user      = Auth::user();
 
         if (!$user->hasRole(['admin', 'general_manager'])) {
-            $accessibleIds = $this->getAccessibleCircleIds($user);
-            if (!$accessibleIds->contains($circleId)) {
+            if (! $this->access->canAccessCircle($user, $circleId)) {
                 abort(403, 'ليس لديك صلاحية على هذه الحلقة.');
             }
         }
@@ -331,7 +330,7 @@ class AttendanceController extends Controller
         $this->authorize('viewAny', Attendance::class);
 
         $user      = Auth::user();
-        $circleIds = $this->getAccessibleCircleIds($user);
+        $circleIds = $this->access->accessibleCircles($user)->pluck('id');
 
         $selectedDate        = $request->filled('date')
             ? Carbon::parse($request->get('date'))->format('Y-m-d')
@@ -344,7 +343,7 @@ class AttendanceController extends Controller
         $selectedStatus      = $request->get('status');
         $search              = $request->get('search');
 
-        $circles = $this->getAccessibleCircles($user);
+        $circles = $this->access->accessibleCircles($user)->get();
 
         $centers = $user->hasRole(['admin', 'general_manager'])
             ? \App\Models\Center::orderBy('name')->get()
@@ -496,7 +495,7 @@ class AttendanceController extends Controller
         $this->authorize('viewAny', Attendance::class);
 
         $user      = Auth::user();
-        $circleIds = $this->getAccessibleCircleIds($user);
+        $circleIds = $this->access->accessibleCircles($user)->pluck('id');
 
         $minAbsences = 5;
 
@@ -508,7 +507,7 @@ class AttendanceController extends Controller
         $selectedCircleId = $request->get('circle_id');
         $search           = $request->get('search');
 
-        $circles = $this->getAccessibleCircles($user);
+        $circles = $this->access->accessibleCircles($user)->get();
 
         $centers = $user->hasRole(['admin', 'general_manager'])
             ? \App\Models\Center::orderBy('name')->get()
@@ -658,7 +657,7 @@ class AttendanceController extends Controller
         $accessibleCircleIds = null;
 
         if (!$user->hasRole(['admin', 'general_manager'])) {
-            $allowedIds = $this->getAccessibleCircleIds($user);
+            $allowedIds = $this->access->accessibleCircles($user)->pluck('id');
 
             if ($circleId) {
                 if (!$allowedIds->contains($circleId)) {
