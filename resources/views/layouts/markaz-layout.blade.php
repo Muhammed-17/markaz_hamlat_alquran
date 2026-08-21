@@ -299,9 +299,9 @@
                 <!-- ═══════════════ قسم الإعدادات (Settings) ═════════════════════ -->
                 <!-- ═══════════════════════════════════════════════════════════════ -->
                 @if(auth()->user()->hasAnyRole('admin') || auth()->user()->canAny(['manage guardians', 'edit profile', 'view subscription prices', 'manage roles']))
-                <div x-data="{ open: {{ (request()->routeIs('guardians.*') || request()->routeIs('profile.*') || request()->routeIs('centers.*') || request()->routeIs('subscription-prices.*') || request()->routeIs('admin.roles.*')) ? 'true' : 'false' }} }" class="space-y-1">
+                <div x-data="{ open: {{ (request()->routeIs('guardians.*') || request()->routeIs('profile.*') || request()->routeIs('centers.*') || request()->routeIs('branches.*')  || request()->routeIs('subscription-prices.*') || request()->routeIs('admin.roles.*'))? 'true' : 'false' }} }" class="space-y-1">
                     <button @click="open = !open"
-                        class="w-full flex items-center justify-between px-4 py-2 rounded-lg hover:bg-[#0d7a48] transition-colors focus:outline-none {{ (request()->routeIs('guardians.*') || request()->routeIs('profile.*') || request()->routeIs('centers.*') || request()->routeIs('subscription-prices.*') || request()->routeIs('admin.roles.*')) ? 'bg-[#0d7a48]' : '' }}">
+                        class="w-full flex items-center justify-between px-4 py-2 rounded-lg hover:bg-[#0d7a48] transition-colors focus:outline-none {{ (request()->routeIs('guardians.*') || request()->routeIs('profile.*') || request()->routeIs('centers.*') || request()->routeIs('branches.*') || request()->routeIs('subscription-prices.*') || request()->routeIs('admin.roles.*')) ? 'bg-[#0d7a48]' : '' }}">
                         <span>الإعدادات</span>
                         <svg class="w-4 h-4 transition-transform duration-200" :class="open ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
@@ -325,6 +325,10 @@
                         <a href="{{ route('centers.index') }}"
                             class="block px-4 py-2 rounded-lg text-[13px] {{ request()->routeIs('centers.*') ? 'bg-[#0d7a48] font-bold' : 'hover:bg-[#0d7a48]' }}">
                             الفروع
+                        </a>
+                        <a href="{{ route('branches.index') }}"
+                            class="block px-4 py-2 rounded-lg text-[13px] {{ request()->routeIs('branches.*') ? 'bg-[#0d7a48] font-bold' : 'hover:bg-[#0d7a48]' }}">
+                            المقرات
                         </a>
                         @endrole
                         @can('view subscription prices')

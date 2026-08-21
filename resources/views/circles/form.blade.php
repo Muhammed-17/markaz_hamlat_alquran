@@ -1,6 +1,21 @@
 @php
 $isEdit = isset($circle) && $circle->exists;
 $canManageAll = auth()->user()->hasRole(['admin', 'general_manager']);
+
+// خيارات الفروع لمكون البحث
+$branchOptions = collect($branches ?? [])->map(fn($b) => [
+    'value' => $b->id,
+    'label' => $b->center ? "{$b->name} ({$b->center->name})" : $b->name,
+])->values();
+
+// خيارات المعلمين (نفس القائمة تُستخدم للمعلم الأساسي والمساعد)
+$teacherOptions = collect($teachers ?? [])->map(fn($t) => [
+'value' => $t->id,
+'label' => $t->center ? "{$t->name} ({$t->center->name})" : $t->name,
+])->values();
+
+$selectedTeacherId = old('teacher_id', $circle->mainTeachers->first()?->id ?? '');
+$selectedAssistantId = old('assistant_teacher_id', $circle->assistantTeachers->first()?->id ?? '');
 @endphp
 
 <div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-8 space-y-6">
@@ -28,18 +43,22 @@ $canManageAll = auth()->user()->hasRole(['admin', 'general_manager']);
         </div>
 
         <div class="space-y-2">
-            <label for="center_id" class="block text-sm font-bold text-gray-700">الفرع <span class="text-red-500">*</span></label>
-            <select id="center_id" name="center_id" autocomplete="off"
-                class="w-full px-4 py-3 bg-gray-50 border border-gray-200 focus:bg-white focus:ring-2 focus:ring-emerald-100 focus:border-[#0a5c36] rounded-2xl outline-none transition-all appearance-none">
-                <option value="">-- اختر الفرع --</option>
-                @foreach($centers ?? [] as $center)
-                <option value="{{ $center->id }}"
-                    {{ old('center_id', $circle->center_id ?? '') == $center->id ? 'selected' : '' }}>
-                    {{ $center->name }}
-                </option>
-                @endforeach
-            </select>
-            @error('center_id') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
+            <label class="block text-sm font-bold text-gray-700">الفرع <span class="text-red-500">*</span></label>
+            <x-searchable-select
+                name="branch_id"
+                :options="$branchOptions"
+                :default-value="old('branch_id', $circle->branch_id ?? '')"
+                placeholder="-- اختر الفرع --"
+                search-placeholder="ابحث عن فرع..." />
+            @error('branch_id') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
+        </div>
+
+        <div class="space-y-2">
+            <label for="circle_url" class="block text-sm font-bold text-gray-700">رابط الحلقة</label>
+            <input id="circle_url" type="url" name="url" autocomplete="off" value="{{ old('url', $circle->url ?? '') }}"
+                class="w-full px-4 py-3 bg-gray-50 border border-gray-200 focus:bg-white focus:ring-2 focus:ring-emerald-100 focus:border-[#0a5c36] rounded-2xl outline-none transition-all"
+                placeholder="https://meet.google.com/xxx-xxxx-xxx" dir="ltr">
+            @error('url') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
         </div>
 
         <div class="space-y-2">
@@ -68,16 +87,17 @@ $canManageAll = auth()->user()->hasRole(['admin', 'general_manager']);
                 مدير فرع / مشرف / معلم — الفرع مقيد تلقائياً
             ════════════════════════════════════════════════ --}}
 
-        {{-- ✅ FIX: center_id دائماً موجود وصالح --}}
+        {{-- ✅ FIX: branch_id دائماً موجود وصالح --}}
         @php
-        $defaultCenterId = $circle->center_id ?? ($centers->first()?->id ?? '');
+        $defaultBranchId = $circle->branch_id ?? ($branches->first()?->id ?? '');
         @endphp
 
-        @if(!$defaultCenterId)
+        @if(!$defaultBranchId)
         <div class="md:col-span-2 bg-red-50 border border-red-200 p-4 rounded-2xl text-red-700 font-bold">
+            لا يوجد فرع مرتبط بحسابك.
         </div>
         @else
-        <input type="hidden" name="center_id" value="{{ $defaultCenterId }}">
+        <input type="hidden" name="branch_id" value="{{ $defaultBranchId }}">
         @endif
 
         @if($isEdit)
@@ -87,12 +107,20 @@ $canManageAll = auth()->user()->hasRole(['admin', 'general_manager']);
         <input type="hidden" name="level" value="{{ $circle->level }}">
 
         <div class="md:col-span-2 bg-emerald-50 p-4 rounded-2xl text-emerald-800 font-bold border border-emerald-100">
-            تعديل الحلقة: {{ $circle->name }} — الفرع: {{ $circle->center?->name ?? '—' }}
+            تعديل الحلقة: {{ $circle->name }} — الفرع: {{ $circle->branch?->name ?? '—' }}
+        </div>
+
+        <div class="space-y-2 md:col-span-2">
+            <label for="circle_url_edit" class="block text-sm font-bold text-gray-700">رابط الحلقة</label>
+            <input id="circle_url_edit" type="url" name="url" autocomplete="off" value="{{ old('url', $circle->url ?? '') }}"
+                class="w-full px-4 py-3 bg-gray-50 border border-gray-200 focus:bg-white focus:ring-2 focus:ring-emerald-100 focus:border-[#0a5c36] rounded-2xl outline-none transition-all"
+                placeholder="https://meet.google.com/xxx-xxxx-xxx" dir="ltr">
+            @error('url') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
         </div>
         @else
-        {{-- إنشاء: اسم/نوع/مستوى قابلة للتعبئة، الفرع تلقائي --}}
+        {{-- إنشاء: اسم/نوع/مستوى/رابط قابلة للتعبئة، الفرع تلقائي --}}
         <div class="md:col-span-2 bg-blue-50 border border-blue-100 rounded-2xl px-4 py-3 text-sm text-blue-700 font-medium">
-            الفرع: {{ $centers->first()?->name ?? '—' }}
+            الفرع: {{ $branches->first()?->name ?? '—' }}
         </div>
 
         <div class="space-y-2">
@@ -100,6 +128,14 @@ $canManageAll = auth()->user()->hasRole(['admin', 'general_manager']);
             <input id="circle_name_mgr" type="text" name="name" autocomplete="off" value="{{ old('name') }}"
                 class="w-full px-4 py-3 bg-gray-50 border border-gray-200 focus:bg-white focus:ring-2 focus:ring-emerald-100 focus:border-[#0a5c36] rounded-2xl outline-none transition-all">
             @error('name') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
+        </div>
+
+        <div class="space-y-2">
+            <label for="circle_url_mgr" class="block text-sm font-bold text-gray-700">رابط الحلقة</label>
+            <input id="circle_url_mgr" type="url" name="url" autocomplete="off" value="{{ old('url') }}"
+                class="w-full px-4 py-3 bg-gray-50 border border-gray-200 focus:bg-white focus:ring-2 focus:ring-emerald-100 focus:border-[#0a5c36] rounded-2xl outline-none transition-all"
+                placeholder="https://meet.google.com/xxx-xxxx-xxx" dir="ltr">
+            @error('url') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
         </div>
 
         <div class="space-y-2">
@@ -127,85 +163,26 @@ $canManageAll = auth()->user()->hasRole(['admin', 'general_manager']);
 
         {{-- المعلم الأساسي --}}
         <div class="space-y-2">
-            <label for="teacher_id" class="block text-sm font-bold text-gray-700">المعلم الأساسي</label>
-            <select id="teacher_id" name="teacher_id" autocomplete="off"
-                class="w-full px-4 py-3 bg-gray-50 border border-gray-200 focus:bg-white focus:ring-2 focus:ring-emerald-100 focus:border-[#0a5c36] rounded-2xl outline-none transition-all appearance-none">
-                <option value="">-- اختر المعلم --</option>
-                @foreach($teachers as $teacher)
-                @php
-                $selectedTeacherId = old('teacher_id', $circle->mainTeachers->first()?->id ?? '');
-                @endphp
-                <option value="{{ $teacher->id }}"
-                    {{ $selectedTeacherId == $teacher->id ? 'selected' : '' }}>
-                    {{ $teacher->name }} ({{ $teacher->center->name }})
-                </option>
-                @endforeach
-            </select>
+            <label class="block text-sm font-bold text-gray-700">المعلم الأساسي</label>
+            <x-searchable-select
+                name="teacher_id"
+                :options="$teacherOptions"
+                :default-value="$selectedTeacherId"
+                placeholder="-- اختر المعلم --"
+                search-placeholder="ابحث عن معلم..." />
             @error('teacher_id') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
         </div>
 
         {{-- المعلم المساعد --}}
         <div class="space-y-2">
-            <label for="assistant_teacher_id" class="block text-sm font-bold text-gray-700">المعلم المساعد</label>
-            <select id="assistant_teacher_id" name="assistant_teacher_id" autocomplete="off"
-                class="w-full px-4 py-3 bg-gray-50 border border-gray-200 focus:bg-white focus:ring-2 focus:ring-emerald-100 focus:border-[#0a5c36] rounded-2xl outline-none transition-all appearance-none">
-                <option value="">-- اختر المعلم المساعد --</option>
-                @foreach($teachers as $teacher)
-                @php
-                $selectedAssistantId = old('assistant_teacher_id', $circle->assistantTeachers->first()?->id ?? '');
-                @endphp
-                <option value="{{ $teacher->id }}"
-                    {{ $selectedAssistantId == $teacher->id ? 'selected' : '' }}>
-                    {{ $teacher->name }} ({{ $teacher->center->name }})
-                </option>
-                @endforeach
-            </select>
+            <label class="block text-sm font-bold text-gray-700">المعلم المساعد</label>
+            <x-searchable-select
+                name="assistant_teacher_id"
+                :options="$teacherOptions"
+                :default-value="$selectedAssistantId"
+                placeholder="-- اختر المعلم المساعد --"
+                search-placeholder="ابحث عن معلم..." />
             @error('assistant_teacher_id') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
-        </div>
-
-        {{-- ═══════════════════════════════════════════════
-             حقل المشرفين — admin: قائمة كاملة | مدير فرع: فرعه فقط
-        ════════════════════════════════════════════════ --}}
-        <div class="md:col-span-2 space-y-2">
-            <span class="block text-sm font-bold text-gray-700">المشرفون</span>
-
-            @if($lockedSupervisor ?? false)
-            {{-- مدير فرع / مشرف — اسمه فقط غير قابل للتغيير --}}
-            <div class="w-full px-4 py-3 bg-gray-100 border border-gray-200 rounded-2xl text-sm font-medium text-gray-700 flex items-center gap-2">
-                <span class="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span>
-                {{ $lockedSupervisor->user?->name ?? $lockedSupervisor->name }}
-            </div>
-            <input type="hidden" name="supervisor_ids[]" value="{{ $lockedSupervisor->id }}">
-            @else
-            {{-- admin أو مدير فرع يختار من فرعه --}}
-            @php
-            $selectedSupervisorIds = old('supervisor_ids', ($circle->supervisors ?? collect())->pluck('id')->all());
-            $selectedSupervisorIds = array_map('strval', $selectedSupervisorIds);
-            @endphp
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 bg-gray-50 border border-gray-200 rounded-2xl p-4">
-                @forelse($supervisors as $supervisor)
-                @php
-                $roleName = $supervisor->user?->roles?->first()?->name ?? '';
-                $roleLabel = match($roleName) {
-                'admin' => 'المسؤول',
-                'manager' => 'مدير فرع',
-                'supervisor' => 'مشرف',
-                default => 'مشرف',
-                };
-                @endphp
-                <label class="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-xl cursor-pointer hover:border-emerald-300 transition-all">
-                    <input type="checkbox" name="supervisor_ids[]" value="{{ $supervisor->id }}"
-                        class="w-4 h-4 text-[#0a5c36] border-gray-300 rounded focus:ring-emerald-200"
-                        {{ in_array((string) $supervisor->id, $selectedSupervisorIds, true) ? 'checked' : '' }}>
-                    <span class="text-sm text-gray-700">{{ $supervisor->user?->name ?? $supervisor->name }} ({{ $roleLabel }})</span>
-                </label>
-                @empty
-                <p class="text-sm text-gray-400 col-span-2">لا يوجد مشرفون متاحون.</p>
-                @endforelse
-            </div>
-            @endif
-            @error('supervisor_ids') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
-            @error('supervisor_ids.*') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
         </div>
 
     </div>

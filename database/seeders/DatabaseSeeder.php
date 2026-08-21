@@ -15,6 +15,7 @@ class DatabaseSeeder extends Seeder
             SubscriptionPriceSeeder::class,
             AdminUserSeeder::class,
             TeacherSeeder::class,
+            StudentSeeder::class,
             SubscriptionSeeder::class,
             LateStudentsSeeder::class,
             SurahSeeder::class,

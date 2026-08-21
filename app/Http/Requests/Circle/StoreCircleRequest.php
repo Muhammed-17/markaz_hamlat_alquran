@@ -22,28 +22,33 @@ class StoreCircleRequest extends FormRequest
         $access = app(UserAccessService::class);
         $accessibleCenterIds = $access->accessibleCenters($user)->pluck('id');
 
-        // ✅ FIX: للمشرف — أضف مراكز الحلقات التي يشرف عليها (عبر الفرع، بعد إن circles.center_id اتشال)
+        // ✅ الفروع المتاحة = فروع كل المراكز المتاحة للمستخدم
+        $accessibleBranchIds = \App\Models\Branch::whereIn('center_id', $accessibleCenterIds)->pluck('id');
+
+        // ✅ FIX: للمشرف — أضف فروع الحلقات اللي بيعمل عليها (main/assistant)
         if ($user->hasRole('supervisor') && !$user->hasRole(['manager', 'admin', 'general_manager'])) {
             $teacher = $access->teacher($user);
-            $supervisorCenterIds = \App\Models\Circle::whereHas('supervisors', fn($q) => $q->where('teachers.id', $teacher?->id))
-                ->with('branch')
-                ->get()
-                ->pluck('branch.center_id')
+            $supervisorBranchIds = \App\Models\Circle::where(function ($q) use ($teacher) {
+                $q->whereHas('mainTeachers', fn($qq) => $qq->where('teachers.id', $teacher?->id))
+                    ->orWhereHas('assistantTeachers', fn($qq) => $qq->where('teachers.id', $teacher?->id));
+            })
+                ->pluck('branch_id')
                 ->filter()
                 ->unique()
                 ->values();
-            $accessibleCenterIds = $accessibleCenterIds->merge($supervisorCenterIds);
+            $accessibleBranchIds = $accessibleBranchIds->merge($supervisorBranchIds);
         }
 
         return [
             'name' => 'required|string|max:255|unique:circles,name',
+            'url' => 'nullable|url|max:255',
             'type' => 'required|string',
             'level' => 'required|string',
 
-            'center_id' => [
+            'branch_id' => [
                 'required',
-                'exists:centers,id',
-                Rule::in($accessibleCenterIds),
+                'exists:branches,id',
+                Rule::in($accessibleBranchIds),
             ],
             'teacher_id' => [
                 'required',
@@ -54,44 +59,8 @@ class StoreCircleRequest extends FormRequest
                 'nullable',
                 'exists:teachers,id',
             ],
-
-            'supervisor_ids' => 'required|array|min:1',
-            'supervisor_ids.*' => [
-                'exists:teachers,id',
-            ],
         ];
     }
-
-    //         'teacher_id' => [
-    //             'required',
-    //             'exists:teachers,id',
-    //             $this->validateSameCenter('المعلم الرئيسي'),
-    //         ],
-
-    //         'assistant_teacher_id' => [
-    //             'nullable',
-    //             'exists:teachers,id',
-    //             $this->validateSameCenter('المعلم المساعد'),
-    //         ],
-
-    //         'supervisor_ids' => 'required|array|min:1',
-    //         'supervisor_ids.*' => [
-    //             'exists:teachers,id',
-    //             $this->validateSameCenter('المشرف'),
-    //         ],
-    //     ];
-    // }
-
-    // private function validateSameCenter(string $roleName)
-    // {
-    //     return function ($attribute, $value, $fail) use ($roleName) {
-    //         if (!$value) return;
-    //         $teacher = \App\Models\Teacher::find($value);
-    //         if ($teacher && $teacher->center_id != $this->center_id) {
-    //             $fail("{$roleName} يجب أن يكون في نفس الفرع.");
-    //         }
-    //     };
-    // }
 
     public function messages(): array
     {
@@ -100,20 +69,18 @@ class StoreCircleRequest extends FormRequest
             'name.string' => 'حقل الاسم يجب أن يكون نصًا.',
             'name.max' => 'حقل الاسم لا يجب أن يتجاوز 255 حرفًا.',
             'name.unique' => 'اسم الحلقة مستخدم بالفعل، يرجى اختيار اسم آخر.',
+            'url.url' => 'رابط الحلقة يجب أن يكون رابطاً صحيحاً.',
+            'url.max' => 'رابط الحلقة لا يجب أن يتجاوز 255 حرفًا.',
             'type.required' => 'حقل النوع مطلوب.',
             'type.string' => 'حقل النوع يجب أن يكون نصًا.',
             'level.required' => 'حقل المستوى مطلوب.',
             'level.string' => 'حقل المستوى يجب أن يكون نصًا.',
-            'center_id.required' => 'حقل الفرع مطلوب.',
-            'center_id.exists' => 'الفرع المحدد غير موجود.',
-            'center_id.in' => 'الفرع المحدد غير متاح لك.',
+            'branch_id.required' => 'حقل الفرع مطلوب.',
+            'branch_id.exists' => 'الفرع المحدد غير موجود.',
+            'branch_id.in' => 'الفرع المحدد غير متاح لك.',
             'teacher_id.required' => 'حقل المعلم الرئيسي مطلوب.',
             'teacher_id.exists' => 'المعلم الرئيسي المحدد غير موجود.',
             'assistant_teacher_id.exists' => 'المعلم المساعد المحدد غير موجود.',
-            'supervisor_ids.required' => 'يجب اختيار مشرف واحد على الأقل.',
-            'supervisor_ids.array' => 'حقل المشرفين يجب أن يكون قائمة.',
-            'supervisor_ids.min' => 'يجب اختيار مشرف واحد على الأقل.',
-            'supervisor_ids.*.exists' => 'أحد المشرفين المحددين غير موجود.',
         ];
     }
 
@@ -123,17 +90,19 @@ class StoreCircleRequest extends FormRequest
         $access  = app(UserAccessService::class);
         $teacher = $access->teacher($user);
 
-        if (!$this->input('center_id')) {
-            $centerId = $teacher?->center_id;
+        if (!$this->input('branch_id')) {
+            $branchId = $teacher?->branch_id;
 
-            if (!$centerId && $user->hasRole('supervisor')) {
-                $firstCircle = Circle::whereHas('supervisors', fn($q) => $q->where('teachers.id', $teacher?->id))
-                    ->first();
-                $centerId = $firstCircle?->center_id; // عبر accessor في Circle model — آمن (property access مش query)
+            if (!$branchId && $user->hasRole('supervisor')) {
+                $firstCircle = Circle::where(function ($q) use ($teacher) {
+                    $q->whereHas('mainTeachers', fn($qq) => $qq->where('teachers.id', $teacher?->id))
+                        ->orWhereHas('assistantTeachers', fn($qq) => $qq->where('teachers.id', $teacher?->id));
+                })->first();
+                $branchId = $firstCircle?->branch_id;
             }
 
-            if ($centerId) {
-                $this->merge(['center_id' => $centerId]);
+            if ($branchId) {
+                $this->merge(['branch_id' => $branchId]);
             }
         }
 

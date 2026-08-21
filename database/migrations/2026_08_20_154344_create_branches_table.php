@@ -20,6 +20,9 @@ return new class extends Migration
 
             $table->string('name');
 
+            $table->string('address')->nullable();
+            $table->date('established_at')->nullable();
+
             $table->timestamps();
 
             $table->unique(['center_id', 'name']);

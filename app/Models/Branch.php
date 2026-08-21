@@ -2,57 +2,38 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 
-/**
- * @property int $id
- * @property int $center_id
- * @property string $name
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
- * @mixin \Eloquent
- */
 class Branch extends Model
 {
+    use HasFactory;
+
     protected $fillable = [
         'center_id',
         'name',
+        'address',
+        'established_at',
+    ];
+
+    protected $casts = [
+        'established_at' => 'date',
     ];
 
     /**
-     * المركز التابع له الفرع.
+     * الفرع ينتمي لمركز واحد
      */
-    public function center(): BelongsTo
+    public function center()
     {
         return $this->belongsTo(Center::class);
     }
 
     /**
-     * الحلقات التابعة للفرع.
+     * المعلمون المشرفون على هذا الفرع
      */
-    public function circles(): HasMany
+    public function supervisors()
     {
-        return $this->hasMany(Circle::class);
-    }
-
-    /**
-     * المعلمون التابعون للفرع مباشرة (branch_id على teachers).
-     */
-    public function teachers(): HasMany
-    {
-        return $this->hasMany(Teacher::class);
-    }
-
-    /**
-     * مشرفو الفرع (many-to-many عبر branch_teacher).
-     * فرع واحد ممكن يكون له أكتر من مشرف.
-     */
-    public function supervisors(): BelongsToMany
-    {
-        return $this->belongsToMany(Teacher::class, 'branch_teacher')
+        return $this->belongsToMany(Teacher::class, 'branch_teacher', 'branch_id', 'teacher_id')
             ->withTimestamps();
     }
 }

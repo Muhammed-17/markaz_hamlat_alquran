@@ -49,6 +49,7 @@ class UserAccessService
         return $this->rememberCircleIds(
             "teacher_{$teacher->id}",
             fn() => $teacher->circles()
+                ->withoutGlobalScope(CenterScope::class)   // ← أضف
                 ->wherePivotIn('role', ['main', 'assistant'])
                 ->pluck('circles.id')
         );
@@ -64,6 +65,7 @@ class UserAccessService
         return $this->rememberCircleIds(
             "teacher_center_{$teacher->id}",
             fn() => $teacher->circles()
+                ->withoutGlobalScope(CenterScope::class)   // ← أضف
                 ->wherePivotIn('role', ['main', 'assistant'])
                 ->whereHas('branch', fn($q) => $q->where('center_id', $teacher->center_id))
                 ->pluck('circles.id')
@@ -82,10 +84,9 @@ class UserAccessService
 
         return $this->rememberCircleIds(
             "supervisor_{$teacher->id}",
-            fn() => Circle::whereHas(
-                'branch.supervisors',
-                fn($q) => $q->where('teachers.id', $teacher->id)
-            )->pluck('id')
+            fn() => Circle::withoutGlobalScope(CenterScope::class)   // ← أضف السطر ده
+                ->whereHas('branch.supervisors', fn($q) => $q->where('teachers.id', $teacher->id))
+                ->pluck('id')
         );
     }
 
@@ -98,7 +99,8 @@ class UserAccessService
 
         return $this->rememberCircleIds(
             "manager_{$teacher->center_id}",
-            fn() => Circle::whereHas('branch', fn($q) => $q->where('center_id', $teacher->center_id))
+            fn() => Circle::withoutGlobalScope(CenterScope::class)   // ← أضف السطر ده
+                ->whereHas('branch', fn($q) => $q->where('center_id', $teacher->center_id))
                 ->pluck('id')
         );
     }
@@ -117,6 +119,7 @@ class UserAccessService
         return $this->rememberCircleIds(
             "circle_types_{$teacher->id}",
             fn() => $teacher->circles()
+                ->withoutGlobalScope(CenterScope::class)   // ← أضف
                 ->wherePivotIn('role', ['main', 'assistant', 'supervisor'])
                 ->distinct()
                 ->pluck('circles.type')
@@ -126,11 +129,11 @@ class UserAccessService
     public function accessibleCircles(User $user): Builder
     {
         if ($user->hasRole(['admin', 'general_manager'])) {
-            return Circle::orderBy('name');
+            return Circle::withoutGlobalScope(CenterScope::class)->orderBy('name');   // ← أضف
         }
 
         if ($user->hasRole('guardian')) {
-            return Circle::whereIn(
+            return Circle::withoutGlobalScope(CenterScope::class)->whereIn(          // ← أضف
                 'id',
                 Student::where('guardian_id', $user->id)
                     ->whereNotNull('circle_id')
@@ -141,11 +144,12 @@ class UserAccessService
 
         $teacher = $this->teacher($user);
         if (!$teacher || !$teacher->center_id) {
-            return Circle::whereRaw('1=0');
+            return Circle::withoutGlobalScope(CenterScope::class)->whereRaw('1=0');   // ← أضف
         }
 
         if ($user->hasRole('manager')) {
-            return Circle::whereHas('branch', fn($q) => $q->where('center_id', $teacher->center_id))
+            return Circle::withoutGlobalScope(CenterScope::class)                     // ← أضف
+                ->whereHas('branch', fn($q) => $q->where('center_id', $teacher->center_id))
                 ->orderBy('name');
         }
 
@@ -153,15 +157,15 @@ class UserAccessService
             $circleIds = $this->supervisorCircleIds($user);
 
             return $circleIds->isEmpty()
-                ? Circle::whereRaw('1=0')
-                : Circle::whereIn('id', $circleIds)->orderBy('name');
+                ? Circle::withoutGlobalScope(CenterScope::class)->whereRaw('1=0')     // ← أضف
+                : Circle::withoutGlobalScope(CenterScope::class)->whereIn('id', $circleIds)->orderBy('name');  // ← أضف
         }
 
         $circleIds = $this->teacherCircleIds($user);
 
         return $circleIds->isEmpty()
-            ? Circle::whereRaw('1=0')
-            : Circle::whereIn('id', $circleIds)->orderBy('name');
+            ? Circle::withoutGlobalScope(CenterScope::class)->whereRaw('1=0')          // ← أضف
+            : Circle::withoutGlobalScope(CenterScope::class)->whereIn('id', $circleIds)->orderBy('name');  // ← أضف
     }
 
     public function accessibleCenters(User $user): Builder
@@ -202,7 +206,9 @@ class UserAccessService
 
             return $circleIds->isEmpty()
                 ? $query->whereRaw('1=0')
-                : $query->whereHas('circles', fn($cq) => $cq->whereIn('circles.id', $circleIds));
+                : $query->whereHas('circles', fn($cq) => $cq
+                    ->withoutGlobalScope(CenterScope::class)   // ← أضف
+                    ->whereIn('circles.id', $circleIds));
         }
 
         $teacher = $this->teacher($user);
@@ -230,7 +236,10 @@ class UserAccessService
     {
         $query->where(function ($q) use ($record) {
             $q->where('center_id', $record->center_id)
-                ->orWhereHas('circles', fn($cq) => $cq->where('circles.center_id', $record->center_id));
+                ->orWhereHas('circles', function ($cq) use ($record) {   // ← عدّل من 'circles.branch' لصيغة متداخلة صريحة
+                    $cq->withoutGlobalScope(CenterScope::class)
+                        ->whereHas('branch', fn($bq) => $bq->where('center_id', $record->center_id));
+                });
         });
     }
 
@@ -311,8 +320,9 @@ class UserAccessService
 
             // teachers: تصل هنا فقط عبر فرع "orWhere" الخاص بـ supervisorCircleIds في CenterScope
             // (الفرع الأساسي لـ teachers متعامل معه بشرط خاص في applyManagerScope/applyTeacherScope/applySupervisorTeachersScope)
-            'teachers' => $builder->whereHas('circles', fn($cq) => $cq->whereIn('circles.id', $circleIds)),
-
+            'teachers' => $builder->whereHas('circles', fn($cq) => $cq
+                ->withoutGlobalScope(CenterScope::class)
+                ->whereIn('circles.id', $circleIds)),
             default => throw new \InvalidArgumentException(
                 "applyScopeByCircleIds: جدول غير معروف/غير معالج: [{$table}] — أضف case له في UserAccessService."
             ),

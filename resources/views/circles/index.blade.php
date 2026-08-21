@@ -14,7 +14,7 @@ $sortIcon = fn($field) => request('sort') === $field
         <div class="text-right w-full md:w-auto z-10">
             <h1 class="text-3xl font-black mb-2">إدارة الحلقات</h1>
             <p class="text-emerald-100/80 text-sm font-medium">
-                @if(request()->anyFilled(['q', 'center_id', 'type', 'level']))
+                @if(request()->anyFilled(['q', 'branch_id', 'type', 'level']))
                 {{ $circles->total() }} نتيجة
                 @else
                 {{ $circles->total() }} حلقة مسجلة في النظام
@@ -50,13 +50,13 @@ $sortIcon = fn($field) => request('sort') === $field
 
             {{-- فلتر الفرع --}}
             <div class="w-full lg:w-48">
-                <label for="filter_center_id" class="block text-xs font-bold text-gray-400 mb-1.5">الفرع</label>
+                <label for="filter_branch_id" class="block text-xs font-bold text-gray-400 mb-1.5">الفرع</label>
                 <x-searchable-select
-                    name="center_id"
+                    name="branch_id"
                     placeholder="كل الفروع"
                     search-placeholder="بحث باسم الفرع..."
-                    :default-value="request('center_id', '')"
-                    :options="json_encode($centers->map(fn($c) => ['value' => (string)$c->id, 'label' => $c->name])->toArray())" />
+                    :default-value="request('branch_id', '')"
+                    :options="json_encode($branches->map(fn($b) => ['value' => (string)$b->id, 'label' => $b->name])->toArray())" />
             </div>
 
             {{-- فلتر النوع --}}
@@ -89,7 +89,7 @@ $sortIcon = fn($field) => request('sort') === $field
             </button>
 
             {{-- زر مسح الفلاتر --}}
-            @if(request()->anyFilled(['q', 'center_id', 'type', 'level']))
+            @if(request()->anyFilled(['q', 'branch_id', 'type', 'level']))
             <a href="{{ route('circles.index') }}"
                 class="w-full lg:w-auto px-5 py-2.5 bg-gray-50 hover:bg-gray-100 text-gray-500 hover:text-gray-700 font-bold border border-gray-200 rounded-xl text-sm transition-all text-center">
                 مسح الفلاتر
@@ -130,7 +130,6 @@ $sortIcon = fn($field) => request('sort') === $field
                         </th>
                         <th class="px-6 py-4 text-sm font-bold text-gray-600">المعلم</th>
                         <th class="px-6 py-4 text-sm font-bold text-gray-600">المعلم المساعد</th>
-                        <th class="px-6 py-4 text-sm font-bold text-gray-600">المشرف</th>
                         <th class="px-6 py-4 text-sm font-bold text-gray-600 text-left">الإجراءات</th>
                     </tr>
                 </thead>
@@ -175,7 +174,7 @@ $sortIcon = fn($field) => request('sort') === $field
                         </td>
 
                         <td class="px-6 py-4 text-gray-600">
-                            {{ $circle->center?->name ?? '—' }}
+                            {{ $circle->branch?->name ?? '—' }}
                         </td>
 
                         <td class="px-6 py-4 text-gray-600 text-center">
@@ -188,10 +187,6 @@ $sortIcon = fn($field) => request('sort') === $field
 
                         <td class="px-6 py-4 text-gray-600">
                             {{ $circle->assistantTeachers->first()?->name ?? '—' }}
-                        </td>
-
-                        <td class="px-6 py-4 text-gray-600">
-                            {{ $circle->supervisors->pluck('name')->join('، ') ?: '—' }}
                         </td>
 
                         <td class="px-6 py-4 text-left">
@@ -240,7 +235,7 @@ $sortIcon = fn($field) => request('sort') === $field
                     @empty
                     <tr>
                         <td colspan="9" class="px-6 py-12 text-center text-gray-500">
-                            @if(request()->anyFilled(['q', 'center_id', 'type', 'level']))
+                            @if(request()->anyFilled(['q', 'branch_id', 'type', 'level']))
                             لا توجد حلقات تطابق الفلاتر المحددة.
                             @else
                             لا توجد حلقات مسجلة حالياً.

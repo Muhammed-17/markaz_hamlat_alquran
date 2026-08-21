@@ -23,20 +23,18 @@ class UpdateCircleRequest extends FormRequest
         $circle   = Circle::find($circleId);
         $access   = app(UserAccessService::class);
 
-        // ✅ تحديد المركز حسب الدور
-        $centerId = $this->user()->hasRole(['admin', 'general_manager'])
-            ? ($this->center_id ?? $circle?->center_id)
-            : ($circle?->center_id ?? $this->center_id);
-
         $accessibleCenterIds = $access->accessibleCenters($this->user())->pluck('id');
+        $accessibleBranchIds = \App\Models\Branch::whereIn('center_id', $accessibleCenterIds)->pluck('id');
+
         return [
             'name' => ['sometimes', 'required', 'string', 'max:255', 'unique:circles,name,' . $circleId],
+            'url' => ['nullable', 'url', 'max:255'],
             'type' => 'sometimes|required|string',
             'level' => 'sometimes|required|string',
 
-            'center_id' => $this->user()->hasRole(['admin', 'general_manager'])
-                ? ['required', 'exists:centers,id', Rule::in($accessibleCenterIds)]
-                : ['sometimes', 'nullable', 'exists:centers,id', Rule::in($accessibleCenterIds)],
+            'branch_id' => $this->user()->hasRole(['admin', 'general_manager'])
+                ? ['required', 'exists:branches,id', Rule::in($accessibleBranchIds)]
+                : ['sometimes', 'nullable', 'exists:branches,id', Rule::in($accessibleBranchIds)],
 
             'teacher_id' => [
                 'required',
@@ -45,11 +43,6 @@ class UpdateCircleRequest extends FormRequest
 
             'assistant_teacher_id' => [
                 'nullable',
-                'exists:teachers,id',
-            ],
-
-            'supervisor_ids' => 'required|array|min:1',
-            'supervisor_ids.*' => [
                 'exists:teachers,id',
             ],
         ];
@@ -62,31 +55,29 @@ class UpdateCircleRequest extends FormRequest
             'name.string' => 'حقل الاسم يجب أن يكون نصًا.',
             'name.max' => 'حقل الاسم لا يجب أن يتجاوز 255 حرفًا.',
             'name.unique' => 'اسم الحلقة مستخدم بالفعل، يرجى اختيار اسم آخر.',
+            'url.url' => 'رابط الحلقة يجب أن يكون رابطاً صحيحاً.',
+            'url.max' => 'رابط الحلقة لا يجب أن يتجاوز 255 حرفًا.',
             'type.required' => 'حقل النوع مطلوب.',
             'type.string' => 'حقل النوع يجب أن يكون نصًا.',
             'level.required' => 'حقل المستوى مطلوب.',
             'level.string' => 'حقل المستوى يجب أن يكون نصًا.',
-            'center_id.required' => 'حقل الفرع مطلوب.',
-            'center_id.exists' => 'الفرع المحدد غير موجود.',
-            'center_id.in' => 'الفرع المحدد غير متاح لك.',
+            'branch_id.required' => 'حقل الفرع مطلوب.',
+            'branch_id.exists' => 'الفرع المحدد غير موجود.',
+            'branch_id.in' => 'الفرع المحدد غير متاح لك.',
             'teacher_id.required' => 'حقل المعلم الرئيسي مطلوب.',
             'teacher_id.exists' => 'المعلم الرئيسي المحدد غير موجود.',
             'assistant_teacher_id.exists' => 'المعلم المساعد المحدد غير موجود.',
-            'supervisor_ids.required' => 'يجب اختيار مشرف واحد على الأقل.',
-            'supervisor_ids.array' => 'حقل المشرفين يجب أن يكون قائمة.',
-            'supervisor_ids.min' => 'يجب اختيار مشرف واحد على الأقل.',
-            'supervisor_ids.*.exists' => 'أحد المشرفين المحددين غير موجود.',
         ];
     }
 
     protected function prepareForValidation(): void
     {
-        // فقط center_id يُقفل لغير admin/general_manager
+        // فقط branch_id يُقفل لغير admin/general_manager
         if (!$this->user()->hasRole(['admin', 'general_manager'])) {
             $circle = Circle::find($this->route('circle'));
             if ($circle) {
                 $this->merge([
-                    'center_id' => $circle->center_id,
+                    'branch_id' => $circle->branch_id,
                 ]);
             }
         }

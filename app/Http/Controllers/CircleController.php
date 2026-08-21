@@ -29,12 +29,12 @@ class CircleController extends Controller
             ->with([
                 'mainTeachers' => fn($q) => $q->withoutGlobalScope(CenterScope::class),
                 'assistantTeachers' => fn($q) => $q->withoutGlobalScope(CenterScope::class),
-                'supervisors.user',
                 'branch.center',
             ])
             ->withCount('students');
 
         $query->when($request->q, fn($q, $v) => $q->where('name', 'like', "%{$v}%"));
+        $query->when($request->branch_id, fn($q, $v) => $q->where('branch_id', $v));
         $query->when($request->center_id, fn($q, $v) => $q->whereHas('branch', fn($bq) => $bq->where('center_id', $v)));
         $query->when($request->type, fn($q, $v) => $q->where('type', $v));
         $query->when($request->level, fn($q, $v) => $q->where('level', $v));
@@ -50,9 +50,11 @@ class CircleController extends Controller
         }
 
         $circles = $query->paginate(20)->withQueryString();
-        $centers = $this->access->accessibleCenters($user)->get();
 
-        return view('circles.index', compact('circles', 'centers'));
+        $centerIds = $this->access->accessibleCenters($user)->pluck('id');
+        $branches  = Branch::with('center')->whereIn('center_id', $centerIds)->orderBy('name')->get();
+
+        return view('circles.index', compact('circles', 'branches'));
     }
 
     // ─────────────────────────────────────────
@@ -63,47 +65,23 @@ class CircleController extends Controller
         $user    = Auth::user();
         $teacher = $this->access->teacher($user);
 
-        $centers = $this->access->accessibleCenters($user)->get();
+        $branches = $this->accessibleBranchesFor($user, $teacher);
 
-        // ✅ FIX: للمشرف بدون center_id — استخدم فرع أول حلقة يشرف عليها
-        if ($centers->isEmpty() && $user->hasRole('supervisor')) {
-            $firstCircle = Circle::whereHas('supervisors', fn($q) => $q->where('teachers.id', $teacher?->id))
-                ->with('center')
-                ->first();
-
-            if ($firstCircle?->center) {
-                $centers = collect([$firstCircle->center]);
-            }
-        }
-
-        // ✅ إذا ما زال فارغاً — امنع الإنشاء
-        if ($centers->isEmpty()) {
+        // ✅ إذا ما فيش فرع متاح — امنع الإنشاء
+        if ($branches->isEmpty()) {
             return redirect()->route('circles.index')
                 ->with('error', 'لا يوجد فرع مرتبط بحسابك. لا يمكن إنشاء حلقة.');
         }
 
-        if ($user->can('view all supervisors')) {
-            $supervisors      = $this->access->accessibleSupervisors($user)->get();
-            $lockedSupervisor = null;
-        } else {
-            $supervisors      = $this->access->accessibleSupervisors($user)->get();
-            $lockedSupervisor = $teacher ? Teacher::with('user.roles')->find($teacher->id) : null;
-        }
-
-        // ✅ FIX: تهيئة العلاقات كـ Collection فارغة لتجنب null
+        // ✅ تهيئة العلاقات كـ Collection فارغة لتجنب null
         $circle = new Circle();
         $circle->setRelation('mainTeachers', collect());
         $circle->setRelation('assistantTeachers', collect());
-        $circle->setRelation('supervisors', collect());
 
         return view('circles.create', [
-            'circle'                => $circle,
-            'teachers'              => $this->access->accessibleTeachers($user)->get(),
-            'supervisors'           => $supervisors,
-            'lockedSupervisor'      => $lockedSupervisor,
-            'centers'               => $centers,
-            'canManageCenters'      => $user->can('manage centers'),
-            'selectedSupervisorIds' => [],
+            'circle'   => $circle,
+            'teachers' => $this->access->accessibleTeachers($user)->get(),
+            'branches' => $branches,
         ]);
     }
 
@@ -115,34 +93,29 @@ class CircleController extends Controller
         $user    = Auth::user();
         $teacher = $this->access->teacher($user);
 
-        // ✅ FIX: دائماً استخدم center_id من Request إذا كان صالحاً
+        // ✅ الفرع يُختار مباشرة من الفورم (admin/general_manager)
+        // أو يُفرض تلقائياً (باقي الأدوار) عبر الحقل المخفي branch_id
         if ($user->hasRole(['admin', 'general_manager'])) {
-            $centerId = $request->center_id;
+            $branchId = $request->branch_id;
         } else {
-            // للمدير/المشرف: من Request (hidden input) أو من teacher
-            $centerId = $request->input('center_id') ?: $teacher?->center_id;
+            $branchId = $request->input('branch_id') ?: $teacher?->branch_id;
         }
 
         // ✅ تحقق من صلاحية الفرع
         if (!$user->hasRole(['admin', 'general_manager'])) {
-            $accessibleCenters = $this->access->accessibleCenters($user)->pluck('id');
-            if (!$centerId || !$accessibleCenters->contains($centerId)) {
+            $accessibleBranchIds = $this->accessibleBranchesFor($user, $teacher)->pluck('id');
+            if (!$branchId || !$accessibleBranchIds->contains($branchId)) {
                 abort(403, 'ليس لديك صلاحية إنشاء حلقة في هذا الفرع.');
             }
         }
 
-        // الفورم الحالي بيختار مركز بس (مفيهوش اختيار فرع) —
-        // نستخدم "الفرع الرئيسي" الافتراضي لهذا المركز (قرار متفق عليه مؤقتًا).
-        $branchId = Branch::where('center_id', $centerId)
-            ->where('name', 'الفرع الرئيسي')
-            ->value('id');
-
         if (!$branchId) {
-            abort(500, 'لا يوجد فرع افتراضي مرتبط بهذا المركز.');
+            abort(422, 'يجب اختيار الفرع.');
         }
 
         $circle = Circle::create([
             'name'      => $request->name,
+            'url'       => $request->url,
             'type'      => $request->type,
             'level'     => $request->level,
             'branch_id' => $branchId,
@@ -161,7 +134,6 @@ class CircleController extends Controller
         $circleQuery = Circle::with([
             'mainTeachers' => fn($q) => $q->withoutGlobalScope(CenterScope::class),
             'assistantTeachers' => fn($q) => $q->withoutGlobalScope(CenterScope::class),
-            'supervisors' => fn($q) => $q->withoutGlobalScope(CenterScope::class),
             'students',
             'studentConstructionDetails' => fn($q) => $q->withoutGlobalScope(CenterScope::class)
                 ->with('student')
@@ -177,7 +149,7 @@ class CircleController extends Controller
                             $sub->select('circle_id')
                                 ->from('circle_teacher')
                                 ->where('teacher_id', $teacher->id)
-                                ->whereIn('role', ['main', 'assistant', 'supervisor']);
+                                ->whereIn('role', ['main', 'assistant']);
                         });
                 });
             }
@@ -191,7 +163,6 @@ class CircleController extends Controller
     }
 
     // ─────────────────────────────────────────
-    // ✅ FIX: IDOR - نفس الإصلاح لـ edit()
     public function edit(string $id)
     {
         $user = Auth::user();
@@ -199,10 +170,9 @@ class CircleController extends Controller
         $circleQuery = Circle::with([
             'mainTeachers' => fn($q) => $q->withoutGlobalScope(CenterScope::class),
             'assistantTeachers' => fn($q) => $q->withoutGlobalScope(CenterScope::class),
-            'supervisors' => fn($q) => $q->withoutGlobalScope(CenterScope::class),
         ]);
 
-        // ✅ تطبيق نفس فلترة الأمان
+        // ✅ نفس فلترة الأمان
         if (!$user->hasRole(['admin', 'general_manager'])) {
             $teacher = $this->access->teacher($user);
             if ($teacher) {
@@ -212,7 +182,7 @@ class CircleController extends Controller
                             $sub->select('circle_id')
                                 ->from('circle_teacher')
                                 ->where('teacher_id', $teacher->id)
-                                ->whereIn('role', ['main', 'assistant', 'supervisor']);
+                                ->whereIn('role', ['main', 'assistant']);
                         });
                 });
             }
@@ -223,33 +193,14 @@ class CircleController extends Controller
 
         $teacher = $this->access->teacher($user);
 
-        if ($user->can('view all supervisors')) {
-            $supervisors      = $this->access->accessibleSupervisors($user)->get();
-            $lockedSupervisor = null;
-        } else {
-            $supervisors      = $this->access->accessibleSupervisors($user)->get();
-            $lockedSupervisor = $teacher ? Teacher::with('user.roles')->find($teacher->id) : null;
-        }
-
-        $selectedSupervisorIds = $circle->supervisors
-            ->pluck('id')
-            ->map(fn($id) => (string) $id)
-            ->all();
-
         return view('circles.edit', [
-            'circle'                => $circle,
-            'teachers'              => $this->access->accessibleTeachers($user)->get(),
-            'supervisors'           => $supervisors,
-            'lockedSupervisor'      => $lockedSupervisor,
-            'centers'               => $this->access->accessibleCenters($user)->get(),
-            'canManageCenters'      => $user->can('manage centers'),
-            'selectedSupervisorIds' => $selectedSupervisorIds,
+            'circle'   => $circle,
+            'teachers' => $this->access->accessibleTeachers($user)->get(),
+            'branches' => $this->accessibleBranchesFor($user, $teacher),
         ]);
     }
 
     // ─────────────────────────────────────────
-    // ✅ FIX: IDOR - نفس الإصلاح لـ update()
-
     public function update(UpdateCircleRequest $request, string $id)
     {
         $user = Auth::user();
@@ -264,7 +215,7 @@ class CircleController extends Controller
                             $sub->select('circle_id')
                                 ->from('circle_teacher')
                                 ->where('teacher_id', $teacher->id)
-                                ->whereIn('role', ['main', 'assistant', 'supervisor']);
+                                ->whereIn('role', ['main', 'assistant']);
                         });
                 });
             }
@@ -273,23 +224,10 @@ class CircleController extends Controller
         $circle = $circleQuery->findOrFail($id);
         $this->authorize('update', $circle);
 
-        // ✅ FIX: المشرف/المدير لا يُغير الفرع
-        $centerId = $user->hasRole(['admin', 'general_manager']) && $request->has('center_id')
-            ? $request->center_id
-            : $circle->branch?->center_id;
-
-        $branchId = $circle->branch_id;
-
-        // لو الـ admin/general_manager غيّر المركز فعلاً عن المركز الحالي، انتقل لـ"الفرع الرئيسي" بتاع المركز الجديد
-        if ($centerId != $circle->branch?->center_id) {
-            $branchId = Branch::where('center_id', $centerId)
-                ->where('name', 'الفرع الرئيسي')
-                ->value('id');
-
-            if (!$branchId) {
-                abort(500, 'لا يوجد فرع افتراضي مرتبط بهذا المركز.');
-            }
-        }
+        // ✅ admin/general_manager يقدر يغيّر الفرع مباشرة، غيرهم الفرع ثابت
+        $branchId = $user->hasRole(['admin', 'general_manager']) && $request->filled('branch_id')
+            ? $request->branch_id
+            : $circle->branch_id;
 
         $updateData = [
             'branch_id' => $branchId,
@@ -297,6 +235,9 @@ class CircleController extends Controller
 
         if ($request->has('name')) {
             $updateData['name'] = $request->name;
+        }
+        if ($request->has('url')) {
+            $updateData['url'] = $request->url;
         }
         if ($request->has('type')) {
             $updateData['type'] = $request->type;
@@ -316,39 +257,27 @@ class CircleController extends Controller
     }
 
     // ─────────────────────────────────────────
-    // ✅ FIX: مقارنة بيانات الحلقة الأساسية + الطاقم الحالي مقابل المُرسَل
+    // ✅ مقارنة بيانات الحلقة الأساسية + الطاقم الحالي مقابل المُرسَل
     private function hasCircleChanges(Circle $circle, array $updateData, Request $request): bool
     {
-        // 1) مقارنة الأعمدة الأساسية (name / type / level / branch_id)
+        // 1) مقارنة الأعمدة الأساسية (name / url / type / level / branch_id)
         foreach ($updateData as $key => $value) {
             if ((string) $circle->{$key} !== (string) $value) {
                 return true;
             }
         }
 
-        // 2) مقارنة الطاقم الحالي (معلم رئيسي/مساعد/مشرفين) بالمُرسَل
+        // 2) مقارنة الطاقم الحالي (معلم رئيسي/مساعد) بالمُرسَل
         $current = DB::table('circle_teacher')
             ->where('circle_id', $circle->id)
             ->select('teacher_id', 'role')
             ->get();
 
-        $currentMain       = optional($current->firstWhere('role', 'main'))->teacher_id;
-        $currentAssistant  = optional($current->firstWhere('role', 'assistant'))->teacher_id;
-        $currentSupervisors = $current->where('role', 'supervisor')
-            ->pluck('teacher_id')
-            ->map(fn($id) => (string) $id)
-            ->sort()
-            ->values()
-            ->all();
+        $currentMain      = optional($current->firstWhere('role', 'main'))->teacher_id;
+        $currentAssistant = optional($current->firstWhere('role', 'assistant'))->teacher_id;
 
         $incomingMain      = $request->teacher_id ? (string) $request->teacher_id : null;
         $incomingAssistant = $request->assistant_teacher_id ? (string) $request->assistant_teacher_id : null;
-        $incomingSupervisors = array_unique(array_filter(
-            (array) ($request->supervisor_ids ?? []),
-            fn($id) => $id !== null && $id !== ''
-        ));
-        sort($incomingSupervisors);
-        $incomingSupervisors = array_values(array_map('strval', $incomingSupervisors));
 
         if ((string) $currentMain !== (string) $incomingMain) {
             return true;
@@ -356,22 +285,18 @@ class CircleController extends Controller
         if ((string) $currentAssistant !== (string) $incomingAssistant) {
             return true;
         }
-        if ($currentSupervisors !== $incomingSupervisors) {
-            return true;
-        }
 
         return false;
     }
 
     // ─────────────────────────────────────────
-    // ✅ FIX: IDOR - نفس الإصلاح لـ destroy()
     public function destroy(string $id)
     {
         $user = Auth::user();
 
         $circleQuery = Circle::query();
 
-        // ✅ تطبيق نفس فلترة الأمان
+        // ✅ نفس فلترة الأمان
         if (!$user->hasRole(['admin', 'general_manager'])) {
             $teacher = $this->access->teacher($user);
             if ($teacher) {
@@ -381,7 +306,7 @@ class CircleController extends Controller
                             $sub->select('circle_id')
                                 ->from('circle_teacher')
                                 ->where('teacher_id', $teacher->id)
-                                ->whereIn('role', ['main', 'assistant', 'supervisor']);
+                                ->whereIn('role', ['main', 'assistant']);
                         });
                 });
             }
@@ -415,18 +340,15 @@ class CircleController extends Controller
 
         // ✅ جلب المعلمين المتاحين حسب الدور
         if ($user->hasRole(['admin', 'general_manager'])) {
-            // Admin: كل المعلمين متاحين
             $accessibleTeacherIds = Teacher::pluck('id')->toArray();
         } else {
-            // مدير فرع: فقط معلمين نفس الفرع
             $accessibleTeacherIds = $this->access->accessibleTeachers($user)
                 ->where('center_id', $centerId)
                 ->pluck('id')
                 ->toArray();
         }
 
-        // ✅ FIX: اسمح بالمعلمين/المشرفين المعيّنين أصلاً على الحلقة يعدّوا من غير فحص صلاحية،
-        // عشان "حفظ التعديلات" بدون تغيير أي حقل ميرميش استثناء لو الفورم بيبعت نفس القيم القديمة
+        // ✅ اسمح بالمعلمين المعيّنين أصلاً على الحلقة يعدّوا من غير فحص صلاحية
         $currentlyAssignedTeacherIds = DB::table('circle_teacher')
             ->where('circle_id', $circle->id)
             ->pluck('teacher_id')
@@ -456,17 +378,6 @@ class CircleController extends Controller
             }
         }
 
-        // ✅ التحقق من المشرفين
-        foreach ((array) $request->supervisor_ids as $supervisorId) {
-            if (!$supervisorId) continue;
-            $teacher = Teacher::find($supervisorId);
-            if (!$teacher) {
-                throw new \Exception('المشرف غير موجود.');
-            }
-            if (!in_array($teacher->id, $accessibleTeacherIds)) {
-                throw new \Exception('ليس لديك صلاحية تعيين هذا المشرف.');
-            }
-        }
         // 1) المعلم الرئيسي/المساعد — حذف القديم ثم إدراج الجديد
         DB::table('circle_teacher')
             ->where('circle_id', $circle->id)
@@ -495,31 +406,33 @@ class CircleController extends Controller
         if ($rows) {
             DB::table('circle_teacher')->insert($rows);
         }
+    }
 
-        // 2) المشرفون (متعددون) — حذف القديم ثم إدراج الجديد
-        DB::table('circle_teacher')
-            ->where('circle_id', $circle->id)
-            ->where('role', 'supervisor')
-            ->delete();
+    // ─────────────────────────────────────────
+    // الفروع المتاحة للمستخدم: admin/general_manager كل الفروع ضمن مراكزه المتاحة،
+    // وباقي الأدوار: فرعه فقط (أو فرع أول حلقة يعمل بها لو مفيش فرع مربوط مباشرة)
+    private function accessibleBranchesFor($user, ?Teacher $teacher)
+    {
+        $centerIds = $this->access->accessibleCenters($user)->pluck('id');
+        $branches  = Branch::with('center')->whereIn('center_id', $centerIds)->orderBy('name')->get();
 
-        $supervisorIds = array_unique(array_filter(
-            (array) ($request->supervisor_ids ?? []),
-            fn($id) => $id !== null && $id !== ''
-        ));
-
-        $supervisorRows = [];
-        foreach ($supervisorIds as $supervisorId) {
-            $supervisorRows[] = [
-                'circle_id'  => $circle->id,
-                'teacher_id' => (int) $supervisorId,
-                'role'       => 'supervisor',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ];
+        if ($branches->isNotEmpty() || $user->hasRole(['admin', 'general_manager'])) {
+            return $branches;
         }
-        if ($supervisorRows) {
-            DB::table('circle_teacher')->insert($supervisorRows);
+
+        // ✅ FIX: مستخدم بدون center_id مباشر (مثلاً مشرف) — استخدم فرع أول حلقة يشرف/يعمل عليها
+        if ($teacher) {
+            $firstCircle = Circle::whereHas('mainTeachers', fn($q) => $q->where('teachers.id', $teacher->id))
+                ->orWhereHas('assistantTeachers', fn($q) => $q->where('teachers.id', $teacher->id))
+                ->with('branch.center')
+                ->first();
+
+            if ($firstCircle?->branch) {
+                return collect([$firstCircle->branch]);
+            }
         }
+
+        return collect();
     }
 
     // ─────────────────────────────────────────

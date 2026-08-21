@@ -364,7 +364,8 @@ class SubscriptionController extends Controller
             case 'center':
                 $recentSubscriptionsQuery
                     ->join('circles', 'circles.id', '=', 'subscriptions.circle_id')
-                    ->join('centers', 'centers.id', '=', 'circles.center_id')
+                    ->join('branches', 'branches.id', '=', 'circles.branch_id')
+                    ->join('centers', 'centers.id', '=', 'branches.center_id')
                     ->orderBy('centers.name', $direction)
                     ->select('subscriptions.*');
                 break;
@@ -582,7 +583,8 @@ class SubscriptionController extends Controller
                 ->select('students.*', 'student_unpaid_months.unpaid_months_count'),
             'center' => $query
                 ->join('circles', 'circles.id', '=', 'students.circle_id')
-                ->join('centers', 'centers.id', '=', 'circles.center_id')
+                ->join('branches', 'branches.id', '=', 'circles.branch_id')
+                ->join('centers', 'centers.id', '=', 'branches.center_id')
                 ->orderBy('centers.name', $direction)
                 ->select('students.*', 'student_unpaid_months.unpaid_months_count'),
             default  => $query->orderBy('student_unpaid_months.unpaid_months_count', $direction),
